@@ -1,6 +1,7 @@
 const express = require('express'); // for easier api building
 const cors = require('cors');
 require('dotenv').config();
+const db = require('./config/db'); // import db config
 
 // testing code
 
@@ -11,3 +12,8 @@ app.use(express.json());
 app.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
 });
+
+// Test query
+db.query('SELECT 1')
+  .then(() => console.log('✅ MySQL Connected!'))
+  .catch(err => console.error('❌ DB Error:', err));
