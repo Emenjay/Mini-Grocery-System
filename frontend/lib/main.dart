@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       // 'initialRoute' and 'home' shouldn't be used together if they conflict.
 
-      initialRoute: '/admin-dashboard', // for clean
+      initialRoute: '/', // for clean
       routes: {
         '/': (context) => const LoginPage(),
         '/admin-dashboard': (context) => const OwnerDashboard(),
