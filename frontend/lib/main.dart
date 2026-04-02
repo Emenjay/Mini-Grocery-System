@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'login.dart'; // links login file
+import 'login.dart'; 
+import 'cash_in.dart'; 
 
 void main() {
   runApp(const MyApp());
@@ -12,14 +13,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      // this shows login page first
-      home: const LoginPage(), 
-      
-      // must include these routes so _handleLogin logic works
+      // 'initialRoute' and 'home' shouldn't be used together if they conflict.
+
+      initialRoute: '/', // for clean
       routes: {
+        '/': (context) => const LoginPage(),
         '/admin-dashboard': (context) => const PlaceholderScreen("Admin Dashboard"),
-        '/cash-in': (context) => const PlaceholderScreen("Cashier Screen"),
-        '/inventory': (context) => const PlaceholderScreen("Inventory Screen"),
+        '/cash-in': (context) => const CashInScreen(), 
+        '/pos-screen': (context) => const PlaceholderScreen("POS Screen"),
+        '/inventory': (context) => const PlaceholderScreen("Inventory Dashboard"),
       },
     );
   }

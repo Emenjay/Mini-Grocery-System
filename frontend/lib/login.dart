@@ -1,27 +1,5 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const DingleApp());
-}
-
-class DingleApp extends StatelessWidget {
-  const DingleApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const LoginPage(),
-        '/admin-dashboard': (context) => const PlaceholderScreen("Admin Dashboard (Add Employees)"),
-        '/cash-in': (context) => const PlaceholderScreen("Cashier Cash-In Screen"),
-        '/inventory': (context) => const PlaceholderScreen("Inventory Dashboard"),
-      },
-    );
-  }
-}
-
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
