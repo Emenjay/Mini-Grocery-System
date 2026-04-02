@@ -4,6 +4,7 @@ require('dotenv').config();
 const db = require('./config/db'); // import db config
 
 const authRoutes = require('./routes/authRoutes'); // import auth route
+const shiftRoutes = require('./routes/shiftRoutes'); // import shift route
 
 // testing code
 
@@ -13,6 +14,9 @@ app.use(express.json());
 
 // login auth
 app.use('/api/auth', authRoutes);
+
+// shift route
+app.use('/api/shift', shiftRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
