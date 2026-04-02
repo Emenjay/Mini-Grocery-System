@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/theme/colors.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,16 +19,12 @@ class _LoginPageState extends State<LoginPage> {
 
     // mock api routing rule
     if (user == "admin" && pin == "1234") {
-      // route for admin/owner
       Navigator.pushReplacementNamed(context, '/admin-dashboard');
     } else if (user == "cashier1" && pin == "0000") {
-      // route for cashier
       Navigator.pushReplacementNamed(context, '/cash-in');
     } else if (user == "staff1" && pin == "8888") {
-      // route for inventory
       Navigator.pushReplacementNamed(context, '/inventory');
     } else {
-      // simple error feedback
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("invalid credentials")),
       );
@@ -39,18 +36,28 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // background color
-          Container(color: const Color(0xFF345E4D)),
+          // background color using your new team teal
+          Container(color: AppColors.primaryDarkTeal),
 
           // top logo section
           Positioned(
-            top: 60, left: 0, right: 0,
+            top: 130, left: 0, right: 0,
             child: Column(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 60,
                   backgroundColor: Colors.white,
-                  child: Icon(Icons.store, size: 50, color: Color(0xFF345E4D)), // placeholder logo
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0), // Gives the logo some breathing room
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      fit: BoxFit.contain,
+                      // If the image still won't show, this errorBuilder will tell us why
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.broken_image, color: Colors.red, size: 40);
+                      },
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 15),
                 const Text(
@@ -80,12 +87,12 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   const Center(
                     child: Text("Welcome!", 
-                      style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Color(0xFF345E4D))),
+                      style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
                   ),
                   const SizedBox(height: 30),
 
                   // user input
-                  const Text("Username:", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF345E4D))),
+                  const Text("Username:", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
                   TextField(
                     controller: _userController,
                     decoration: const InputDecoration(hintText: "Enter your username"),
@@ -93,11 +100,11 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 20),
 
                   // pin input
-                  const Text("Pincode:", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF345E4D))),
+                  const Text("Pincode:", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
                   TextField(
                     controller: _pinController,
                     obscureText: true,
-                    keyboardType: TextInputType.number, // numeric pad for pins
+                    keyboardType: TextInputType.number, 
                     decoration: const InputDecoration(hintText: "Enter your pincode"),
                   ),
                   const Spacer(),
@@ -109,7 +116,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: ElevatedButton(
                       onPressed: _handleLogin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF345E4D),
+                        backgroundColor: AppColors.mutedGreen,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
                       child: const Text("Log in", style: TextStyle(color: Colors.white, fontSize: 18)),
@@ -133,7 +140,11 @@ class PlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title), backgroundColor: const Color(0xFF345E4D), foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: Text(title), 
+        backgroundColor: AppColors.primaryDarkTeal, 
+        foregroundColor: Colors.white,
+      ),
       body: Center(child: Text("Welcome to $title")),
     );
   }

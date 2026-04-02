@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/theme/colors.dart';
 
 class CashInScreen extends StatefulWidget {
   const CashInScreen({super.key});
@@ -16,7 +17,7 @@ class _CashInScreenState extends State<CashInScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Shift started successfully!"),
-          backgroundColor: Color(0xFF345E4D),
+          backgroundColor: AppColors.mutedGreen,
         ),
       );
 
@@ -34,7 +35,7 @@ class _CashInScreenState extends State<CashInScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Cashier Cash-In"),
-        backgroundColor: const Color(0xFF345E4D),
+        backgroundColor: AppColors.primaryLightTeal,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
