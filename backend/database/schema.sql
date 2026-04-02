@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS attendance_shifts (
     ShiftID INT AUTO_INCREMENT PRIMARY KEY,
     UserID INT NOT NULL,
     Time_In DATETIME NOT NULL,
-    StartingCash DECIMAL(10,2) NOT NULL,
+    StartingCash DECIMAL(10,2),
     Time_Out DATETIME,
     EndingCash DECIMAL(10,2),
     TotalSales DECIMAL(10,2),
