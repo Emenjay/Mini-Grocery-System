@@ -11,7 +11,25 @@ const Product = {
                 WHERE p.IsDeleted = FALSE`
         );
         return rows;
-    }
+    },
+
+    // get total count of products
+    getProductCount: async () => {
+    const [rows] = await db.query(
+      'SELECT COUNT(*) AS count FROM products'
+    );
+    return rows[0].count;
+  },
+
+  // add new product
+  addProduct: async (productNumber, name, categoryID, basePrice, markupPrice, stockQty, expiryDate) => {
+    const [result] = await db.query(
+      `INSERT INTO products (ProductNumber, Name, CategoryID, BasePrice, MarkupPrice, StockQty, ExpiryDate)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [productNumber, name, categoryID, basePrice, markupPrice, stockQty, expiryDate || null]
+    );
+    return result.insertId;
+  }
 };
 
 module.exports = Product;
