@@ -10,4 +10,6 @@ class AppColors {
   static const surfaceMint = Color(0xFF84A98C);
   static const surfaceLightGray = Color(0xFFCAD2C5);
   static const surfaceOffWhite = Color(0xFFFEFCF0);
+  static const white = Color(0xFFFFFFFF);
+  static const backgroundGray = Color(0xFFEAEAEA);
 }
