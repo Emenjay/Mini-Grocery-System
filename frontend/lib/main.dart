@@ -15,13 +15,13 @@ class MyApp extends StatelessWidget{
   @override
   Widget build(BuildContext context){
     return MaterialApp(
-
       title: 'Mini-Grocery-System',
       debugShowCheckedModeBanner: false,
+      // 'initialRoute' and 'home' shouldn't be used together if they conflict.
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryDarkTeal),
       ),
-
+      
       initialRoute: '/', // for clean
       routes: {
         '/': (context) => const LoginPage(),
