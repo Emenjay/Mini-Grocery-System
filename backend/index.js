@@ -3,8 +3,10 @@ const cors = require('cors');
 require('dotenv').config();
 const db = require('./config/db'); // import db config
 
+// import routes
 const authRoutes = require('./routes/authRoutes'); // import auth route
 const shiftRoutes = require('./routes/shiftRoutes'); // import shift route
+const productRoutes = require('./routes/productRoutes');
 
 // testing code
 
@@ -17,6 +19,9 @@ app.use('/api/auth', authRoutes);
 
 // shift route
 app.use('/api/shift', shiftRoutes);
+
+// product route
+app.use('/api/inventory', productRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
