@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../theme/colors.dart';
+import '../theme/colors.dart';
+import 'inventory_screen.dart'; 
 
 class PosScreen extends StatefulWidget{
   const PosScreen({super.key});
@@ -259,7 +260,12 @@ class _PosScreenState extends State<PosScreen>{
                     label: const Text('Add Product', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
 
                     // TODO: navigate to Inventory list screen
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const InventoryScreen()),
+                      );
+                    },
                   ),
                 ),
 
