@@ -61,6 +61,10 @@ CREATE TABLE IF NOT EXISTS products (
   ExpiryDate DATE,
   IsDeleted BOOLEAN DEFAULT FALSE,
   DeleteReason VARCHAR(255),
+  ProductType ENUM('Solid', 'Liquid') NOT NULL,
+  Measurement VARCHAR(50),
+  DateReceived DATE NOT NULL,
+  Description VARCHAR(255);
 
   FOREIGN KEY (CategoryID) REFERENCES categories(CategoryID)
 );

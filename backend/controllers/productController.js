@@ -16,24 +16,25 @@ exports.getAllProducts = async (req, res) => {
 
 exports.addProduct = async (req, res) => {
   try {
-    const { userID, name, categoryID, basePrice, markupPrice, stockQty, expiryDate } = req.body;
+    const { userID, name, categoryID, basePrice, markupPrice, stockQty, expiryDate, productType, measurement, dateReceived, description } = req.body;
 
     // Validate required fields
-    if (!name || !categoryID || !basePrice || !markupPrice || stockQty === undefined) {
-      return res.status(400).json({ message: 'name, categoryID, basePrice, markupPrice, and stockQty are required' });
+    if (!name || !categoryID || !basePrice || !markupPrice || !stockQty  || !dateReceived || !productType === undefined) {
+      return res.status(400).json({ message: 'name, categoryID, basePrice, markupPrice, stockQty, date received, and productType are required' });
     }
 
-    // Generate product number e.g. PRD-0001
+    // Generate product number e.g. 2026M0001
+    const year = new Date().getFullYear();
     const count = await Product.getProductCount();
-    const productNumber = `PRD-${String(count + 1).padStart(4, '0')}`;
+    const productNumber = `${year}M${String(count + 1).padStart(4, '0')}`;
 
     // Add product
     const productID = await Product.addProduct(
-      productNumber, name, categoryID, basePrice, markupPrice, stockQty, expiryDate
+      productNumber, name, categoryID, basePrice, markupPrice, stockQty, expiryDate,  productType, measurement, dateReceived, description
     );
 
     // Log the action in inventory_logs
-    await InventoryLog.addLog(productID, userID, 'Add', stockQty, 'Initial stock upon new adding product');
+    await InventoryLog.addLog(productID, userID, 'Add', stockQty, 'Initial stock upon adding new product');
 
     res.status(201).json({
       message: 'Product added successfully',
@@ -45,7 +46,11 @@ exports.addProduct = async (req, res) => {
         basePrice,
         markupPrice,
         stockQty,
-        expiryDate: expiryDate || null
+        expiryDate: expiryDate || null,
+        productType, 
+        measurement, 
+        dateReceived, 
+        description
       }
     });
 
