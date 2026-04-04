@@ -4,7 +4,8 @@ const Shift = require('../models/shiftModel');
 // start user shift
 exports.startShift = async (req, res) => {
   try {
-    const { userID, startingCash } = req.body;
+    const userID = req.user.userID;
+    const { startingCash } = req.body;
 
     // require userID
     if (!userID) {

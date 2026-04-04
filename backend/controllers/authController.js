@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/userModel');
+const jwt = require('jsonwebtoken');
 
 // login authentication
 exports.login = async (req, res) => {
@@ -23,9 +24,17 @@ exports.login = async (req, res) => {
             return res.status(401).json({ message: 'Invalid username or PIN'});
         }
 
+        // generate token
+        const token = jwt.sign(
+            { userID: user.UserID, role: user.Role },
+            process.env.JWT_SECRET,
+            { expiresIn: '14h' }  // token expires after 14 hours 
+        );
+
         // if all previous condtions passed, login success
         res.status(200).json({
             message: 'Login successful',
+            token,
             user: {
                 id: user.UserID,
                 name: user.Name,
