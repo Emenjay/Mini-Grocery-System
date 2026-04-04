@@ -32,6 +32,40 @@ const Product = {
       [productNumber, name, categoryID, basePrice, markupPrice, stockQty, expiryDate, productType, measurement, dateReceived, description || null]
     );
     return result.insertId;
+  },
+
+  // edit product details
+  updateProduct: async (productID, fields) => {
+    const allowedFields = ['Name', 'CategoryID', 'Description', 'BasePrice', 'StockQty', 'ExpiryDate'];
+    
+    const keys = Object.keys(fields).filter(k => allowedFields.includes(k));
+    if (keys.length === 0) return 0;
+
+    const values = keys.map(k => fields[k]);
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
+
+    const [result] = await db.query(
+      `UPDATE products SET ${setClause} WHERE ProductID = ?`,
+      [...values, productID]
+    );
+    return result.affectedRows;
+  },
+
+  // soft delete product (not deleted from database)
+  softDeleteProduct: async (productID, deleteReason) => {
+    const [result] = await db.query(
+      `UPDATE products SET IsDeleted = TRUE, DeleteReason = ? WHERE ProductID = ?`,
+      [deleteReason, productID]
+    );
+    return result.affectedRows;
+  },
+
+  // find product using ID
+  findProductByID: async (productID) => {
+    const [rows] = await db.query(
+      'SELECT * FROM products WHERE ProductID = ?', [productID]
+    );
+    return rows[0];
   }
 };
 
