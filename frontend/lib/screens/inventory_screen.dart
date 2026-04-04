@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 
@@ -15,9 +17,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
   final List<String> categories = [
     'Recently Added',
     'Beverages',
-    'Snacks',
-    'Frozen Foods',
+    'Liquor & Tobacco',
+    'Snacks & Sweets',
+    'Fresh & Prepared',
+    'Pantry Staples',
+    'Frozen Goods',
     'Personal Care',
+    'Household Care',
+    'Miscellaneous',
   ];
 
   // 'added' = true. gray '+' button = already in cart
@@ -43,21 +50,112 @@ class _InventoryScreenState extends State<InventoryScreen> {
     }).toList();
   }
 
+
   // toggle using unique id
   void _toggleAdd(int productId) {
     setState(() {
       final index = products.indexWhere((p) => p['id'] == productId);
       if (index != -1) {
-        products[index]['added'] = !(products[index]['added'] as bool);
+        products[index]['added'] = true;
       }
     });
   }
 
-  // ------ Navigate to the 'Add Product' screen.
-  void _openAddNew() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AddNewScreen()),
+  // --- popup add to cart dialog
+  void _showAddToCartDialog(Map<String, dynamic> product) {
+    int quantity = 1;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Add to Cart",
+                      style: TextStyle(
+                        fontSize: 22, 
+                        fontWeight: FontWeight.bold, 
+                        color: AppColors.primaryDarkTeal
+                      )
+                    ),
+                    const Divider(height: 30),
+                    Text(
+                      product['name'], 
+                      textAlign: TextAlign.center, 
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // --- quantity controls 
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _quantityBtn(Icons.remove, () {
+                          if (quantity > 1) setDialogState(() => quantity--);
+                        }),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          margin: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceLightGray.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(8)
+                          ),
+                          child: Text("$quantity", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        ),
+                        _quantityBtn(Icons.add, () => setDialogState(() => quantity++)),
+                      ],
+                    ),
+                    const SizedBox(height: 25),
+                    
+                    // --- price rows
+                    _priceRow("Retail Price:", "₱ ${product['price'].toStringAsFixed(2)}"),
+                    _priceRow("Total Price:", "₱ ${(product['price'] * quantity).toStringAsFixed(2)}", isTotal: true),
+                    
+                    const SizedBox(height: 30),
+                    
+                    // --- action buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.primaryDarkTeal),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                            ),
+                            child: const Text("Cancel", style: TextStyle(color: AppColors.primaryDarkTeal)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              _toggleAdd(product['id']); 
+                              Navigator.pop(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryDarkTeal,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                            ),
+                            child: const Text("Confirm", style: TextStyle(color: Colors.white)),
+                          ),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -101,7 +199,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
+                    color: Colors.black.withOpacity(0.06),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -119,7 +217,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           child: Container(
                             height: 29,
                             decoration: BoxDecoration(
-                              color: AppColors.surfaceLightGray.withValues(alpha: 0.4),
+                              color: AppColors.surfaceLightGray.withOpacity(0.4),
                               borderRadius: BorderRadius.circular(8),
                             ),
 
@@ -220,16 +318,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           decoration: BoxDecoration(
                             color: AppColors.white,
                             border: Border.all(
-                              color: AppColors.surfaceLightGray.withValues(alpha:0.6)),
+                              color: AppColors.surfaceLightGray.withOpacity(0.6)),
                             borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha:0.03),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
                           ),
     
                           child: IntrinsicHeight(
@@ -239,11 +329,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 // --- Product info 
                                 Expanded(
                                   child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      14, 12, 8, 12),
+                                    padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
                                     child: Column(
-                                      crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
 
                                         Text(
@@ -265,7 +353,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                           ),
                                         ),
 
-                                        // spacer pushes price to the bottom
                                         const Spacer(),
                                         Align(
                                           alignment: Alignment.bottomRight,
@@ -282,17 +369,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                   ),
                                 ),
 
-                                // --- ADD button. navigates to 'Add Product screen'
+                                // --- ADD button triggers popup
                                 GestureDetector(
-                                  onTap: _openAddNew,
+                                  onTap: () {
+                                    if (!isAdded) {
+                                      _showAddToCartDialog(product);
+                                    }
+                                  },
                                   child: Container(
                                     width: 56,
-                                    constraints: const BoxConstraints(
-                                      minHeight: 70),
+                                    constraints: const BoxConstraints(minHeight: 70),
                                     decoration: BoxDecoration(
                                       color: isAdded
                                         ? Colors.grey[400] : AppColors.mutedGreen,
-            
                                       borderRadius: const BorderRadius.only(
                                         topRight: Radius.circular(8),
                                         bottomRight: Radius.circular(8),
@@ -301,7 +390,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
                                     child: const Icon(
                                       Icons.add,
-
                                       color: Colors.white,
                                       size: 28,
                                     ),
@@ -323,8 +411,42 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
           // TODO: add bottom nav bar
 
+        ],
+      ),
+    );
+  }
 
+  // --- helper widget for popup quantity buttons
+  Widget _quantityBtn(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.primaryDarkTeal,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
 
+  // --- helper widget for popup price rows
+  Widget _priceRow(String label, String value, {bool isTotal = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.black54, fontSize: 14)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              fontSize: isTotal ? 16 : 14,
+              color: isTotal ? Colors.black : Colors.black87,
+            ),
+          ),
         ],
       ),
     );
@@ -342,29 +464,20 @@ class AddNewScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppColors.mutedGreen,
         elevation: 0,
-        
         title: const Text(
           'Add New Product',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         ),
-
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-
       body: const Center(
-        child: Text(
-          'hai hello',
-          style: TextStyle(color: AppColors.white),
-        ),
+        child: Text('hai hello', style: TextStyle(color: AppColors.white)),
       ),
     );
   }
 }
 
+// --- The search/filter circle button class
 class _CircleIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
