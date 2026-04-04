@@ -1,7 +1,8 @@
 // ignore_for_file: unused_element
 
 import 'package:flutter/material.dart';
-import '../../theme/colors.dart';
+import '../../../theme/colors.dart';
+import 'admin_product_detail.dart'; // keeps the connection active
 
 class AdminInventoryScreen extends StatefulWidget {
   const AdminInventoryScreen({super.key});
@@ -14,7 +15,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
   String selectedCategory = 'Recently Added';
   String searchQuery = '';
 
-  // Updated categories list: Removed Non-Alc and kept the others clean
   final List<String> categories = [
     'Recently Added',
     'Beverages',
@@ -28,13 +28,41 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     'Miscellaneous',
   ];
 
-  // Admin Data with updated categories for testing
+  // expanded data to support the detail view fields
   List<Map<String, dynamic>> adminProducts = [
-    {'id': 1, 'name': 'Malunggay Lotion 500mL', 'category': 'Personal Care', 'price': 170.00, 'status': 'No Stock'},
-    {'id': 2, 'name': 'Malunggay Juice 80mL',    'category': 'Beverages', 'price': 55.00,  'status': 'Low Stock'},
-    {'id': 3, 'name': 'Malunggay Chips 20g',     'category': 'Snacks & Sweets', 'price': 35.00,  'status': 'In Stock'},
-    {'id': 4, 'name': 'Frozen Malunggay',        'category': 'Frozen Goods',  'price': 90.00,  'status': 'In Stock'},
-    {'id': 5, 'name': 'Dishwashing Liquid',      'category': 'Household Care', 'price': 45.00,  'status': 'In Stock'},
+    {
+      'id': 1, 
+      'name': 'Malunggay Lotion 500mL', 
+      'category': 'Personal Care', 
+      'basePrice': 150.00, 
+      'markup': 20.00, 
+      'stocks': 550, 
+      'status': 'No Stock',
+      'description': 'nourishing lotion with cocoa extract and vitamin e.',
+      'expiry': 'August 2, 2028'
+    },
+    {
+      'id': 2, 
+      'name': 'Malunggay Juice 80mL', 
+      'category': 'Beverages', 
+      'basePrice': 45.00, 
+      'markup': 10.00, 
+      'stocks': 12, 
+      'status': 'Low Stock',
+      'description': 'freshly squeezed malunggay extract with a hint of lemon.',
+      'expiry': 'September 15, 2026'
+    },
+    {
+      'id': 3, 
+      'name': 'Malunggay Chips 20g', 
+      'category': 'Snacks & Sweets', 
+      'basePrice': 30.00, 
+      'markup': 5.00, 
+      'stocks': 100, 
+      'status': 'In Stock',
+      'description': 'crispy malunggay flavored crackers.',
+      'expiry': 'October 20, 2026'
+    },
   ];
 
   List<Map<String, dynamic>> get filteredProducts {
@@ -45,46 +73,41 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     }).toList();
   }
 
-  // --- Success Pop-up
   void _showActionSuccess(String message) {
     showDialog(
       context: context,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 70, height: 70,
-                  decoration: const BoxDecoration(color: Color(0xFF76BA1B), shape: BoxShape.circle),
-                  child: const Icon(Icons.check, color: Colors.white, size: 45),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 70, height: 70,
+                decoration: const BoxDecoration(color: Color(0xFF76BA1B), shape: BoxShape.circle),
+                child: const Icon(Icons.check, color: Colors.white, size: 45),
+              ),
+              const SizedBox(height: 20),
+              Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+              const SizedBox(height: 25),
+              SizedBox(
+                width: 120, height: 40,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.mutedGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+                  child: const Text("OK", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
-                const SizedBox(height: 20),
-                Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
-                const SizedBox(height: 25),
-                SizedBox(
-                  width: 120, height: 40,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.mutedGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-                    child: const Text("OK", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
   void _deleteProduct(int id) {
-    setState(() {
-      adminProducts.removeWhere((p) => p['id'] == id);
-    });
+    setState(() => adminProducts.removeWhere((p) => p['id'] == id));
     _showActionSuccess("Product deleted successfully!");
   }
 
@@ -101,7 +124,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
         ),
         title: const Text('Inventory', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
       ),
-
       body: Column(
         children: [
           Expanded(
@@ -110,7 +132,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
               decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(16)),
               child: Column(
                 children: [
-                  // --- Search Bar
+                  // search bar section
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                     child: Row(
@@ -132,8 +154,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                       ],
                     ),
                   ),
-
-                  // --- Category Chips (Horizontal Scrollable)
+                  // category chips
                   SizedBox(
                     height: 36,
                     child: ListView.builder(
@@ -160,56 +181,66 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                       },
                     ),
                   ),
-
                   const Divider(height: 20),
-
-                  // --- Product List
+                  // your original product card layout
                   Expanded(
                     child: ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       itemCount: filteredProducts.length,
                       itemBuilder: (context, index) {
                         final product = filteredProducts[index];
-                        
-                        return Dismissible(
-                          key: Key(product['id'].toString()),
-                          direction: DismissDirection.endToStart,
-                          onDismissed: (dir) => _deleteProduct(product['id']),
-                          background: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 5),
-                            decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)),
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 20),
-                            child: const Icon(Icons.delete, color: Colors.white),
-                          ),
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 5),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.white,
-                              border: Border.all(color: AppColors.surfaceLightGray.withOpacity(0.5)),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(product['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                                      Text(product['category'], style: const TextStyle(fontSize: 11, color: Colors.black45, fontStyle: FontStyle.italic)),
-                                    ],
-                                  ),
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AdminProductDetailScreen(
+                                  productList: filteredProducts,
+                                  initialIndex: index,
                                 ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.black26),
-                                    const SizedBox(height: 10),
-                                    _buildStatusTag(product['status']),
-                                  ],
-                                )
-                              ],
+                              ),
+                            );
+                          },
+                          child: Dismissible(
+                            key: Key(product['id'].toString()),
+                            direction: DismissDirection.endToStart,
+                            onDismissed: (dir) => _deleteProduct(product['id']),
+                            background: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 5),
+                              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)),
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              child: const Icon(Icons.delete, color: Colors.white),
+                            ),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 5),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.white,
+                                border: Border.all(color: AppColors.surfaceLightGray.withOpacity(0.5)),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(product['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                        Text(product['category'], style: const TextStyle(fontSize: 11, color: Colors.black45, fontStyle: FontStyle.italic)),
+                                      ],
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.black26),
+                                      const SizedBox(height: 10),
+                                      _buildStatusTag(product['status']),
+                                    ],
+                                  )
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -226,11 +257,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
   }
 
   Widget _buildStatusTag(String status) {
-    Color bgColor;
-    if (status == 'In Stock') bgColor = const Color(0xFF2D936C);
-    else if (status == 'Low Stock') bgColor = const Color(0xFFF2A65A);
-    else bgColor = const Color(0xFFEF5350);
-
+    Color bgColor = status == 'In Stock' ? const Color(0xFF2D936C) : (status == 'Low Stock' ? const Color(0xFFF2A65A) : const Color(0xFFEF5350));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(10)),

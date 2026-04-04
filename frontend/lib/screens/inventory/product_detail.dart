@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-class ProductDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> product;
 
-  const ProductDetailScreen({super.key, required this.product});
+class ProductDetailScreen extends StatefulWidget {
+  final List<Map<String, dynamic>> productList;
+  final int initialIndex;
+
+  const ProductDetailScreen({
+    super.key, 
+    required this.productList, 
+    required this.initialIndex
+  });
 
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  late int _currentIndex;
   bool isEditing = false;
 
   late TextEditingController _nameController;
@@ -29,12 +36,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.product['name']);
+    _currentIndex = widget.initialIndex;
+    _initProductControllers();
+  }
+
+  void _initProductControllers() {
+    final product = widget.productList[_currentIndex];
+    _nameController = TextEditingController(text: product['name']);
     _descController = TextEditingController(text: "Nourishing Lotion with Cocoa Extract and Vitamin E. Wonderful extract with papaya tidbits and peanut butter.");
     _basePriceController = TextEditingController(text: "150.00");
-    _stocksController = TextEditingController(text: widget.product['stocks'].toString());
-    _selectedCategory = widget.product['category'];
+    _stocksController = TextEditingController(text: product['stocks'].toString());
+    _selectedCategory = product['category'];
     _selectedExpirationDate = DateTime(2028, 8, 2);
+  }
+
+  void _navigate(int direction) {
+    setState(() {
+      isEditing = false;
+      _currentIndex = (_currentIndex + direction) % widget.productList.length;
+      if (_currentIndex < 0) _currentIndex = widget.productList.length - 1;
+      _initProductControllers();
+    });
   }
 
   Future<void> _pickDate() async {
@@ -46,18 +68,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
     if (picked != null) {
       setState(() {
-        _selectedExpirationDate = picked; // Updates the UI with the chosen date
+        _selectedExpirationDate = picked;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentItem = widget.productList[_currentIndex];
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // --- Dark Green Header ---
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 50, 20, 30),
@@ -71,9 +94,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     _circleBtn(Icons.keyboard_return, () => Navigator.pop(context)),
                     Row(
                       children: [
-                        _circleBtn(Icons.arrow_back, () {}),
+                        _circleBtn(Icons.arrow_back, () => _navigate(-1)),
                         const SizedBox(width: 10),
-                        _circleBtn(Icons.arrow_forward, () {}),
+                        _circleBtn(Icons.arrow_forward, () => _navigate(1)),
                       ],
                     )
                   ],
@@ -86,17 +109,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ] else ...[
                   _headerInput("Product Name", _nameController),
                   const SizedBox(height: 10),
-                  // Fixed Category Dropdown
                   _headerDropdown(),
                 ],
                 const SizedBox(height: 15),
-                Align(
+                const Align(
                   alignment: Alignment.centerRight,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Text("Retail Price", style: TextStyle(color: Colors.white70, fontSize: 14, fontStyle: FontStyle.italic)),
-                      const Text("₱ 170.00", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                      Text("Retail Price", style: TextStyle(color: Colors.white70, fontSize: 14, fontStyle: FontStyle.italic)),
+                      Text("₱ 170.00", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -118,7 +140,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
           ),
 
-          // --- Body ---
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
@@ -133,16 +154,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     : Text(_descController.text, style: const TextStyle(color: Colors.black87, fontSize: 14, height: 1.4)),
                   
                   const SizedBox(height: 30),
-                  _infoTile(Icons.badge_outlined, "Product Number / ID", widget.product['id'], editable: false),
+                  _infoTile(Icons.badge_outlined, "Product Number / ID", currentItem['id'], editable: false),
                   
-                  // Base Price with Peso sign
                   _infoTile(Icons.sell_outlined, "Base Price", "₱ ${_basePriceController.text}", 
                     controller: _basePriceController, isEditing: isEditing, isPrice: true),
                   
                   _infoTile(Icons.inventory_2_outlined, "Available Stocks", _stocksController.text, 
                     controller: _stocksController, isEditing: isEditing),
                   
-                  // Expiration Date with Calendar Logic
                   _infoTile(Icons.calendar_month_outlined, "Expiration Date", 
                     DateFormat('MMMM d, yyyy').format(_selectedExpirationDate!), 
                     isEditing: isEditing, onDateTap: _pickDate),

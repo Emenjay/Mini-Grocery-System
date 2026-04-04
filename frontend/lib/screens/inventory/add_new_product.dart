@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; 
 // ignore: unused_import
-import '../../theme/colors.dart';
+import '../../../theme/colors.dart';
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
