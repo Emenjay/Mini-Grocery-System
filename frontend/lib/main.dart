@@ -6,6 +6,7 @@ import 'screens/login.dart';
 import 'screens/admin/admin_dashboard.dart';
 import 'screens/admin/admin_inventory.dart';
 import 'screens/admin/admin_product_detail.dart';
+import 'screens/admin/staff_list_screen.dart';
 import 'screens/cashier/inventory_screen.dart';
 import 'screens/cashier/payment_screen.dart';
 import 'screens/cashier/cash_in.dart';
@@ -32,7 +33,10 @@ class MyApp extends StatelessWidget{
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3E5C51)),
         useMaterial3: true,
       ),
-      
+
+      // ~TEMPORARY COMMENTS for testing staff_list screen only.
+      home: const StaffListScreen(),
+      /*
       // set login as the starting point for the flow
       initialRoute: '/',
       routes: {
@@ -41,7 +45,7 @@ class MyApp extends StatelessWidget{
         '/pos-screen': (context) => const PosScreen(),
         '/cash-out': (context) => const CashOutScreen(startingCash: 0), // initialize with 0 or pass data
         '/transactions': (context) => const TransactionsScreen(),
-      },
+      }, */
     );
   }
 }
