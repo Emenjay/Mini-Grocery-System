@@ -2,13 +2,16 @@ const db = require('../config/db');
 
 const Product = {
     // get all product
-    getAllProducts: async () => {
+    getAllProducts: async (search = '') => {
+        const keyword = `%${search}%`; // % wildcards allow partial matching e.g. "oca" matches "Coca Cola"
         const [rows] = await db.query(
             `SELECT p.ProductID, p.ProductNumber, p.Name, CategoryName, 
                     p.BasePrice, p.MarkupPrice, p.StockQty, p.ExpiryDate, p.IsDeleted
                 FROM products p 
                 JOIN categories c ON p.CategoryID = c.CategoryID 
-                WHERE p.IsDeleted = FALSE`
+                WHERE p.IsDeleted = FALSE
+                AND (p.Name LIKE ? OR p.ProductNumber LIKE ?)`, // search by name or product number
+                [keyword, keyword]
         );
         return rows;
     },

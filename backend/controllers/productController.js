@@ -3,7 +3,11 @@ const InventoryLog = require('../models/inventoryLogModel');
 
 exports.getAllProducts = async (req, res) => {
     try {
-        const products = await Product.getAllProducts();
+        const { search } = req.query; // get search query from URL e.g. ?search=coca
+        
+        // pass search to model, if no search provided defaults to empty string (returns all)
+        const products = await Product.getAllProducts(search || '');
+
         res.status(200).json({
             message: 'Products retrieved successfully',
             products
