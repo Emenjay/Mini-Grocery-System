@@ -36,7 +36,7 @@ class MyApp extends StatelessWidget{
 
       // ~TEMPORARY COMMENTS for testing staff_list screen only.
       home: const StaffListScreen(),
-      
+      /*
       // set login as the starting point for the flow
       initialRoute: '/',
       routes: {
@@ -45,7 +45,7 @@ class MyApp extends StatelessWidget{
         '/pos-screen': (context) => const PosScreen(),
         '/cash-out': (context) => const CashOutScreen(startingCash: 0), // initialize with 0 or pass data
         '/transactions': (context) => const TransactionsScreen(),
-      },
+      }, */
     );
   }
 }
