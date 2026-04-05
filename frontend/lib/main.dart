@@ -1,18 +1,20 @@
 // ignore_for_file: unused_import
 
 import 'package:flutter/material.dart';
-import 'package:frontend/screens/product_detail.dart';
-import 'package:frontend/screens/staff_inventory.dart';
-import 'screens/pos_screen.dart';
 import 'theme/colors.dart';
 import 'screens/login.dart'; 
-import 'screens/cash_in.dart';
-import 'screens/owner_dashboard_screen.dart';
-import 'screens/inventory_screen.dart';
-import 'screens/admin_inventory.dart';
-import 'screens/add_new_product.dart';
-import 'screens/product_detail.dart';
-import 'screens/staff_inventory.dart';
+import 'screens/admin/admin_dashboard.dart';
+import 'screens/admin/admin_inventory.dart';
+import 'screens/admin/admin_product_detail.dart';
+import 'screens/cashier/inventory_screen.dart';
+import 'screens/cashier/payment_screen.dart';
+import 'screens/cashier/cash_in.dart';
+import 'screens/cashier/pos_screen.dart';
+import 'screens/cashier/cash_out.dart';
+import 'screens/cashier/transactions.dart';
+import 'screens/inventory/add_new_product.dart';
+import 'screens/inventory/product_detail.dart';
+import 'screens/inventory/staff_inventory.dart';
 
 void main(){
   runApp(const MyApp());
@@ -26,27 +28,19 @@ class MyApp extends StatelessWidget{
     return MaterialApp(
       title: 'Mini-Grocery-System',
       debugShowCheckedModeBanner: false,
-      // 'initialRoute' and 'home' shouldn't be used together if they conflict.
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryDarkTeal),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3E5C51)),
+        useMaterial3: true,
       ),
       
-      /*home: const ProductDetailScreen(product: {
-          'id': '2026PC0001',
-          'name': 'Malunggay Lotion 500mL',
-          'category': 'Personal Care',
-          'stocks': 550,
-          'status': 'In Stock',
-        },),
-        */
-
-      initialRoute: '/', // for clean
+      // set login as the starting point for the flow
+      initialRoute: '/',
       routes: {
         '/': (context) => const LoginPage(),
-        '/admin-dashboard': (context) => const OwnerDashboard(),
-        '/cash-in': (context) => const CashInScreen(), 
+        '/cash-in': (context) => const CashInScreen(),
         '/pos-screen': (context) => const PosScreen(),
-        '/inventory': (context) => const InventoryScreen(),
+        '/cash-out': (context) => const CashOutScreen(startingCash: 0), // initialize with 0 or pass data
+        '/transactions': (context) => const TransactionsScreen(),
       },
     );
   }

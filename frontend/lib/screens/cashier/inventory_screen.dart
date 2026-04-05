@@ -1,7 +1,7 @@
 // ignore_for_file: unused_element
 
 import 'package:flutter/material.dart';
-import '../../theme/colors.dart';
+import '../../../theme/colors.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});

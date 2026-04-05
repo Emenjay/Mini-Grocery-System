@@ -1,8 +1,9 @@
 // ignore_for_file: unused_element
 
 import 'package:flutter/material.dart';
-import '../../theme/colors.dart';
+import '../../../theme/colors.dart';
 import 'add_new_product.dart'; 
+import 'product_detail.dart'; 
 
 class InventoryStaffScreen extends StatefulWidget {
   const InventoryStaffScreen({super.key});
@@ -15,9 +16,8 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   String selectedCategory = 'Recently Added';
   String searchQuery = '';
   int currentPage = 1;
-  final int itemsPerPage = 4; // keeping it low to test paging easily
+  final int itemsPerPage = 4; 
 
-  // updated category list
   final List<String> categories = [
     'Recently Added',
     'Beverages',
@@ -31,16 +31,14 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     'Miscellaneous',
   ];
 
-  // dummy data for testing
   final List<Map<String, dynamic>> staffItems = [
     {'id': '# 2026PC0001', 'name': 'Malunggay Lotion 500mL', 'category': 'Personal Care', 'stocks': 0, 'status': 'No Stock'},
-    {'id': '# 2026B0002',  'name': 'Malunggay Juice 80mL',    'category': 'Beverages',     'stocks': 13, 'status': 'Low Stock'},
-    {'id': '# 2026S0003',  'name': 'Malunggay Chips 20g',     'category': 'Snacks & Sweets', 'stocks': 80, 'status': 'In Stock'},
-    {'id': '# 2026F0004',  'name': 'Frozen Malunggay',        'category': 'Frozen Goods',   'stocks': 45, 'status': 'In Stock'},
-    {'id': '# 2026S0005',  'name': 'Corn Chips 50g',          'category': 'Snacks & Sweets', 'stocks': 100, 'status': 'In Stock'},
+    {'id': '# 2026B0002',  'name': 'Malunggay Juice 80mL',     'category': 'Beverages',      'stocks': 13, 'status': 'Low Stock'},
+    {'id': '# 2026S0003',  'name': 'Malunggay Chips 20g',      'category': 'Snacks & Sweets', 'stocks': 80, 'status': 'In Stock'},
+    {'id': '# 2026F0004',  'name': 'Frozen Malunggay',         'category': 'Frozen Goods',   'stocks': 45, 'status': 'In Stock'},
+    {'id': '# 2026S0005',  'name': 'Corn Chips 50g',           'category': 'Snacks & Sweets', 'stocks': 100, 'status': 'In Stock'},
   ];
 
-  // filter logic
   List<Map<String, dynamic>> get _filteredItems {
     return staffItems.where((item) {
       final matchesCategory = selectedCategory == 'Recently Added' || item['category'] == selectedCategory;
@@ -49,7 +47,6 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     }).toList();
   }
 
-  // paginate the filtered list
   List<Map<String, dynamic>> get _paginatedItems {
     final filtered = _filteredItems;
     int start = (currentPage - 1) * itemsPerPage;
@@ -75,7 +72,6 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // top search bar
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
@@ -100,7 +96,6 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
               ),
             ),
 
-            // category scroll
             SizedBox(
               height: 40,
               child: ListView.builder(
@@ -128,19 +123,17 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
 
             const Divider(height: 24),
 
-            // pagination shows up but color changes if only 1 page
             if (_filteredItems.isNotEmpty) _buildPagination(),
 
             const SizedBox(height: 10),
 
-            // product list
             Expanded(
               child: itemsToShow.isEmpty 
                 ? const Center(child: Text("no items in this category"))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: itemsToShow.length,
-                    itemBuilder: (context, index) => _buildProductCard(itemsToShow[index]),
+                    itemBuilder: (context, index) => _buildProductCard(itemsToShow, index),
                   ),
             ),
           ],
@@ -149,7 +142,6 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     );
   }
 
-  // pagination row with conditional coloring
   Widget _buildPagination() {
     int total = _totalPages;
     bool hasMultiplePages = total > 1;
@@ -157,65 +149,74 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // prev btn
         _pageBtn(Icons.chevron_left, (hasMultiplePages && currentPage > 1) ? () => setState(() => currentPage--) : null),
-        
-        // number buttons
         for (int i = 1; i <= total; i++)
           _pageNum(
             i.toString(), 
             currentPage == i, 
-            hasMultiplePages, // pass this to handle the color
+            hasMultiplePages, 
             () => hasMultiplePages ? setState(() => currentPage = i) : null
           ),
 
         if (total > 3 && currentPage < total - 1) _pageNum("...", false, hasMultiplePages, () {}),
-
-        // next btn
         _pageBtn(Icons.chevron_right, (hasMultiplePages && currentPage < total) ? () => setState(() => currentPage++) : null),
       ],
     );
   }
 
-  // product card design
-  Widget _buildProductCard(Map<String, dynamic> item) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.black12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(item['category'], style: const TextStyle(fontSize: 11, color: Colors.black45, fontStyle: FontStyle.italic)),
-                Text(item['id'], style: const TextStyle(fontSize: 10, color: Colors.black26)),
-              ],
+  Widget _buildProductCard(List<Map<String, dynamic>> list, int index) {
+    final item = list[index];
+    return GestureDetector(
+      onTap: () {
+        // This is the part that was causing the error. 
+        // It must match the new constructor in product_detail.dart
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProductDetailScreen(
+              productList: list, 
+              initialIndex: index,
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(Icons.arrow_forward, size: 14, color: Colors.black45),
-              const SizedBox(height: 12),
-              Text("${item['stocks']} stocks", style: const TextStyle(fontSize: 12, color: Colors.black38)),
-              const SizedBox(height: 4),
-              _statusTag(item['status']),
-            ],
-          )
-        ],
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.black12),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(item['category'], style: const TextStyle(fontSize: 11, color: Colors.black45, fontStyle: FontStyle.italic)),
+                  Text(item['id'], style: const TextStyle(fontSize: 10, color: Colors.black26)),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Icon(Icons.arrow_forward, size: 14, color: Colors.black45),
+                const SizedBox(height: 12),
+                Text("${item['stocks']} stocks", style: const TextStyle(fontSize: 12, color: Colors.black38)),
+                const SizedBox(height: 4),
+                _statusTag(item['status']),
+              ],
+            )
+          ],
+        ),
       ),
     );
   }
-
-  // small helper UI functions
+  
   Widget _circleIcon(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -234,7 +235,7 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: onTap != null ? const Color(0xFF3E5C51) : Colors.grey[400], // greyed out if disabled
+          color: onTap != null ? const Color(0xFF3E5C51) : Colors.grey[400], 
           borderRadius: BorderRadius.circular(4)
         ),
         child: Icon(icon, color: Colors.white, size: 16),
@@ -243,9 +244,7 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   }
 
   Widget _pageNum(String txt, bool active, bool isInteractive, VoidCallback onTap) {
-    // if only one page, the "active" color becomes a neutral grey instead of light blue
     Color activeColor = isInteractive ? const Color(0xFFB2DFDB) : Colors.grey[300]!;
-    
     return GestureDetector(
       onTap: onTap,
       child: Container(
