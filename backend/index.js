@@ -23,6 +23,10 @@ app.use('/api/shift', shiftRoutes);
 // product route
 app.use('/api/inventory', productRoutes);
 
+// checkout route
+app.use('/api/checkout', checkoutRoutes); 
+
+
 app.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
 });
