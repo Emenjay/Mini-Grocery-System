@@ -31,10 +31,7 @@ class MyApp extends StatelessWidget{
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3E5C51)),
         useMaterial3: true,
       ),
-
-      // ~TEMPORARY COMMENTS for testing staff_list screen only.
-      home: const StaffListScreen(),
-      /*
+      
       // set login as the starting point for the flow
       initialRoute: '/',
       routes: {
