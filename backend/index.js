@@ -1,11 +1,10 @@
 const express = require('express'); // for easier api building
 const cors = require('cors');
 require('dotenv').config();
-const db = require('./config/db'); // import db config
 
 // import routes
-const authRoutes = require('./routes/authRoutes'); // import auth route
-const shiftRoutes = require('./routes/shiftRoutes'); // import shift route
+const authRoutes = require('./routes/authRoutes');
+const attendanceRoutes = require('./routes/attendanceRoutes');
 const productRoutes = require('./routes/productRoutes');
 
 // testing code
@@ -14,11 +13,11 @@ const app = express();
 app.use(cors()); // allows flutter to call api
 app.use(express.json());
 
-// login auth
+// login route
 app.use('/api/auth', authRoutes);
 
-// shift route
-app.use('/api/shift', shiftRoutes);
+// attendance route
+app.use('/api/attendance', attendanceRoutes);
 
 // product route
 app.use('/api/inventory', productRoutes);
