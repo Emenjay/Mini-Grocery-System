@@ -6,6 +6,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const productRoutes = require('./routes/productRoutes');
+const checkoutRoutes = require('./routes/checkoutRoutes');
 
 // testing code
 
@@ -21,6 +22,9 @@ app.use('/api/attendance', attendanceRoutes);
 
 // product route
 app.use('/api/inventory', productRoutes);
+
+// checkout route
+app.use('/api/checkout', checkoutRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);

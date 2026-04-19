@@ -31,6 +31,31 @@ const Inventory = {
             [...values, productID]
         );
         return result.affectedRows;
+    },
+    
+    // deduct stock after checkout, allows negative stock for force checkout
+    deductStock: async (productID, quantity) => {
+        const [result] = await db.query(
+        `UPDATE inventory 
+        SET stock_quantity = stock_quantity - ?,
+            stock_status = CASE
+                WHEN stock_quantity - ? <= 0 THEN 'Out of Stock'
+                WHEN stock_quantity - ? <= 10 THEN 'Low Stock'
+                ELSE 'In Stock'
+            END,
+            last_updated = NOW()
+        WHERE product_id = ?`,
+        [quantity, quantity, quantity, productID]
+        );
+        return result.affectedRows;
+    },
+
+    getByProductID: async (productID) => {
+        const [rows] = await db.query(
+        'SELECT * FROM inventory WHERE product_id = ?',
+        [productID]
+        );
+        return rows[0];
     }
     };
 
@@ -41,4 +66,4 @@ const Inventory = {
         return 'In Stock';
     }
 
-    module.exports = Inventory;
+module.exports = Inventory;
