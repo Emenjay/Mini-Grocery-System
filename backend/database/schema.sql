@@ -71,6 +71,7 @@ CREATE TABLE payment (
 -- 8. Transaction
 CREATE TABLE transaction (
   transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+  cart_no VARCHAR(20),
   user_id INT NOT NULL,
   payment_id INT,
   total_amount DECIMAL(10,2),
