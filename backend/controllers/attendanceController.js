@@ -9,11 +9,10 @@ exports.startShift = async (req, res) => {
     // check for abandoned shift from previous day
     const abandonedShift = await Attendance.findAbandonedShift(userID);
     if (abandonedShift) {
-      // flag it but don't block login — admin can review
       console.warn(`User ${userID} has an abandoned shift from ${abandonedShift.date_time}`);
     }
 
-    // check if user already has active shift today
+    // check if already has active shift today
     const activeShift = await Attendance.findActiveShift(userID);
     if (activeShift) {
       return res.status(400).json({ message: 'Already has an active shift today' });
@@ -27,7 +26,7 @@ exports.startShift = async (req, res) => {
     // clock in to attendance
     await Attendance.clockIn(userID);
 
-    // create cash_in transaction (null for non-cashier)
+    // create cash_in transaction
     const transactionID = await Attendance.startCashIn(
       userID,
       role === 'Cashier' ? cashIn : null
@@ -51,6 +50,7 @@ exports.endShift = async (req, res) => {
     const { cashOut } = req.body;
     const role = req.user.role;
 
+    // find active shift
     const activeShift = await Attendance.findActiveShift(userID);
     if (!activeShift) {
       return res.status(400).json({ message: 'No active shift found' });
@@ -61,13 +61,17 @@ exports.endShift = async (req, res) => {
       return res.status(400).json({ message: 'cashOut is required for cashiers' });
     }
 
-    // calculate total sales for cashier
-    const totalSales = role === 'Cashier'
-      ? await Attendance.calculateTotalSales(userID, activeShift.date_time, new Date())
-      : null;
+    // create cash_out record and get its timestamp
+    const cashOutTime = await Attendance.endCashOut(
+      activeShift.transaction_id,
+      userID,
+      role === 'Cashier' ? cashOut : null
+    );
 
-    // update cash_out on the cash_in record
-    await Attendance.endCashOut(activeShift.transaction_id, role === 'Cashier' ? cashOut : null);
+    // calculate total sales between cash_in and cash_out timestamps
+    const totalSales = role === 'Cashier'
+      ? await Attendance.calculateTotalSales(userID, activeShift.date_time, cashOutTime)
+      : null;
 
     // clock out attendance
     await Attendance.clockOut(userID);

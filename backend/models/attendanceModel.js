@@ -48,14 +48,28 @@ const Attendance = {
     return result.insertId;
   },
 
-  // update cash_out on the existing cash_in record
-  endCashOut: async (transactionID, cashOut) => {
+  endCashOut: async (transactionID, userID, cashOut) => {
+    // 1. update cash_out on the cash_in record
     await db.query(
       `UPDATE transaction
-       SET cash_out = ?, transaction_type = 'cash_out'
+       SET cash_out = ?
        WHERE transaction_id = ?`,
       [cashOut, transactionID]
     );
+
+    // 2. create a new cash_out record and return its timestamp
+    const [result] = await db.query(
+      `INSERT INTO transaction (user_id, cash_out, transaction_type, date_time)
+       VALUES (?, ?, 'cash_out', NOW())`,
+      [userID, cashOut]
+    );
+
+    // get the cash_out timestamp
+    const [rows] = await db.query(
+      `SELECT date_time FROM transaction WHERE transaction_id = ?`,
+      [result.insertId]
+    );
+    return rows[0].date_time;
   },
 
   // clock out in attendance table
