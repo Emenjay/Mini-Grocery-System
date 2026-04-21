@@ -19,12 +19,15 @@ CREATE TABLE category (
 );
 
 -- 3. User
-CREATE TABLE user (
+CREATE TABLE users (
   user_id INT AUTO_INCREMENT PRIMARY KEY,
   role_id INT NOT NULL,
   username VARCHAR(100) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   full_name VARCHAR(100) NOT NULL,
+  contact_number VARCHAR(20),
+  address VARCHAR(255),
+  profile_picture VARCHAR(255)
   account_status BOOLEAN DEFAULT TRUE,
   created_at DATETIME DEFAULT NOW(),
   FOREIGN KEY (role_id) REFERENCES role(role_id)
