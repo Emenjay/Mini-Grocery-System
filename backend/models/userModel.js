@@ -10,7 +10,7 @@ const User = {
     const [rows] = await db.query(
       `SELECT u.user_id, u.username, u.password, u.full_name, u.account_status,
               r.role_name
-       FROM user u
+       FROM users u
        JOIN role r ON u.role_id = r.role_id
        WHERE u.username = ?`,
       [username]
@@ -30,7 +30,7 @@ const User = {
         r.role_name,
       -- if a matching attendance row exists, they are on duty
         CASE WHEN a.attendance_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_on_duty
-      FROM user u
+      FROM users u
       JOIN role r ON u.role_id = r.role_id
       -- left join: only match open shifts from today (clock in but no clock out)
       LEFT JOIN attendance a 
@@ -58,7 +58,7 @@ const User = {
       `SELECT u.user_id, u.full_name, u.username, u.contact_number,
               u.address, u.profile_picture, u.account_status, u.created_at,
               r.role_name, r.role_id
-       FROM user u
+       FROM users u
        JOIN role r ON u.role_id = r.role_id
        WHERE u.user_id = ?`,
       [userID]
@@ -93,7 +93,7 @@ const User = {
 
   // check if username already exists to avoid duplicates
   isUsernameTaken: async (username, excludeUserID = null) => {
-    let query = 'SELECT user_id FROM user WHERE username = ?';
+    let query = 'SELECT user_id FROM users WHERE username = ?';
     const params = [username];
 
     // when editing, exclude the current user from the check
