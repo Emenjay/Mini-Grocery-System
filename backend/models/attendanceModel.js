@@ -28,6 +28,30 @@ const Attendance = {
     return rows[0];
   },
 
+    // find open attendance record for today (used for login clockIn guard(no dups))
+  findActiveAttendance: async (userID) => {
+    const [rows] = await db.query(
+      `SELECT * FROM attendance
+      WHERE user_id = ?
+      AND clock_out_timestamp IS NULL
+      AND DATE(clock_in_timestamp) = CURDATE()`,
+      [userID]
+    );
+    return rows[0];
+  },
+
+  // find any unclosed attendance from a previous day (for warning on login)
+  findAbandonedAttendance: async (userID) => {
+    const [rows] = await db.query(
+      `SELECT * FROM attendance
+      WHERE user_id = ?
+      AND clock_out_timestamp IS NULL
+      AND DATE(clock_in_timestamp) < CURDATE()`,
+      [userID]
+    );
+    return rows[0];
+  },
+
   // create clock in record in attendance table
   clockIn: async (userID) => {
     const [result] = await db.query(

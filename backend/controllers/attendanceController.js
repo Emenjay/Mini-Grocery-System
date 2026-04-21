@@ -73,9 +73,6 @@ exports.endShift = async (req, res) => {
       ? await Attendance.calculateTotalSales(userID, activeShift.date_time, cashOutTime)
       : null;
 
-    // clock out attendance
-    await Attendance.clockOut(userID);
-
     res.status(200).json({
       message: 'Shift ended',
       cashIn: activeShift.cash_in,
