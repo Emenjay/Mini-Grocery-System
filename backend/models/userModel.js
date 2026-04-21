@@ -84,7 +84,7 @@ const User = {
   // add new employee
   addUser: async (roleID, username, password, fullName, contactNumber, address, profilePicture) => {
     const [result] = await db.query(
-      `INSERT INTO user (role_id, username, password, full_name, contact_number, address, profile_picture, account_status, created_at)
+      `INSERT INTO users (role_id, username, password, full_name, contact_number, address, profile_picture, account_status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, NOW())`,
       [roleID, username, password, fullName, contactNumber || null, address || null, profilePicture || null]
     );
@@ -119,7 +119,7 @@ const User = {
     const setClause = keys.map(k => `${k} = ?`).join(', ');
 
     const [result] = await db.query(
-      `UPDATE user SET ${setClause} WHERE user_id = ?`,
+      `UPDATE users SET ${setClause} WHERE user_id = ?`,
       [...values, userID]
     );
     return result.affectedRows;
@@ -128,7 +128,7 @@ const User = {
   // deactivate employee
   deactivateUser: async (userID) => {
     const [result] = await db.query(
-      `UPDATE user SET account_status = FALSE WHERE user_id = ?`,
+      `UPDATE users SET account_status = FALSE WHERE user_id = ?`,
       [userID]
     );
     return result.affectedRows;

@@ -39,7 +39,7 @@ CREATE TABLE attendance (
   user_id INT NOT NULL,
   clock_in_timestamp DATETIME NOT NULL,
   clock_out_timestamp DATETIME,
-  FOREIGN KEY (user_id) REFERENCES user(user_id)
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
 -- 5. Product
@@ -84,7 +84,7 @@ CREATE TABLE transaction (
   cash_out DECIMAL(10,2),
   date_time DATETIME DEFAULT NOW(),
   transaction_type ENUM('sale', 'cash_in', 'cash_out') NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES user(user_id),
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
   FOREIGN KEY (payment_id) REFERENCES payment(payment_id)
 );
 
@@ -108,5 +108,5 @@ CREATE TABLE notification (
   message VARCHAR(255) NOT NULL,
   is_read BOOLEAN DEFAULT FALSE,
   created_at DATETIME DEFAULT NOW(),
-  FOREIGN KEY (user_id) REFERENCES user(user_id)
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
