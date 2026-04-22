@@ -40,7 +40,7 @@ const Inventory = {
         SET stock_quantity = stock_quantity - ?,
             stock_status = CASE
                 WHEN stock_quantity - ? <= 0 THEN 'Out of Stock'
-                WHEN stock_quantity - ? <= 10 THEN 'Low Stock'
+                WHEN stock_quantity - ? <= 20 THEN 'Low Stock'
                 ELSE 'In Stock'
             END,
             last_updated = NOW()
