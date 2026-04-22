@@ -1,16 +1,16 @@
 const Product = require('../models/productModel');
 const Inventory = require('../models/inventoryModel');
 
-exports.getAllProducts = async (req, res) => { 
+exports.getAllProducts = async (req, res) => { // get search query from URL ex: ?search=coca
   try {
-    const { search } = req.query; // get search query from URL e.g. ?search=coca
+    const { search } = req.query;
 
     // pass search to model, if no search provided defaults to empty string (returns all)
     const products = await Product.getAllProducts(search || '');
 
-    res.status(200).json({
+    res.status(200).json({ 
       message: 'Products retrieved successfully',
-      products
+      products 
     });
   } catch (err) {
     console.error(err);
@@ -20,16 +20,16 @@ exports.getAllProducts = async (req, res) => {
 
 exports.addProduct = async (req, res) => {
   try {
-    const { categoryID, productName, description, markupPrice, unitMeasurement, stockQuantity, spoilageDate } = req.body;
+    const { categoryID, productName, description, basePrice, unitMeasurement, stockQuantity, spoilageDate } = req.body;
 
-    // validate required fields
-    if (!categoryID || !productName || !markupPrice) {
-      return res.status(400).json({ message: 'categoryID, productName, and markupPrice are required' });
+    // validate required fields, markup set automatically from config
+    if (!categoryID || !productName || !basePrice) {
+      return res.status(400).json({ message: 'categoryID, productName, and basePrice are required' });
     }
 
     // insert into product table
     const productID = await Product.addProduct(
-      categoryID, productName, description, markupPrice, unitMeasurement
+      categoryID, productName, description, basePrice, unitMeasurement
     );
 
     // create inventory record for the new product
@@ -41,14 +41,13 @@ exports.addProduct = async (req, res) => {
         productID,
         productName,
         categoryID,
-        markupPrice,
+        basePrice,
         unitMeasurement: unitMeasurement || null,
         description: description || null,
         stockQuantity: stockQuantity || 0,
         spoilageDate: spoilageDate || null
       }
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -58,7 +57,8 @@ exports.addProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { productName, categoryID, description, markupPrice, unitMeasurement, stockQuantity, spoilageDate } = req.body;
+    const { productName, categoryID, description, basePrice, markupPrice, unitMeasurement, stockQuantity, spoilageDate } = req.body;
+    const requestingRole = req.user.role; // from JWT
 
     const product = await Product.findProductByID(id);
     if (!product) {
@@ -70,8 +70,16 @@ exports.updateProduct = async (req, res) => {
     if (productName !== undefined) productFields['product_name'] = productName;
     if (categoryID !== undefined) productFields['category_id'] = categoryID;
     if (description !== undefined) productFields['description'] = description;
-    if (markupPrice !== undefined) productFields['markup_price'] = markupPrice;
+    if (basePrice !== undefined) productFields['base_price'] = basePrice;
     if (unitMeasurement !== undefined) productFields['unit_measurement'] = unitMeasurement;
+
+    // markup_price is admin only
+    if (markupPrice !== undefined) {
+      if (requestingRole !== 'Admin') {
+        return res.status(403).json({ message: 'Only admin can update markup price' });
+      }
+      productFields['markup_price'] = markupPrice;
+    }
 
     // build inventory fields
     const inventoryFields = {};
@@ -83,16 +91,11 @@ exports.updateProduct = async (req, res) => {
       return res.status(400).json({ message: 'No fields provided to update' });
     }
     // if product fields were edited, update given details
-    if (Object.keys(productFields).length > 0) {
-      await Product.updateProduct(id, productFields);
-    }
+    if (Object.keys(productFields).length > 0) await Product.updateProduct(id, productFields);
     // if inventory fields were updated, update inventory
-    if (Object.keys(inventoryFields).length > 0) {
-      await Inventory.updateInventory(id, inventoryFields);
-    }
+    if (Object.keys(inventoryFields).length > 0) await Inventory.updateInventory(id, inventoryFields);
 
     res.status(200).json({ message: 'Product updated successfully' });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -102,16 +105,12 @@ exports.updateProduct = async (req, res) => {
 exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-
     const product = await Product.findProductByID(id);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
-
     await Product.deleteProduct(id);
-
     res.status(200).json({ message: 'Product deleted successfully' });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

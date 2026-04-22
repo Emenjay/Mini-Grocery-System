@@ -14,7 +14,7 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // e.g. profile-1748392819283.jpg — unique timestamp prevents collisions
+    // ex: profile-1748392819283.jpg - unique timestamp prevents collisions
     const uniqueName = `profile-${Date.now()}${path.extname(file.originalname)}`;
     cb(null, uniqueName);
   }
