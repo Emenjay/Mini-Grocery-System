@@ -19,6 +19,11 @@ INSERT INTO category (category_name) VALUES
 ('Household Care'),
 ('Miscellaneous');
 
+-- seed default config values
+INSERT INTO config (config_key, config_value) VALUES
+('default_markup', '0.00'),
+('low_stock_standard', '20');
+
 
 --- For testing ---
 

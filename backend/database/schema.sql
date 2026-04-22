@@ -110,3 +110,9 @@ CREATE TABLE notification (
   created_at DATETIME DEFAULT NOW(),
   FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
+
+-- 11. Config
+CREATE TABLE config (
+  config_key VARCHAR(50) PRIMARY KEY,
+  config_value VARCHAR(100) NOT NULL
+);
