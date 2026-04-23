@@ -10,6 +10,7 @@ const checkoutRoutes = require('./routes/checkoutRoutes');
 const userRoutes = require('./routes/userRoutes');
 const configRoutes = require('./routes/configRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 // testing code
 
@@ -41,6 +42,10 @@ app.use('/api/config', configRoutes);
 
 // inventory route
 app.use('/api/inventory-dashboard', inventoryRoutes);
+
+// dashboard route
+app.use('/api/dashboard', dashboardRoutes);
+
 
 
 app.listen(process.env.PORT, () => {
