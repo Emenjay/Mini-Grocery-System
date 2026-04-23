@@ -72,6 +72,12 @@ const Product = {
     // then delete product
     const [result] = await db.query('DELETE FROM product WHERE product_id = ?', [productID]);
     return result.affectedRows;
+  },
+
+  // get all categories for dropdown
+  getAllCategories: async () => {
+    const [rows] = await db.query('SELECT * FROM category ORDER BY category_name ASC');
+    return rows;
   }
 
 };

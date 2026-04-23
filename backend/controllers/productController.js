@@ -116,3 +116,13 @@ exports.deleteProduct = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+exports.getAllCategories = async (req, res) => {
+  try {
+    const categories = await Product.getAllCategories();
+    res.status(200).json({ message: 'Categories retrieved successfully', categories });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
