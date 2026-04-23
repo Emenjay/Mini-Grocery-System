@@ -1,43 +1,131 @@
 const db = require('../config/db');
+const Config = require('./configModel');
 
 const Product = {
-    // get all product
-    getAllProducts: async () => {
-        const [rows] = await db.query(
-            `SELECT p.ProductID, p.ProductNumber, p.Name, CategoryName, 
-                    p.BasePrice, p.MarkupPrice, p.StockQty, p.ExpiryDate, p.IsDeleted
-                FROM products p 
-                JOIN categories c ON p.CategoryID = c.CategoryID 
-                WHERE p.IsDeleted = FALSE`
-        );
-        return rows;
-    },
 
-    // get product count for productNumber
-    getProductCount: async () => {
-    const year = new Date().getFullYear();
-    const [rows] = await db.query(
-      `SELECT COUNT(*) AS count FROM products 
-      WHERE ProductNumber LIKE ?`,
-      [`${year}M%`]
-  );
-  return rows[0].count;
+  // get all products, with filters and computed retail price
+  getAllProducts: async (search = '', category = '', stockStatus = '', expirationFilter = '', sortName = '', sortPrice = '', page = 1, limit = 20, all = false) => {
+  const keyword = `%${search}%`;
+  const offset = (page - 1) * limit;
+
+  let query = `
+    SELECT p.product_id, p.product_name, c.category_name, c.category_id,
+           p.description, p.base_price, p.markup_price,
+           (p.base_price + p.markup_price) AS retail_price,
+           p.unit_measurement,
+           i.stock_quantity, i.spoilage_date, i.stock_status, i.last_updated
+    FROM product p
+    JOIN category c ON p.category_id = c.category_id
+    LEFT JOIN inventory i ON p.product_id = i.product_id
+    WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
+  `;
+
+  const params = [keyword, keyword];
+
+  // filter by category name
+  if (category) {
+    query += ` AND c.category_name = ?`;
+    params.push(category);
+  }
+
+  // filter by stock status
+  if (stockStatus) {
+    query += ` AND i.stock_status = ?`;
+    params.push(stockStatus);
+  }
+
+  // filter by expiration date - Option C preset options
+  if (expirationFilter === 'Expired') {
+    query += ` AND i.spoilage_date < CURDATE()`;
+  } else if (expirationFilter === 'Expiring Soon') {
+    query += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
+  } else if (expirationFilter === 'Not Expiring Soon') {
+    query += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
+  }
+
+  // sorting - name and price can be combined
+  const orderClauses = [];
+  if (sortName === 'A-Z') orderClauses.push('p.product_name ASC');
+  if (sortName === 'Z-A') orderClauses.push('p.product_name DESC');
+  if (sortPrice === 'asc') orderClauses.push('retail_price ASC');
+  if (sortPrice === 'desc') orderClauses.push('retail_price DESC');
+  if (orderClauses.length > 0) {
+    query += ` ORDER BY ${orderClauses.join(', ')}`;
+  }
+
+  // pagination
+  // if all is true, skip pagination
+  if (!all) {
+    query += ` LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+  }
+
+
+  const [rows] = await db.query(query, params);
+
+  // get total count for pagination info (same filters, no limit/offset)
+  let countQuery = `
+    SELECT COUNT(*) AS total
+    FROM product p
+    JOIN category c ON p.category_id = c.category_id
+    LEFT JOIN inventory i ON p.product_id = i.product_id
+    WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
+  `;
+  const countParams = [keyword, keyword];
+
+  if (category) { countQuery += ` AND c.category_name = ?`; countParams.push(category); }
+  if (stockStatus) { countQuery += ` AND i.stock_status = ?`; countParams.push(stockStatus); }
+  if (expirationFilter === 'Expired') {
+    countQuery += ` AND i.spoilage_date < CURDATE()`;
+  } else if (expirationFilter === 'Expiring Soon') {
+    countQuery += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
+  } else if (expirationFilter === 'Not Expiring Soon') {
+    countQuery += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
+  }
+
+  const [[{ total }]] = await db.query(countQuery, countParams);
+
+  return {
+    products: rows,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    }
+  };
 },
 
-  // add new product
-  addProduct: async (productNumber, name, categoryID, basePrice, markupPrice, stockQty, expiryDate, productType, measurement, dateReceived, description) => {
+  // find product by id, also returns retail_price
+  findProductByID: async (productID) => {
+    const [rows] = await db.query(
+      `SELECT p.*, 
+              (p.base_price + p.markup_price) AS retail_price,
+              i.inventory_id, i.stock_quantity, i.spoilage_date, i.stock_status
+       FROM product p
+       LEFT JOIN inventory i ON p.product_id = i.product_id
+       WHERE p.product_id = ?`,
+      [productID]
+    );
+    return rows[0];
+  },
+
+  // add new product, markup_price defaults to global default_markup from config
+  addProduct: async (categoryID, productName, description, basePrice, unitMeasurement) => {
+    // fetch default markup from config table
+    const defaultMarkup = await Config.get('default_markup');
+
     const [result] = await db.query(
-      `INSERT INTO products (ProductNumber, Name, CategoryID, BasePrice, MarkupPrice, StockQty, ExpiryDate, ProductType, Measurement, DateReceived, Description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [productNumber, name, categoryID, basePrice, markupPrice, stockQty, expiryDate, productType, measurement, dateReceived, description || null]
+      `INSERT INTO product (category_id, product_name, description, base_price, markup_price, unit_measurement)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [categoryID, productName, description || null, basePrice, defaultMarkup, unitMeasurement || null]
     );
     return result.insertId;
   },
 
-  // edit product details
+  // update product, markup_price now editable only by admin (enforced in controller)
   updateProduct: async (productID, fields) => {
-    const allowedFields = ['Name', 'CategoryID', 'Description', 'BasePrice', 'StockQty', 'ExpiryDate'];
-    
+    const allowedFields = ['product_name', 'category_id', 'description', 'base_price', 'markup_price', 'unit_measurement'];
     const keys = Object.keys(fields).filter(k => allowedFields.includes(k));
     if (keys.length === 0) return 0;
 
@@ -45,28 +133,27 @@ const Product = {
     const setClause = keys.map(k => `${k} = ?`).join(', ');
 
     const [result] = await db.query(
-      `UPDATE products SET ${setClause} WHERE ProductID = ?`,
+      `UPDATE product SET ${setClause} WHERE product_id = ?`,
       [...values, productID]
     );
     return result.affectedRows;
   },
 
-  // soft delete product (not deleted from database)
-  softDeleteProduct: async (productID, deleteReason) => {
-    const [result] = await db.query(
-      `UPDATE products SET IsDeleted = TRUE, DeleteReason = ? WHERE ProductID = ?`,
-      [deleteReason, productID]
-    );
+  // delete product
+  deleteProduct: async (productID) => {
+    // delete inventory record first
+    await db.query('DELETE FROM inventory WHERE product_id = ?', [productID]);
+    // then delete product
+    const [result] = await db.query('DELETE FROM product WHERE product_id = ?', [productID]);
     return result.affectedRows;
   },
 
-  // find product using ID
-  findProductByID: async (productID) => {
-    const [rows] = await db.query(
-      'SELECT * FROM products WHERE ProductID = ?', [productID]
-    );
-    return rows[0];
+  // get all categories for dropdown
+  getAllCategories: async () => {
+    const [rows] = await db.query('SELECT * FROM category ORDER BY category_name ASC');
+    return rows;
   }
+
 };
 
 module.exports = Product;

@@ -9,6 +9,9 @@ router.get('/', protect, productController.getAllProducts);
 // add new product
 router.post('/', protect, productController.addProduct);
 
+// get categories
+router.get('/categories', protect, productController.getAllCategories);
+
 // edit/update product
 router.put('/:id', protect, productController.updateProduct);
 

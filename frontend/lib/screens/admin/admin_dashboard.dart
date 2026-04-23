@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-class OwnerDashboard extends StatelessWidget {
-  const OwnerDashboard({super.key});
+class AdminDashboard extends StatelessWidget {
+  const AdminDashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
 
-      // ── Custom FAB with grid icon ──
+      // Floating Action Button
       floatingActionButton: Container(
         width: 65,
         height: 65,
@@ -24,7 +24,7 @@ class OwnerDashboard extends StatelessWidget {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      // ── Bottom bar matching the design ──
+      // Bottom Navigation Bar
       bottomNavigationBar: BottomAppBar(
         color: const Color(0xFF2E8B7F),
         height: 60,
@@ -32,12 +32,12 @@ class OwnerDashboard extends StatelessWidget {
         shape: const CircularNotchedRectangle(),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavIcon(icon: Icons.inventory_2_outlined),
-            _NavIcon(icon: Icons.group_outlined),
-            const SizedBox(width: 48), // Spacer for FAB
-            _NavIcon(icon: Icons.person_pin_outlined),
-            _NavIcon(icon: Icons.logout_rounded),
+          children: const [
+            _NavIcon(icon: Icons.inventory_2_outlined, route: '/admin-inventory'),
+            _NavIcon(icon: Icons.group_outlined, route: '/staff-list'),
+            SizedBox(width: 48), // Spacer for FAB (for now wala pa adtunan)
+            _NavIcon(icon: Icons.person_pin_outlined, route: '/admin-profile'),
+            _NavIcon(icon: Icons.logout_rounded, route: '/'),
           ],
         ),
       ),
@@ -50,7 +50,7 @@ class OwnerDashboard extends StatelessWidget {
               const _Header(),
               const SizedBox(height: 16),
 
-              // ── DAILY SALES ──
+              // DAILY SALES
               const _SalesCard(
                 title: "Daily Sales Report",
                 amount: "₱ 10, 352",
@@ -61,23 +61,23 @@ class OwnerDashboard extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // ── MONTHLY SALES ──
+              // MONTHLY SALES
               const _SalesCard(
                 title: "Monthly Sales Report",
                 amount: "₱ 37, 124",
                 subtitle: "for the month of March",
-                alignRight: false, // Text moved to left side as requested
+                alignRight: false,
                 isMonthly: true,
               ),
 
               const SizedBox(height: 16),
 
-              // ── CALENDAR ──
+              // CALENDAR
               const _CalendarCard(),
 
               const SizedBox(height: 16),
 
-              // ── ACTIVE STAFF ──
+              // ACTIVE STAFF
               const _ActiveStaffCard(),
 
               const SizedBox(height: 24), // Padding for BottomBar
@@ -91,12 +91,19 @@ class OwnerDashboard extends StatelessWidget {
 
 class _NavIcon extends StatelessWidget {
   final IconData icon;
-  const _NavIcon({required this.icon});
+  final String route;
+
+  const _NavIcon({
+    required this.icon,
+    required this.route,
+  });
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      onPressed: () {},
+      onPressed: () {
+        Navigator.pushNamed(context, route);
+      },
       icon: Icon(icon, color: Colors.white, size: 26),
     );
   }
@@ -111,7 +118,7 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          // Logo - Slightly smaller CircleAvatar
+          // Logo
           Container(
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
@@ -133,9 +140,9 @@ class _Header extends StatelessWidget {
             color: Colors.grey.shade300,
           ),
           const SizedBox(width: 10),
-          Column(
+          const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Text("Hello,", style: TextStyle(fontSize: 14, color: Colors.grey)),
               Text(
                 "Russel Marie!",
@@ -144,29 +151,32 @@ class _Header extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          // Notification - Slightly smaller
-          Stack(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.shade200),
+          // Notification
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/notifications'),
+            child: Stack(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: const Icon(Icons.notifications_none_rounded, color: Colors.black87, size: 24),
                 ),
-                child: const Icon(Icons.notifications_none_rounded, color: Colors.black87, size: 24),
-              ),
-              Positioned(
-                top: 8,
-                right: 10,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                ),
-              )
-            ],
+                Positioned(
+                  top: 8,
+                  right: 10,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                  ),
+                )
+              ],
+            ),
           ),
         ],
       ),
@@ -267,7 +277,6 @@ class _BarPainter extends CustomPainter {
     double spacing = 8;
     double totalWidth = bars.length * (barWidth + spacing) - spacing;
 
-    // Position bars on the right side if text is on the left
     double startX = size.width - totalWidth - 20;
 
     for (var hFactor in bars) {
@@ -327,11 +336,11 @@ class _CalendarCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: days
                 .map((d) => Expanded(
-                      child: Center(
-                        child: Text(d,
-                            style: const TextStyle(color: Color(0xFF3FAF9F), fontWeight: FontWeight.bold, fontSize: 14)),
-                      ),
-                    ))
+              child: Center(
+                child: Text(d,
+                    style: const TextStyle(color: Color(0xFF3FAF9F), fontWeight: FontWeight.bold, fontSize: 14)),
+              ),
+            ))
                 .toList(),
           ),
           const SizedBox(height: 8),
@@ -417,11 +426,11 @@ class _ActiveStaffCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _StaffItem(role: "Cashier", name: "Michael John Ramos", time: "Active since 2 minutes ago"),
+          const _StaffItem(role: "Cashier", name: "Michael John Ramos", time: "Active since 2 minutes ago"),
           const SizedBox(height: 12),
-          _StaffItem(role: "Inventory", name: "Lyra Bellah Buenavista", time: "Active since 8 minutes ago"),
+          const _StaffItem(role: "Inventory", name: "Lyra Bellah Buenavista", time: "Active since 8 minutes ago"),
           const SizedBox(height: 12),
-          _StaffItem(role: "Helper", name: "Gwen Tricia Lingaling", time: "Active since 5 hours ago"),
+          const _StaffItem(role: "Helper", name: "Gwen Tricia Lingaling", time: "Active since 5 hours ago"),
         ],
       ),
     );
@@ -481,3 +490,9 @@ class _StaffItem extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
