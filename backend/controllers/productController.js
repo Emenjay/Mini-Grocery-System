@@ -1,16 +1,25 @@
 const Product = require('../models/productModel');
 const Inventory = require('../models/inventoryModel');
 
-exports.getAllProducts = async (req, res) => { // get search query from URL ex: ?search=coca
+exports.getAllProducts = async (req, res) => {
   try {
-    const { search } = req.query;
+    const {search, category, stockStatus, expirationFilter, sortName, sortPrice, page, limit, all} = req.query;
 
-    // pass search to model, if no search provided defaults to empty string (returns all)
-    const products = await Product.getAllProducts(search || '');
-
-    res.status(200).json({ 
+    // pass search to model, if no search/filter provided, defaults to return all
+    const result = await Product.getAllProducts(
+      search || '',
+      category || '',
+      stockStatus || '',
+      expirationFilter || '',
+      sortName || '',
+      sortPrice || '',
+      parseInt(page) || 1,
+      parseInt(limit) || 20,
+      all === 'true' // converts string 'true' to boolean
+    );
+    res.status(200).json({
       message: 'Products retrieved successfully',
-      products 
+      ...result // spreads products and pagination into the response
     });
   } catch (err) {
     console.error(err);
