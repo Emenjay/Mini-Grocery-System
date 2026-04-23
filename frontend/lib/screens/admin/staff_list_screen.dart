@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
+import '../admin/staff_info_screen.dart';
 // import 'add_staff_screen.dart';
-// import 'staff_info_screen.dart';
 // import 'edit_staff_screen.dart';
 // -- TODO: fix temporary placeholders for add staff, staff info, & edit staff later on line 92
 
@@ -105,6 +105,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
   );
 }
 
+// 
 void _showStaffMenu(BuildContext context, Map<String, dynamic> staff) {
   showModalBottomSheet(
     context: context,
@@ -113,7 +114,17 @@ void _showStaffMenu(BuildContext context, Map<String, dynamic> staff) {
     ),
     builder: (_) => _StaffMenuSheet(
       staff: staff,
-      onView: () => Navigator.pop(context),        // placeholder
+
+      onView: () { 
+        Navigator.pop(context); // close the bottom sheet
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StaffInfoScreen(staff: staff),
+          ),
+        );
+      },
+
       onEdit: () => Navigator.pop(context),       // placeholder
       onToggleDuty: () {
         Navigator.pop(context);
