@@ -84,7 +84,33 @@ const Inventory = {
       [productID]
     );
     return rows[0];
-  }
+  },
+
+  // get inventory dashboard counts
+  getDashboardCounts: async () => {
+  const [[productCount]] = await db.query(
+    'SELECT COUNT(*) AS total_products FROM product'
+  );
+
+  const [[lowStockCount]] = await db.query(
+    "SELECT COUNT(*) AS low_stock FROM inventory WHERE stock_status = 'Low Stock'"
+  );
+
+  const [[outOfStockCount]] = await db.query(
+    "SELECT COUNT(*) AS out_of_stock FROM inventory WHERE stock_status = 'Out of Stock'"
+  );
+
+  const [[expiredCount]] = await db.query(
+    'SELECT COUNT(*) AS expired FROM inventory WHERE spoilage_date < CURDATE()'
+  );
+
+  return {
+    totalProducts: productCount.total_products,
+    lowStock: lowStockCount.low_stock,
+    outOfStock: outOfStockCount.out_of_stock,
+    expired: expiredCount.expired
+  };
+}
 
 };
 
