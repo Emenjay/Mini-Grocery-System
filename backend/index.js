@@ -9,6 +9,7 @@ const productRoutes = require('./routes/productRoutes');
 const checkoutRoutes = require('./routes/checkoutRoutes');
 const userRoutes = require('./routes/userRoutes');
 const configRoutes = require('./routes/configRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
 
 // testing code
 
@@ -37,6 +38,9 @@ app.use('/api/checkout', checkoutRoutes);
 
 // config route
 app.use('/api/config', configRoutes);
+
+// inventory route
+app.use('/api/inventory-dashboard', inventoryRoutes);
 
 
 app.listen(process.env.PORT, () => {
