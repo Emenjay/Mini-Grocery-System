@@ -10,11 +10,18 @@ const Transaction = {
 		return rows[0].count;
 	},
 
-	// generate cart number
-	generateCartNo: async () => {
-		const count = await Transaction.getTransactionCount();
-		return `#${String(count + 1).padStart(6, '0')}`;
-	},
+	// generate unique timestamp-based cart number e.g. #260429143022 (YYMMDDHHmmss)
+  generateCartNo: async () => {
+    const now = new Date();
+    const timestamp = now.getFullYear().toString().slice(-2)
+      + String(now.getMonth() + 1).padStart(2, '0')
+      + String(now.getDate()).padStart(2, '0')
+      + String(now.getHours()).padStart(2, '0')
+      + String(now.getMinutes()).padStart(2, '0')
+      + String(now.getSeconds()).padStart(2, '0');
+    return `#${timestamp}`;
+  },
+
 
 	// create payment detail
 	createPayment: async (paymentMethod, referenceNumber) => {
