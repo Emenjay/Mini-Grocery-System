@@ -23,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
     } else if (user == "cashier1" && pin == "0000") {
       Navigator.pushReplacementNamed(context, '/cash-in');
     } else if (user == "staff1" && pin == "8888") {
-      Navigator.pushReplacementNamed(context, '/inventory');
+      Navigator.pushReplacementNamed(context, '/inventory-dashboard');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("invalid credentials")),
