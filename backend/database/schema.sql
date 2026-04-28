@@ -48,6 +48,7 @@ CREATE TABLE product (
   category_id INT NOT NULL,
   product_name VARCHAR(100) NOT NULL,
   description VARCHAR(255),
+  base_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   markup_price DECIMAL(10,2) NOT NULL,
   unit_measurement VARCHAR(50),
   FOREIGN KEY (category_id) REFERENCES category(category_id)
@@ -115,4 +116,26 @@ CREATE TABLE notification (
 CREATE TABLE config (
   config_key VARCHAR(50) PRIMARY KEY,
   config_value VARCHAR(100) NOT NULL
+);
+
+-- 12. paused cart header
+CREATE TABLE paused_cart (
+  paused_cart_id INT AUTO_INCREMENT PRIMARY KEY,
+  cart_no VARCHAR(20) NOT NULL,
+  user_id INT NOT NULL,
+  created_at DATETIME DEFAULT NOW(),
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- 13. paused cart items
+CREATE TABLE paused_cart_item (
+  item_id INT AUTO_INCREMENT PRIMARY KEY,
+  paused_cart_id INT NOT NULL,
+  product_id INT NOT NULL,
+  product_name VARCHAR(100) NOT NULL,  -- snapshot at time of pause
+  quantity INT NOT NULL,
+  retail_price DECIMAL(10,2) NOT NULL, -- snapshot at time of pause
+  subtotal DECIMAL(10,2) NOT NULL,
+  FOREIGN KEY (paused_cart_id) REFERENCES paused_cart(paused_cart_id),
+  FOREIGN KEY (product_id) REFERENCES product(product_id)
 );
