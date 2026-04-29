@@ -98,8 +98,80 @@ class StaffInfoScreen extends StatelessWidget {
       ),
 
       // -- body --
-      body: const Center(
-        child: Text('Staff Info Screen...'),
+      body: Column(
+        children: [
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.all(4.5),
+              decoration: BoxDecoration(
+                color: AppColors.mutedGreen,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // ── back button & duty status ──
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              
+                              // back button
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.arrow_back,
+                                    color: AppColors.primaryDarkTeal,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+
+                              // Duty status
+                              Row(
+                                children: [
+                                  Text(
+                                    onDuty ? 'On Duty' : 'Off Duty',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: onDuty
+                                          ? const Color.fromARGB(255, 123, 240, 127)
+                                          : Colors.white38,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
