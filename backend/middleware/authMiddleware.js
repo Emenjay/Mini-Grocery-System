@@ -6,7 +6,7 @@ const protect = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { userID, role } now available in all controllers
+    req.user = decoded; // { userID, role } available in all controllers
     next();
   } catch {
     res.status(401).json({ message: 'Invalid or expired token' });

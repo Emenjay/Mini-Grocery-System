@@ -1,6 +1,7 @@
+// ignore_for_file: unused_element
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 
 class ProductDetailScreen extends StatefulWidget {
   final List<Map<String, dynamic>> productList;
@@ -59,6 +60,167 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     });
   }
 
+  // ʜᴀɴᴅʟᴇꜱ ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ ʙᴇꜰᴏʀᴇ ꜱᴀᴠɪɴɢ ᴇᴅɪᴛᴇᴅ ᴄʜᴀɴɢᴇꜱ
+  void _confirmSave() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.help_outline_rounded, color: Color(0xFF2D936C), size: 60),
+                const SizedBox(height: 16),
+                const Text("Save Changes?", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text(
+                  "Are you sure you want to update this product's information?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.black12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: const Text("Cancel", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        // ʟᴏɢɪᴄ ᴛᴏ ᴜᴘᴅᴀᴛᴇ ᴛʜᴇ ᴀᴄᴛᴜᴀʟ ʟɪꜱᴛ ᴅᴀᴛᴀ ᴡᴏᴜʟᴅ ɢᴏ ʜᴇʀᴇ
+                        Navigator.pop(context); // ᴄʟᴏꜱᴇ ᴄᴏɴꜰɪʀᴍ ᴍᴏᴅᴀʟ
+                        _showSuccessModal("Product Updated", "The changes have been saved successfully.");
+                        setState(() => isEditing = false);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2D936C),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: const Text("Save", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ʜᴀɴᴅʟᴇꜱ ᴅᴇʟᴇᴛɪᴏɴ ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ
+  void _confirmDelete() {
+    final currentItem = widget.productList[_currentIndex];
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 60),
+                const SizedBox(height: 16),
+                const Text("Are you deleting?", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text(
+                  "Are you sure you want to delete ${currentItem['name']}? This action cannot be undone.",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.black12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: const Text("Cancel", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        widget.productList.removeAt(_currentIndex);
+                        Navigator.pop(context); 
+                        _showSuccessModal("Deletion Successful", "The item has been removed from inventory.", isDelete: true);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: const Text("Delete", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ɢᴇɴᴇʀɪᴄ ꜱᴜᴄᴄᴇꜱꜱ ᴘᴏᴘ-ᴜᴘ ꜰᴏʀ ʙᴏᴛʜ ꜱᴀᴠɪɴɢ ᴀɴᴅ ᴅᴇʟᴇᴛɪɴɢ
+  void _showSuccessModal(String title, String message, {bool isDelete = false}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF2D936C), size: 60),
+                const SizedBox(height: 16),
+                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // ᴄʟᴏꜱᴇ ꜱᴜᴄᴄᴇꜱꜱ ᴍᴏᴅᴀʟ
+                      if (isDelete) Navigator.pop(context); // ᴇxɪᴛ ᴅᴇᴛᴀɪʟꜱ ꜱᴄʀᴇᴇɴ ɪꜰ ᴅᴇʟᴇᴛᴇᴅ
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF35524A),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text("Done", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _pickDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -75,7 +237,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentItem = widget.productList[_currentIndex];
+    final currentItem = widget.productList.isEmpty 
+        ? {'id': 'N/A', 'name': 'Deleted', 'category': 'N/A', 'stocks': 0}
+        : widget.productList[_currentIndex];
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -123,18 +287,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton.icon(
-                    onPressed: () => setState(() => isEditing = !isEditing),
-                    icon: Icon(isEditing ? Icons.check_circle : Icons.edit, size: 16),
-                    label: Text(isEditing ? "Confirm Changes" : "Edit Product"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D936C),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (!isEditing)
+                      ElevatedButton.icon(
+                        onPressed: _confirmDelete,
+                        icon: const Icon(Icons.delete_outline, size: 16),
+                        label: const Text("Delete"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        ),
+                      ),
+                    const SizedBox(width: 10),
+                    ElevatedButton.icon(
+                      onPressed: isEditing ? _confirmSave : () => setState(() => isEditing = true),
+                      icon: Icon(isEditing ? Icons.check_circle : Icons.edit, size: 16),
+                      label: Text(isEditing ? "Confirm Changes" : "Edit Product"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2D936C),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
                     ),
-                  ),
+                  ],
                 )
               ],
             ),
@@ -174,6 +352,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  // ʜᴇʟᴘᴇʀ ᴜɪ ᴍᴇᴛʜᴏᴅꜱ ʀᴇᴛᴀɪɴᴇᴅ ꜰᴏʀ ᴄᴏɴꜱɪꜱᴛᴇɴᴄʏ
   Widget _headerDropdown() {
     return Container(
       height: 45,

@@ -5,6 +5,7 @@ import 'screens/admin/admin_dashboard.dart';
 import 'screens/admin/admin_inventory.dart';
 import 'screens/admin/admin_product_detail.dart';
 import 'screens/admin/notifications_screen.dart';
+import 'screens/admin/staff_list_screen.dart';
 import 'screens/cashier/inventory_screen.dart';
 import 'screens/cashier/payment_screen.dart';
 import 'screens/cashier/cash_in.dart';
@@ -14,6 +15,7 @@ import 'screens/cashier/transactions.dart';
 import 'screens/inventory/add_new_product.dart';
 import 'screens/inventory/product_detail.dart';
 import 'screens/inventory/staff_inventory.dart';
+import 'screens/inventory/inventory_dashboard.dart';
 
 void main(){
   runApp(const MyApp());
@@ -33,8 +35,9 @@ class MyApp extends StatelessWidget{
       ),
       
       // set login as the starting point for the flow
-      initialRoute: '/admin-dashboard',
+      initialRoute: '/',
       routes: {
+        '/inventory-dashboard': (context) => const InventoryDashboard(),
         '/': (context) => const LoginPage(),
         '/login': (context) => const LoginPage(),
         '/admin-dashboard': (context) => const AdminDashboard(),
@@ -46,8 +49,8 @@ class MyApp extends StatelessWidget{
         '/cash-out': (context) => const CashOutScreen(startingCash: 0),
         '/transactions': (context) => const TransactionsScreen(),
         '/notifications': (context) => const NotificationsScreen(),
-        // Placeholders for missing routes
-        '/staff-list': (context) => const PlaceholderScreen('Staff List'),
+        '/add-product': (context) => const AddProductScreen(),
+        '/staff-list': (context) => const StaffListScreen(),
         '/admin-profile': (context) => const PlaceholderScreen('Admin Profile'),
       },
     );
