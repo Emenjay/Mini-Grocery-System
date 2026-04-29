@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../admin/staff_list_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -418,10 +419,20 @@ class _ActiveStaffCard extends StatelessWidget {
             children: [
               const Text("Active Staff",
                   style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                child: const Text("View More", style: TextStyle(fontSize: 10, color: Colors.black87)),
+              GestureDetector(  
+                onTap: (){
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const StaffListScreen(),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                  child: const Text("View More", style: TextStyle(fontSize: 10, color: Colors.black87)),
+                ),
               ),
             ],
           ),
