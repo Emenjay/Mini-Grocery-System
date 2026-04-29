@@ -191,12 +191,82 @@ class StaffInfoScreen extends StatelessWidget {
                             staff['role'].toString(),
                             textAlign: TextAlign.center,
                             style: const TextStyle(
-                              color: Colors.white60,
+                              color: Color.fromARGB(153, 236, 233, 233),
                               fontSize: 14,
                             ),
                           ),
                           
                           const SizedBox(height: 20),
+     
+                          // -- white card container --
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.06),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                            
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Edit Account button
+                                Align(
+                                  alignment: Alignment.topRight,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Edit Account...')),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.edit, size: 14, color: Colors.white),
+                                    label: const Text(
+                                      'Edit Account',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.mutedGreen,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                // contact number
+                                _SectionLabel(label: 'Contact Number:'),
+                                const SizedBox(height: 6),
+                                _SectionValue(value: staff['contactNumber'].toString()),
+
+                                const SizedBox(height: 16),
+
+                                // full address
+                                _SectionLabel(label: 'Full Address:'),
+                                const SizedBox(height: 6),
+                                _SectionValue(value: staff['address'].toString()),
+
+                                const SizedBox(height: 24),
+
+                                // TODO: addd attendance section 
+                              ],
+                            ),
+                          ),
                           
                         ],
                       ),
@@ -207,6 +277,56 @@ class StaffInfoScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Helper Widgets
+// Section label with underline
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  const _SectionLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.primaryDarkTeal,
+          ),
+        ),
+        Container(
+          width: 120,
+          height: 1,
+          color: AppColors.surfaceLightGray,
+          margin: const EdgeInsets.only(top: 4),
+        ),
+      ],
+    );
+  }
+}
+
+// Section value (indented)
+class _SectionValue extends StatelessWidget {
+  final String value;
+  const _SectionValue({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 12),
+      child: Text(
+        value,
+        style: const TextStyle(
+          fontSize: 15,
+          color: Colors.black,
+        ),
       ),
     );
   }
