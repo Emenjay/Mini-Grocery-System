@@ -13,7 +13,7 @@ class AddProductScreen extends StatefulWidget {
 }
 
 class _AddProductScreenState extends State<AddProductScreen> {
-  // --- state variables for db integration ---
+  // --- ꜱᴛᴀᴛᴇ ᴠᴀʀɪᴀʙʟᴇꜱ ꜰᴏʀ ᴅʙ ɪɴᴛᴇɢʀᴀᴛɪᴏɴ ---
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _measureController = TextEditingController();
@@ -24,22 +24,23 @@ class _AddProductScreenState extends State<AddProductScreen> {
   String? selectedStatus;
   DateTime? expirationDate;
   DateTime? dateReceived;
-  String generatedId = "2026_0000";
   
-  // dummy count - this will come from a 'SELECT COUNT(*)' query later
-  int currentProductCount = 3; 
+  // ᴅᴇꜰᴀᴜʟᴛ ᴘʟᴀᴄᴇʜᴏʟᴅᴇʀ ꜰᴏʀ ɪᴅ ʙᴇꜰᴏʀᴇ ᴄᴀᴛᴇɢᴏʀʏ ꜱᴇʟᴇᴄᴛɪᴏɴ
+  String generatedId = "SELECT CATEGORY";
+  
+  // ᴍᴏᴄᴋ ᴅᴀᴛᴀ ᴛᴏ ꜱɪᴍᴜʟᴀᴛᴇ ᴅᴀᴛᴀʙᴀꜱᴇ ɪɴᴄʀᴇᴍᴇɴᴛ
+  int currentProductCount = 124; 
 
-  // unique codes to ensure IDs don't overlap (e.g., Snacks vs Staples)
   final Map<String, String> categoryCodes = {
-    'Beverages': 'B',
-    'Liquor & Tobacco': 'L',
-    'Snacks & Sweets': 'S',
-    'Fresh & Prepared': 'F',
-    'Pantry Staples': 'P',
-    'Frozen Goods': 'Z',
-    'Personal Care': 'C',
-    'Household Care': 'H',
-    'Miscellaneous': 'M',
+    'Beverages': 'BEV',
+    'Liquor & Tobacco': 'LIQ',
+    'Snacks & Sweets': 'SNA',
+    'Fresh & Prepared': 'FRE',
+    'Pantry Staples': 'PAN',
+    'Frozen Goods': 'FRO',
+    'Personal Care': 'PER',
+    'Household Care': 'HOU',
+    'Miscellaneous': 'MIS',
   };
 
   final List<String> categories = [
@@ -47,18 +48,129 @@ class _AddProductScreenState extends State<AddProductScreen> {
     'Pantry Staples', 'Frozen Goods', 'Personal Care', 'Household Care', 'Miscellaneous',
   ];
 
-  // logic for id: 2026 + UniqueLetter + Rank
+  @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(_rebuild);
+    _priceController.addListener(_rebuild);
+    _measureController.addListener(_rebuild);
+  }
+
+  void _rebuild() => setState(() {});
+
+  // ᴠᴀʟɪᴅᴀᴛᴇꜱ ᴅᴀᴛᴇ ʟᴏɢɪᴄ ᴛᴏ ᴘʀᴇᴠᴇɴᴛ ᴇxᴘɪʀᴇᴅ ᴇɴᴛʀɪᴇꜱ
+  bool get _isExpiredError {
+    if (expirationDate == null || dateReceived == null) return false;
+    return expirationDate!.isBefore(dateReceived!);
+  }
+
+  // ʙᴜᴛᴛᴏɴ ꜱᴛᴀᴛᴇ ʟᴏɢɪᴄ
+  bool get _canSubmit {
+    return _nameController.text.isNotEmpty &&
+        _priceController.text.isNotEmpty &&
+        _measureController.text.isNotEmpty &&
+        selectedType != null &&
+        selectedCategory != null &&
+        selectedStatus != null &&
+        expirationDate != null &&
+        dateReceived != null &&
+        !_isExpiredError;
+  }
+
+  // ɢᴇɴᴇʀᴀᴛᴇꜱ ᴀ ꜰᴏʀᴍᴀᴛᴛᴇᴅ ɪᴅ ꜱɪᴍɪʟᴀʀ ᴛᴏ ᴅᴀᴛᴀʙᴀꜱᴇ ꜱᴇʀɪᴀʟ ɴᴜᴍʙᴇʀꜱ
+  // ꜰᴏʀᴍᴀᴛ: [ᴄᴀᴛᴇɢᴏʀʏ]-[ʏᴇᴀʀ][ᴍᴏɴᴛʜ]-[ɪɴᴄʀᴇᴍᴇɴᴛᴀʟ ɪᴅ]
   void _updateId(String? category) {
     if (category == null) return;
-    String letter = categoryCodes[category] ?? 'X';
+    
+    String prefix = categoryCodes[category] ?? 'GEN';
+    String datePart = DateFormat('yyyyMM').format(DateTime.now());
     String rankString = (currentProductCount + 1).toString().padLeft(4, '0');
+    
     setState(() {
       selectedCategory = category;
-      generatedId = "2026$letter$rankString"; 
+      generatedId = "$prefix-$datePart-$rankString"; 
     });
   }
 
-  // date picker helper
+  // ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ ꜰʟᴏᴡ ʙᴇꜰᴏʀᴇ "ꜱᴀᴠɪɴɢ"
+  void _confirmAddProduct() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.add_task_rounded, color: Color(0xFF2D936C), size: 60),
+              const SizedBox(height: 16),
+              const Text("Confirm Product", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text("Add this item to the database with ID:", textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: Colors.black54)),
+              Text(generatedId, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF3E5C51))),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.black12)),
+                    child: const Text("Cancel", style: TextStyle(color: Colors.black54)),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); 
+                      _showSuccessModal();
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2D936C)),
+                    child: const Text("Confirm", style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle_outline, color: Color(0xFF2D936C), size: 60),
+              const SizedBox(height: 16),
+              const Text("Product Added", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text("Product $generatedId has been saved.", textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context); 
+                    Navigator.pop(context); 
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3E5C51)),
+                  child: const Text("Done", style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickDate(BuildContext context, bool isExpiration) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -81,7 +193,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // --- dark header section ---
+            // --- ʜᴇᴀᴅᴇʀ ꜱᴇᴄᴛɪᴏɴ ---
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 50, 20, 30),
@@ -114,19 +226,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // dropdown for solid/liquid
                       Expanded(child: _buildTopDropdown("Product Type:", selectedType ?? "Solid/Liquid", ["Solid", "Liquid"], (val) {
                         setState(() => selectedType = val);
                       })),
                       const SizedBox(width: 10),
-                      // hint text changes based on type selected above
                       Expanded(child: _buildTopField(
                         "Measurement:", 
                         selectedType == "Liquid" ? "mL / L" : (selectedType == "Solid" ? "g / kg" : "300 mL/ 60g"), 
                         _measureController
                       )),
                       const SizedBox(width: 10),
-                      // uses the isPrice flag for the ₱ sign
                       Expanded(child: _buildTopField("Base Price:", "0.00", _priceController, isPrice: true)),
                     ],
                   ),
@@ -134,7 +243,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               ),
             ),
 
-            // --- white form section ---
+            // --- ꜰᴏʀᴍ ꜱᴇᴄᴛɪᴏɴ ---
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -142,14 +251,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 children: [
                   Row(
                     children: [
-                      // category dropdown updates the product ID instantly
                       Expanded(child: _buildBottomDropdown("Category:", selectedCategory ?? "Choose Category", categories, (val) => _updateId(val))),
                       const SizedBox(width: 20),
-                      Expanded(child: _buildDisplayField("Product ID/Number:", generatedId)),
+                      Expanded(child: _buildDisplayField("Product ID:", generatedId)),
                     ],
                   ),
                   const SizedBox(height: 15),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(child: _buildBottomDropdown("Available Stocks", selectedStatus ?? "Choose Status", ["In Stock", "Low Stock", "No Stock"], (val) => setState(() => selectedStatus = val))),
                       const SizedBox(width: 20),
@@ -158,12 +267,20 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ),
                   const SizedBox(height: 15),
                   _buildDateTile("Date Received:", dateReceived, () => _pickDate(context, false)),
+                  
+                  if (_isExpiredError)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 5, left: 5),
+                      child: Text(
+                        "Product cannot be added because it is expired",
+                        style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  
                   const SizedBox(height: 15),
                   _buildBottomField("Description (Optional):", "Enter Description", _descController, maxLines: 3),
-                  
                   const SizedBox(height: 40),
                   
-                  // actions
                   Row(
                     children: [
                       Expanded(
@@ -180,13 +297,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       const SizedBox(width: 15),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            // insert database logic here later
-                          },
+                          onPressed: _canSubmit ? _confirmAddProduct : null,
                           icon: const Icon(Icons.check_circle_outline, size: 18),
                           label: const Text("Add Product"),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2D936C),
+                            disabledBackgroundColor: Colors.grey[300],
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -203,7 +319,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // --- UI Helpers ---
+  // --- ᴜɪ ʜᴇʟᴘᴇʀꜱ ---
 
   Widget _buildTopField(String label, String hint, TextEditingController controller, {bool isPrice = false}) {
     return Column(
@@ -313,7 +429,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
       children: [
         Text(label, style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
-        Text(value, style: const TextStyle(color: Colors.black45, fontSize: 16, fontWeight: FontWeight.w500)),
+        // ꜰᴏɴᴛ ꜱɪᴢᴇ ꜱʟɪɢʜᴛʟʏ ʀᴇᴅᴜᴄᴇᴅ ᴛᴏ ꜰɪᴛ ʟᴏɴɢᴇʀ ꜱᴛʀɪɴɢꜱ
+        Text(value, style: const TextStyle(color: Colors.black45, fontSize: 14, fontWeight: FontWeight.bold)),
       ],
     );
   }

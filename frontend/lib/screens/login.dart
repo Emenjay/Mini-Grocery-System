@@ -23,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
     } else if (user == "cashier1" && pin == "0000") {
       Navigator.pushReplacementNamed(context, '/cash-in');
     } else if (user == "staff1" && pin == "8888") {
-      Navigator.pushReplacementNamed(context, '/inventory');
+      Navigator.pushReplacementNamed(context, '/inventory-dashboard');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("invalid credentials")),
@@ -36,8 +36,13 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // background color using your new team teal
-          Container(color: AppColors.primaryDarkTeal),
+          // background
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/login_bg.png',
+              fit: BoxFit.cover,
+            ),
+          ),
 
           // top logo section
           Positioned(
@@ -48,11 +53,10 @@ class _LoginPageState extends State<LoginPage> {
                   radius: 60,
                   backgroundColor: Colors.white,
                   child: Padding(
-                    padding: const EdgeInsets.all(12.0), // Gives the logo some breathing room
+                    padding: const EdgeInsets.all(12.0),
                     child: Image.asset(
                       'assets/images/logo.png',
                       fit: BoxFit.contain,
-                      // If the image still won't show, this errorBuilder will tell us why
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.broken_image, color: Colors.red, size: 40);
                       },
@@ -128,24 +132,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ],
       ),
-    );
-  }
-}
-
-// simple placeholder for target screens
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const PlaceholderScreen(this.title, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title), 
-        backgroundColor: AppColors.primaryDarkTeal, 
-        foregroundColor: Colors.white,
-      ),
-      body: Center(child: Text("Welcome to $title")),
     );
   }
 }

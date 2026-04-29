@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 const Attendance = require('../models/attendanceModel');
+const PausedCart = require('../models/pausedCartModel');
 
 // login authentication
 exports.login = async (req, res) => {
@@ -72,12 +73,15 @@ exports.login = async (req, res) => {
 // clock out on logout
 exports.logout = async (req, res) => {
   try {
-    const userID = req.user.userID; // from JWT via authMiddleware
+    const userID = req.user.userID; // from JWT
 
     const activeAttendance = await Attendance.findActiveAttendance(userID);
     if (!activeAttendance) {
       return res.status(400).json({ message: 'No active attendance found' });
     }
+
+    // silently delete all paused carts on logout
+    await PausedCart.deleteAllPausedCarts(userID);
 
     await Attendance.clockOut(userID);
 

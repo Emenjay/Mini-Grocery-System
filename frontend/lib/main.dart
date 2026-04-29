@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/inventory/inventory_dashboard.dart'; 
 import 'theme/colors.dart';
 import 'screens/login.dart';
 import 'screens/admin/admin_dashboard.dart';
@@ -33,8 +34,9 @@ class MyApp extends StatelessWidget{
       ),
       
       // set login as the starting point for the flow
-      initialRoute: '/',
+      initialRoute: '/', 
       routes: {
+        '/inventory-dashboard': (context) => const InventoryDashboard(),
         '/': (context) => const LoginPage(),
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/admin-inventory': (context) => const AdminInventoryScreen(),
@@ -44,7 +46,8 @@ class MyApp extends StatelessWidget{
         '/pos-screen': (context) => const PosScreen(),
         '/cash-out': (context) => const CashOutScreen(startingCash: 0),
         '/transactions': (context) => const TransactionsScreen(),
-        '/staff-list': (context) => const StaffListScreen(),
+        '/add-product': (context) => const AddProductScreen(),
+        //'/staff-list': (context) => const StaffListScreen(),
 
         // Placeholders for missing routes used in the dashboard
         '/admin-profile': (context) => const PlaceholderScreen('Admin Profile'),
