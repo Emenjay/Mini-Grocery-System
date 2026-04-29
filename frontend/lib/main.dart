@@ -47,7 +47,7 @@ class MyApp extends StatelessWidget{
         '/cash-out': (context) => const CashOutScreen(startingCash: 0),
         '/transactions': (context) => const TransactionsScreen(),
         '/add-product': (context) => const AddProductScreen(),
-        //'/staff-list': (context) => const StaffListScreen(),
+        '/staff-list': (context) => const StaffListScreen(),
 
         // Placeholders for missing routes used in the dashboard
         '/admin-profile': (context) => const PlaceholderScreen('Admin Profile'),
