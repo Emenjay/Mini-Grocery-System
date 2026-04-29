@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
+import '../../theme/text_styles.dart';
 // import 'edit_staff_screen.dart'; 
 
 class StaffInfoScreen extends StatelessWidget {
@@ -43,13 +44,15 @@ class StaffInfoScreen extends StatelessWidget {
                 Text('Hello,',
                 style: TextStyle(
                   color: AppColors.white, 
+                  fontFamily: AppFonts.avenir,
                   fontSize: 14, 
-                  fontWeight:FontWeight.w400
+                  fontWeight:FontWeight.w100
                 )),
 
                 Text('Russel Marie!',
                 style: TextStyle(
                   color: AppColors.white, 
+                  fontFamily: AppFonts.avenir,
                   fontSize: 20,
                   fontWeight: FontWeight.bold
                 ))
@@ -143,6 +146,7 @@ class StaffInfoScreen extends StatelessWidget {
                                     onDuty ? 'On Duty' : 'Off Duty',
                                     style: const TextStyle(
                                       color: Colors.white,
+                                      fontFamily: AppFonts.avenir,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -178,6 +182,7 @@ class StaffInfoScreen extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: Colors.white,
+                              fontFamily: AppFonts.poppins,
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
                             ),
@@ -191,6 +196,7 @@ class StaffInfoScreen extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: Color.fromARGB(153, 236, 233, 233),
+                              fontFamily: AppFonts.avenir,
                               fontSize: 14,
                             ),
                           ),
@@ -230,6 +236,7 @@ class StaffInfoScreen extends StatelessWidget {
                                       'Edit Account',
                                       style: TextStyle(
                                         color: Colors.white,
+                                        fontFamily: AppFonts.poppins,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -295,6 +302,7 @@ class _SectionLabel extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
+            fontFamily: AppFonts.poppins,
             fontWeight: FontWeight.bold,
             fontSize: 13,
             color: AppColors.primaryDarkTeal,
@@ -323,6 +331,7 @@ class _SectionValue extends StatelessWidget {
       child: Text(
         value,
         style: const TextStyle(
+          fontFamily: AppFonts.poppins,
           fontSize: 15,
           color: Colors.black,
         ),
