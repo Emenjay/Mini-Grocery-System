@@ -3,7 +3,7 @@ import '../../theme/colors.dart';
 import '../admin/staff_info_screen.dart';
 // import 'add_staff_screen.dart';
 // import 'edit_staff_screen.dart';
-// -- TODO: fix temporary placeholders for add staff, staff info, & edit staff later on line 92
+// -- TODO: fix temporary placeholders for add staff & edit staff
 
 
 class StaffListScreen extends StatefulWidget {
@@ -16,6 +16,23 @@ class StaffListScreen extends StatefulWidget {
 class _StaffListScreenState extends State<StaffListScreen> {
   String searchQuery = '';
 
+  // Search controller lets the search icon button read & submit the field
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+ 
+  // Filter state - 'All' means no filter applied
+  String _filterRole  = 'All'; 
+  String _filterDuty  = 'All';
+ 
+ // dispose of controllers to prevent memory leaks when the widget is destroyed
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  // mock data
   final List<Map<String, dynamic>> staffList = [
     {
       'id': 1,
@@ -39,13 +56,9 @@ class _StaffListScreenState extends State<StaffListScreen> {
       'onDuty': true,
       'photo': 'assets/images/staff_2.png',
       'contactNumber': '+639511698350',
-      'address': 'Brgy. Idk, Idc City',
+      'address': 'Brgy. New Jenshan, California',
       'username': 'DinglePM_Ramos',
-      'shifts': [
-       /* {'type': 'Log out', 'time': '6:30 PM', 'date': 'March 11, 2026'},
-        {'type': 'Log in',  'time': '7:30 AM', 'date': 'March 11, 2026'},
-        {'type': 'Log out', 'time': '6:30 PM', 'date': 'March 10, 2026'}, */
-      ],
+      'shifts': [],
     },
     {
       'id': 3,
@@ -56,11 +69,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
       'contactNumber': '+639123456789',
       'address': 'Brgy. New Jenshan, California',
       'username': 'DinglePM_Lingling',
-      'shifts': [
-       /* {'type': 'Log out', 'time': '6:30 PM', 'date': 'March 11, 2026'},
-        {'type': 'Log in',  'time': '7:30 AM', 'date': 'March 11, 2026'},
-        {'type': 'Log out', 'time': '6:30 PM', 'date': 'March 10, 2026'}, */
-      ],
+      'shifts': [],
     },
     {
       'id': 4,
@@ -71,11 +80,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
       'contactNumber': '+639123456780',
       'address': 'Brgy. New Jenshan, California',
       'username': 'DinglePM_Aman',
-      'shifts': [
-       /* {'type': 'Log out', 'time': '6:30 PM', 'date': 'March 11, 2026'},
-        {'type': 'Log in',  'time': '7:30 AM', 'date': 'March 11, 2026'},
-        {'type': 'Log out', 'time': '6:30 PM', 'date': 'March 10, 2026'}, */
-      ],
+      'shifts': [],
     },
   ];
 
@@ -88,7 +93,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
     }).toList();
   }
 
-  // -- TODO: fix temporary placeholders for add staff, staff information, & edit staff later
+  // -- TODO: fix temporary placeholders for add staff & edit staff 
   void _openAddNew() {
   showDialog(
     context: context,
@@ -105,7 +110,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
   );
 }
 
-// 
+
 void _showStaffMenu(BuildContext context, Map<String, dynamic> staff) {
   showModalBottomSheet(
     context: context,
