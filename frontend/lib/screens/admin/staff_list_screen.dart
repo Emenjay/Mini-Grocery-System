@@ -1,6 +1,6 @@
-/*import 'package:flutter/material.dart';
-//import '../../theme/colors.dart';
-//import '../admin/staff_info_screen.dart';
+import 'package:flutter/material.dart';
+import '../../theme/colors.dart';
+import '../admin/staff_info_screen.dart';
 // import 'add_staff_screen.dart';
 // import 'edit_staff_screen.dart';
 // -- TODO: fix temporary placeholders for add staff, staff info, & edit staff later on line 92
@@ -484,7 +484,7 @@ class _StaffMenuSheet extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.bold,
             fontSize: 16, color: AppColors.primaryDarkTeal)),
           const Divider(height: 20),
-          _MenuOption(icon: Icons.visibility, label: 'View Profile', onTap: onView),
+          _MenuOption(icon: Icons.visibility, label: 'View Staff Information', onTap: onView),
           _MenuOption(icon: Icons.edit,       label: 'Edit Details', onTap: onEdit),
           _MenuOption(icon: Icons.swap_horiz, label: 'Toggle Duty',  onTap: onToggleDuty),
           _MenuOption(icon: Icons.delete,     label: 'Remove Staff', onTap: onRemove,
@@ -519,4 +519,4 @@ class _MenuOption extends StatelessWidget {
     );
   }
 
-}*/
+}
