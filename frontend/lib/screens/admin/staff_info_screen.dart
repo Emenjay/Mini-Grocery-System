@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
-import './staff_list_screen.dart';
 // import 'edit_staff_screen.dart'; 
 
 class StaffInfoScreen extends StatelessWidget {
