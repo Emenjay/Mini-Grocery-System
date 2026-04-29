@@ -269,7 +269,60 @@ class StaffInfoScreen extends StatelessWidget {
 
                                 const SizedBox(height: 24),
 
-                                // TODO: addd attendance section 
+                                // -- Tracked attendance section --
+                                Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryLightTeal,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+
+                                      const Text(
+                                        'Tracked Attendance',
+                                        style: TextStyle(
+                                          fontFamily: AppFonts.poppins,
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 12),
+
+                                      // attendance rows
+                                      shifts.isEmpty
+                                        ? const Padding(
+                                          padding: EdgeInsets.symmetric(vertical: 12),
+                                          child: Center(
+                                            child: Text(
+                                              'No attendance records yet.',
+                                              style: TextStyle(
+                                                fontFamily: AppFonts.avenir,
+                                                color: Colors.white54,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        : ListView.separated(
+                                          shrinkWrap: true,
+                                          physics: const NeverScrollableScrollPhysics(),
+                                          itemCount: shifts.length,
+                                          separatorBuilder: (_, __) =>
+                                              const SizedBox(height: 8),
+                                          itemBuilder: (context, index) {
+                                            final shift = shifts[index]
+                                                as Map<String, dynamic>;
+                                            return _AttendanceRow(shift: shift);
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -335,6 +388,70 @@ class _SectionValue extends StatelessWidget {
           fontSize: 15,
           color: Colors.black,
         ),
+      ),
+    );
+  }
+}
+
+// -- Attendance row widget --
+class _AttendanceRow extends StatelessWidget {
+  final Map<String, dynamic> shift;
+  const _AttendanceRow({required this.shift});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isLogOut = shift['type'].toString().toLowerCase() == 'log out';
+
+    final Color timeColor = 
+    isLogOut ? const Color.fromARGB(255, 229, 57, 53) : 
+    const Color.fromARGB(255, 80, 193, 84);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+
+          // Log in/Log out label
+          Text(
+            shift['type'].toString(),
+            style: const TextStyle(
+              fontFamily: AppFonts.figtree,
+              fontSize: 14,
+              color: Colors.black87,
+            ),
+          ),
+
+          // time and date
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                shift['time'].toString(),
+                style: TextStyle(
+                  fontFamily: AppFonts.figtree,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: timeColor,
+                ),
+              ),
+
+              Text(
+                shift['date'].toString(),
+                style: const TextStyle(
+                  fontFamily: AppFonts.poppins,
+                  fontSize: 11,
+                  color: Colors.black45,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
