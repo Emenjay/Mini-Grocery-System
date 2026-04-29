@@ -163,6 +163,41 @@ class StaffInfoScreen extends StatelessWidget {
                               ),
                             ],
                           ),
+                          
+                          const SizedBox(height: 16),
+                          // -- Profile section (image, name, role)
+                          const CircleAvatar(
+                            radius: 72,
+                            backgroundImage: AssetImage('assets/images/logo.png'),
+                          ),
+                          
+                          const SizedBox(height: 16),
+    
+                          // name
+                          Text(
+                            staff['name'].toString(),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 4),
+                          
+                          // role
+                          Text(
+                            staff['role'].toString(),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 14,
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 20),
+                          
                         ],
                       ),
                     ),
