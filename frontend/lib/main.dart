@@ -33,7 +33,6 @@ class MyApp extends StatelessWidget{
         useMaterial3: true,
       ),
       
-      // set login as the starting point for the flow
       initialRoute: '/', 
       routes: {
         '/inventory-dashboard': (context) => const InventoryDashboard(),
@@ -56,8 +55,7 @@ class MyApp extends StatelessWidget{
     );
   }
 }
-
-// make use of this placeholder screen if you wish to create a new route and simulate your work
+//place holder wla lng
 class PlaceholderScreen extends StatelessWidget {
   final String title;
   const PlaceholderScreen(this.title, {super.key});
