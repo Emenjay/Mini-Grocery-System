@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AdminProductDetailScreen extends StatefulWidget {
   final List<Map<String, dynamic>> productList;
@@ -80,19 +81,19 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 35),
-                Text(currentProduct['name'], style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+                Text(currentProduct['name'], style: GoogleFonts.poppins(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Container(height: 1, width: 200, color: Colors.white38),
                 const SizedBox(height: 8),
-                Text(currentProduct['category'], style: const TextStyle(color: Colors.white70, fontSize: 16, fontStyle: FontStyle.italic)),
+                Text(currentProduct['category'], style: GoogleFonts.poppins(color: Colors.white70, fontSize: 16, fontStyle: FontStyle.italic)),
                 const SizedBox(height: 20),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Text("Retail Price", style: TextStyle(color: Colors.white70, fontSize: 14, fontStyle: FontStyle.italic)),
-                      Text("₱ ${_retailPrice.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                      Text("Retail Price", style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14, fontStyle: FontStyle.italic)),
+                      Text("₱ ${_retailPrice.toStringAsFixed(2)}", style: GoogleFonts.poppins(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -109,7 +110,7 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                   _sectionTitle("Description"),
                   const Divider(thickness: 1, height: 10),
                   const SizedBox(height: 8),
-                  Text(currentProduct['description'] ?? "no description available.", style: const TextStyle(color: Colors.black87, fontSize: 14, height: 1.4)),
+                  Text(currentProduct['description'] ?? "no description available.", style: GoogleFonts.poppins(color: Colors.black87, fontSize: 14, height: 1.4)),
                   const SizedBox(height: 25),
                   _readOnlyTile(Icons.badge_outlined, "Product Number / ID", currentProduct['id'].toString()),
                   _readOnlyTile(Icons.sell_outlined, "Base Price", "₱ ${(currentProduct['basePrice'] ?? currentProduct['price'] ?? 0.0).toStringAsFixed(2)}"),
@@ -129,10 +130,10 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("Markup Price:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF3E5C51))),
+                        Text("Markup Price:", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51))),
                         Row(
                           children: [
-                            const Text("₱ ", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
+                            Text("₱ ", style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
                             SizedBox(
                               width: 85,
                               child: TextField(
@@ -141,7 +142,7 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                                 enabled: _isMarkupEditing,
                                 keyboardType: TextInputType.number,
                                 textAlign: TextAlign.right,
-                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, color: _isMarkupEditing ? const Color(0xFF3E5C51) : Colors.black87),
+                                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, color: _isMarkupEditing ? const Color(0xFF3E5C51) : Colors.black87),
                                 decoration: const InputDecoration(border: InputBorder.none, isDense: true),
                                 onChanged: (value) => setState(() {}),
                               ),
@@ -182,15 +183,15 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [Icon(icon, size: 20, color: const Color(0xFF3E5C51)), const SizedBox(width: 8), Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF3E5C51)))]),
+          Row(children: [Icon(icon, size: 20, color: const Color(0xFF3E5C51)), const SizedBox(width: 8), Text(label, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51)))]),
           const Divider(thickness: 1, height: 12),
-          Padding(padding: const EdgeInsets.only(left: 4, top: 2), child: Text(value, style: const TextStyle(fontSize: 14, color: Colors.black54))),
+          Padding(padding: const EdgeInsets.only(left: 4, top: 2), child: Text(value, style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54))),
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String title) => Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF3E5C51)));
+  Widget _sectionTitle(String title) => Text(title, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51)));
 
   Widget _circleBtn(IconData icon, VoidCallback onTap) {
     return GestureDetector(

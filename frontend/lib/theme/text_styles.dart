@@ -9,3 +9,7 @@ class AppFonts {
   static const String poppins = 'Poppins';
   static const String figtree = 'Figtree';
 }
+
+class AppTextStyles {
+  // add text styles later
+}

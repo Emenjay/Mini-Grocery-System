@@ -12,10 +12,31 @@ class _LoginPageState extends State<LoginPage> {
   // controllers for input
   final _userController = TextEditingController();
   final _pinController = TextEditingController();
+  bool _isLoading = false;
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     final user = _userController.text;
     final pin = _pinController.text;
+
+    if (user.isEmpty || pin.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter both username and pincode")),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // simulate delay before showing the dashboard (transition)
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+    });
 
     // mock api routing rule
     if (user == "admin" && pin == "1234") {
@@ -23,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
     } else if (user == "cashier1" && pin == "0000") {
       Navigator.pushReplacementNamed(context, '/cash-in');
     } else if (user == "staff1" && pin == "8888") {
-      Navigator.pushReplacementNamed(context, '/inventory');
+      Navigator.pushReplacementNamed(context, '/inventory-dashboard');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("invalid credentials")),
@@ -36,8 +57,13 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // background color using your new team teal
-          Container(color: AppColors.primaryDarkTeal),
+          // background
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/login_bg.png',
+              fit: BoxFit.cover,
+            ),
+          ),
 
           // top logo section
           Positioned(
@@ -48,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
                   radius: 60,
                   backgroundColor: Colors.white,
                   child: Padding(
-                    padding: const EdgeInsets.all(12.0), // Gives the logo some breathing room
+                    padding: const EdgeInsets.all(12.0),
                     child: Image.asset(
                       'assets/images/logo.png',
                       fit: BoxFit.contain,
@@ -114,12 +140,17 @@ class _LoginPageState extends State<LoginPage> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: _handleLogin,
+                      onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.mutedGreen,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
-                      child: const Text("Log in", style: TextStyle(color: Colors.white, fontSize: 18)),
+                      child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text("Log in", style: TextStyle(color: Colors.white, fontSize: 18)),
                     ),
                   ),
                 ],
@@ -128,24 +159,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ],
       ),
-    );
-  }
-}
-
-// simple placeholder for target screens
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const PlaceholderScreen(this.title, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title), 
-        backgroundColor: AppColors.primaryDarkTeal, 
-        foregroundColor: Colors.white,
-      ),
-      body: Center(child: Text("Welcome to $title")),
     );
   }
 }

@@ -1,7 +1,8 @@
 const Transaction = require('../models/transactionModel');
 const Inventory = require('../models/inventoryModel');
 const db = require('../config/db');
-const Product = require('../models/productModel'); // add this
+const Product = require('../models/productModel');
+const PausedCart = require('../models/pausedCartModel');
 
 exports.checkout = async (req, res) => {
   try {
@@ -200,5 +201,103 @@ exports.getTransactionHistory = async (req, res) => {
   } catch (err) {
     console.error('getTransactionHistory:', err);
     res.status(500).json({ success: false, message: 'Failed to fetch transactions.' });
+
+// save current cart as paused
+exports.pauseCart = async (req, res) => {
+  try {
+    const userID = req.user.userID;
+    const { cart } = req.body;
+
+    if (!cart || cart.length === 0) {
+      return res.status(400).json({ message: 'Cart is empty' });
+    }
+
+    // resolve prices from backend, same logic as checkout
+    const resolvedItems = [];
+    for (const item of cart) {
+      const product = await Product.findProductByID(item.product_id);
+      if (!product) {
+        return res.status(404).json({ message: `Product ID ${item.product_id} not found` });
+      }
+      const retailPrice = parseFloat((parseFloat(product.base_price) + parseFloat(product.markup_price)).toFixed(2));
+      const subtotal = parseFloat((retailPrice * item.quantity).toFixed(2));
+      resolvedItems.push({
+        product_id: product.product_id,
+        product_name: product.product_name,
+        quantity: item.quantity,
+        retail_price: retailPrice,
+        subtotal
+      });
+    }
+
+    // generate unique cart number for this paused cart
+    const cartNo = await Transaction.generateCartNo();
+    const pausedCartID = await PausedCart.pauseCart(userID, cartNo, resolvedItems);
+
+    res.status(201).json({
+      message: 'Cart paused successfully',
+      pausedCartID,
+      cartNo
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// get all paused carts for the cashier
+exports.getPausedCarts = async (req, res) => {
+  try {
+    const userID = req.user.userID;
+    const carts = await PausedCart.getPausedCarts(userID);
+    res.status(200).json({
+      message: 'Paused carts retrieved successfully',
+      carts
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// get a specific paused cart with items
+// flutter loads these items back into the cart UI for resuming
+exports.getPausedCartByID = async (req, res) => {
+  try {
+    const userID = req.user.userID;
+    const { id } = req.params;
+
+    const cart = await PausedCart.getPausedCartByID(id, userID);
+    if (!cart) {
+      return res.status(404).json({ message: 'Paused cart not found' });
+    }
+
+    res.status(200).json({
+      message: 'Paused cart retrieved successfully',
+      cart
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// discard a paused cart manually
+exports.discardPausedCart = async (req, res) => {
+  try {
+    const userID = req.user.userID;
+    const { id } = req.params;
+
+    const cart = await PausedCart.getPausedCartByID(id, userID);
+    if (!cart) {
+      return res.status(404).json({ message: 'Paused cart not found' });
+    }
+
+    await PausedCart.deletePausedCart(id);
+
+    res.status(200).json({ message: 'Paused cart discarded successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 };

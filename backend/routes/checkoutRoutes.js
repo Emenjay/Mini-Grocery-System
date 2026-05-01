@@ -12,4 +12,10 @@ router.get('/', protect, checkoutController.getTransactionHistory);
 //checkout route
 router.post('/', protect, checkoutController.checkout);
 
+// paused cart routes
+router.post('/pause', protect, checkoutController.pauseCart);
+router.get('/paused', protect, checkoutController.getPausedCarts);
+router.get('/paused/:id', protect, checkoutController.getPausedCartByID);
+router.delete('/paused/:id', protect, checkoutController.discardPausedCart);
+
 module.exports = router;
