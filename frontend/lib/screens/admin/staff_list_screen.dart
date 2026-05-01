@@ -8,7 +8,8 @@ import '../admin/staff_info_screen.dart';
 
 
 class StaffListScreen extends StatefulWidget {
-  const StaffListScreen({super.key});
+  final bool isSubPage;
+  const StaffListScreen({super.key, this.isSubPage = false});
 
   @override
   State<StaffListScreen> createState() => _StaffListScreenState();
@@ -674,7 +675,10 @@ class _StaffCard extends StatelessWidget {
   }
 }
 
-// ---- Staff Menu Sheet ----
+/* Staff Menu sheet - only displays options. All actions (View/Edit/Toggle/Remove)
+   are passed from parent. This decouples UI from logic - easy to swap in
+   real API calls later without touching this widget.
+*/
 class _StaffMenuSheet extends StatelessWidget {
   final Map<String, dynamic> staff;
   final VoidCallback onView;
