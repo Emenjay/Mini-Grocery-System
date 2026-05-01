@@ -11,9 +11,10 @@ const userRoutes = require('./routes/userRoutes');
 const configRoutes = require('./routes/configRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const transactionRoutes = require('./routes/checkoutRoutes');
 
 // testing code
-
 const app = express();
 app.use(cors()); // allows flutter to call api
 app.use(express.json());
@@ -46,6 +47,11 @@ app.use('/api/inventory-dashboard', inventoryRoutes);
 // dashboard route
 app.use('/api/dashboard', dashboardRoutes);
 
+// notification routes
+app.use('/api/notification', notificationRoutes);
+
+// transaction routes (for receipt details)
+app.use('/api/transaction', transactionRoutes);
 
 
 app.listen(process.env.PORT, () => {

@@ -18,4 +18,7 @@ router.put('/:id', protect, productController.updateProduct);
 // soft delete product
 router.delete('/:id', protect, productController.deleteProduct);
 
+// restock product
+router.patch('/:id/restock', productController.restockProduct);
+
 module.exports = router;

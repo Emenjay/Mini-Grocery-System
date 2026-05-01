@@ -1,5 +1,6 @@
 const Transaction = require('../models/transactionModel');
 const Inventory = require('../models/inventoryModel');
+const db = require('../config/db');
 const Product = require('../models/productModel'); // add this
 
 exports.checkout = async (req, res) => {
@@ -96,5 +97,108 @@ exports.checkout = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Russ's update: added getTransactionDetail function to fetch transaction details for receipt view in Flutter app
+// GET /api/transactions/:id
+exports.getTransactionDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // fetch transaction info
+    const [[transaction]] = await db.query(
+      `SELECT
+         t.transaction_id,
+         t.cart_no,
+         t.user_id,
+         t.payment_id,
+         t.total_amount,
+         t.amount_received,
+         t.change_amount,
+         t.cash_in,
+         t.cash_out,
+         t.transaction_type,
+         DATE_FORMAT(t.date_time, '%Y-%m-%d %h:%i:%s %p') AS date_time,
+         u.full_name AS cashier_name
+       FROM transaction t
+       LEFT JOIN users u ON t.user_id = u.user_id
+       WHERE t.transaction_id = ?`,
+      [id]
+    );
+
+    // if transaction not found, return 404
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaction not found.' });
+    }
+
+    // fetch transaction items
+    const [items] = await db.query(
+      `SELECT
+         detail_id,
+         product_id,
+         product_name,
+         quantity_sold,
+         retail_price,
+         subtotal
+       FROM transaction_detail
+       WHERE transaction_id = ?`,
+      [id]
+    );
+
+    // return transaction details and items
+    res.json({
+      success: true,
+      receipt: {
+        ...transaction,
+        items,
+      },
+    });
+  } catch (err) {
+    console.error('getTransactionDetail:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch transaction.' });
+  }
+};
+
+//Russ's update: added getTransactionHistory function 
+//GET /api/transaction
+exports.getTransactionHistory = async (req, res) => {
+  try {
+    const { user_id, role } = req.user;
+    const isAdmin = role === 'Admin';
+    const [transactions] = await db.query(
+      `SELECT
+         t.transaction_id,
+         t.cart_no,
+         t.total_amount,
+         t.transaction_type,
+         DATE_FORMAT(t.date_time, '%Y-%m-%d %h:%i:%s %p') AS date_time,
+         DATE(t.date_time) AS date_only,
+         u.full_name AS cashier_name
+       FROM transaction t
+       LEFT JOIN users u ON t.user_id = u.user_id
+       WHERE t.transaction_type = 'sale'
+       ${!isAdmin ? 'AND t.user_id = ?' : ''}
+       ORDER BY t.date_time DESC`,
+      !isAdmin ? [user_id] : []
+    );
+
+    // Separate recent transactions (today) from previous transactions
+    const today = new Date().toLocaleDateString('en-CA'); // format: YYYY-MM-DD
+    const recent   = transactions.filter(t => new Date(t.date_only).toLocaleDateString('en-CA') === today);
+    const previous = transactions.filter(t => new Date(t.date_only).toLocaleDateString('en-CA') !== today);
+
+    //Remove date_only from response
+    const clean = (list) => list.map(({ date_only, ...rest }) => rest);
+
+    res.json({
+      success: true,
+      recent:   clean(recent),
+      previous: clean(previous),
+    });
+
+  } catch (err) {
+    console.error('getTransactionHistory:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch transactions.' });
   }
 };

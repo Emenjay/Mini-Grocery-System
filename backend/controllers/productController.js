@@ -1,5 +1,8 @@
 const Product = require('../models/productModel');
 const Inventory = require('../models/inventoryModel');
+const db = require('../config/db');
+const { checkAndNotifyLowStock } = require('./notificationController');
+
 
 exports.getAllProducts = async (req, res) => {
   try {
@@ -133,5 +136,49 @@ exports.getAllCategories = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+//Russ's update: added getNotifications function to check for low stock products and return notifications 
+//PATCH /api/product/:id/restock
+exports.restockProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity } = req.body;
+
+    if (!quantity || quantity <= 0) {
+      return res.status(400).json({ success: false, message: 'Quantity must be greater than 0.' });
+    }
+
+    // check if product exists
+    const [[product]] = await db.query(
+      `SELECT product_id, product_name, stock_level FROM product WHERE product_id = ?`,
+      [id]
+    );
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found.' });
+    }
+
+    // update stock level
+    await db.query(
+      `UPDATE product SET stock_level = stock_level + ? WHERE product_id = ?`,
+      [quantity, id]
+    );
+
+    const newStock = product.stock_level + quantity;
+
+    // check if product is still low stock after restock, if so send low stock notification
+    res.json({
+      success: true,
+      message: `"${product.product_name}" restocked successfully.`,
+      previous_stock: product.stock_level,
+      added: quantity,
+      new_stock: newStock,
+    });
+
+  } catch (err) {
+    console.error('restockProduct:', err);
+    res.status(500).json({ success: false, message: 'Failed to restock product.' });
   }
 };
