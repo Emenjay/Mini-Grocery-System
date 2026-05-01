@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'screens/inventory/inventory_dashboard.dart'; 
 import 'theme/colors.dart';
 import 'screens/login.dart';
 import 'screens/admin/admin_dashboard.dart';
 import 'screens/admin/admin_inventory.dart';
 import 'screens/admin/admin_product_detail.dart';
+import 'screens/admin/notifications_screen.dart';
 import 'screens/admin/staff_list_screen.dart';
 import 'screens/cashier/inventory_screen.dart';
 import 'screens/cashier/payment_screen.dart';
@@ -15,6 +15,7 @@ import 'screens/cashier/transactions.dart';
 import 'screens/inventory/add_new_product.dart';
 import 'screens/inventory/product_detail.dart';
 import 'screens/inventory/staff_inventory.dart';
+import 'screens/inventory/inventory_dashboard.dart';
 
 void main(){
   runApp(const MyApp());
@@ -33,10 +34,12 @@ class MyApp extends StatelessWidget{
         useMaterial3: true,
       ),
       
-      initialRoute: '/', 
+      // set login as the starting point for the flow
+      initialRoute: '/',
       routes: {
         '/inventory-dashboard': (context) => const InventoryDashboard(),
         '/': (context) => const LoginPage(),
+        '/login': (context) => const LoginPage(),
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/admin-inventory': (context) => const AdminInventoryScreen(),
         '/admin-product-detail': (context) => const AdminProductDetailScreen(productList: [], initialIndex: 0),
@@ -45,12 +48,10 @@ class MyApp extends StatelessWidget{
         '/pos-screen': (context) => const PosScreen(),
         '/cash-out': (context) => const CashOutScreen(startingCash: 0),
         '/transactions': (context) => const TransactionsScreen(),
-        '/add-product': (context) => AddProductScreen(),
+        '/notifications': (context) => const NotificationsScreen(),
+        '/add-product': (context) => const AddProductScreen(),
         '/staff-list': (context) => const StaffListScreen(),
-
-        // Placeholders for missing routes used in the dashboard
         '/admin-profile': (context) => const PlaceholderScreen('Admin Profile'),
-        '/notifications': (context) => const PlaceholderScreen('Notifications'),
       },
     );
   }

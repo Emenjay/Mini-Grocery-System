@@ -12,10 +12,31 @@ class _LoginPageState extends State<LoginPage> {
   // controllers for input
   final _userController = TextEditingController();
   final _pinController = TextEditingController();
+  bool _isLoading = false;
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     final user = _userController.text;
     final pin = _pinController.text;
+
+    if (user.isEmpty || pin.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter both username and pincode")),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // simulate delay before showing the dashboard (transition)
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+    });
 
     // mock api routing rule
     if (user == "admin" && pin == "1234") {
@@ -57,6 +78,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: Image.asset(
                       'assets/images/logo.png',
                       fit: BoxFit.contain,
+                      // If the image still won't show, this errorBuilder will tell us why
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.broken_image, color: Colors.red, size: 40);
                       },
@@ -118,12 +140,17 @@ class _LoginPageState extends State<LoginPage> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: _handleLogin,
+                      onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.mutedGreen,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
-                      child: const Text("Log in", style: TextStyle(color: Colors.white, fontSize: 18)),
+                      child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text("Log in", style: TextStyle(color: Colors.white, fontSize: 18)),
                     ),
                   ),
                 ],
