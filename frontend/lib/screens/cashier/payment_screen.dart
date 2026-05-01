@@ -145,11 +145,33 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     const Text("Enter Reference Number (13 chars):", style: TextStyle(color: Colors.white, fontSize: 16)),
                     const SizedBox(height: 8),
                     _inputField(_refController, "e.g. 1234ABC567890", isAlphanumeric: true),
+                    
+                    // Error message for GCash Reference Number
+                    if (_refController.text.isNotEmpty && _refController.text.length != 13)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0, left: 4.0),
+                        child: Text(
+                          "Reference number must be exactly 13 characters",
+                          style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     const SizedBox(height: 20),
                   ],
                   const Text("Enter Money Received:", style: TextStyle(color: Colors.white, fontSize: 16)),
                   const SizedBox(height: 8),
                   _inputField(_receivedController, "0.00", isAlphanumeric: false),
+
+                  // Error message for Money Received
+                  if (_receivedController.text.isNotEmpty && 
+                      (double.tryParse(_receivedController.text) ?? 0.0) < widget.totalAmount)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0, left: 4.0),
+                      child: Text(
+                        "Received money cannot be smaller than the total amount",
+                        style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+
                   const SizedBox(height: 35),
                   SizedBox(
                     width: double.infinity,

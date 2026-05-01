@@ -56,8 +56,7 @@ class MyApp extends StatelessWidget{
     );
   }
 }
-
-// make use of this placeholder screen if you wish to create a new route and simulate your work
+//place holder wla lng
 class PlaceholderScreen extends StatelessWidget {
   final String title;
   const PlaceholderScreen(this.title, {super.key});
