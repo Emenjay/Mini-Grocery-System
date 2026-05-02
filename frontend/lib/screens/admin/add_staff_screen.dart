@@ -17,12 +17,16 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
   final TextEditingController _nameController = TextEditingController();
   String? _selectedRole;
   static const List<String> _roles = ['Inventory Staff', 'Cashier'];
+  final TextEditingController _contactController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
 
 
  // dispose of controllers to prevent memory leaks when the widget is destroyed
   @override
   void dispose() {
     _nameController.dispose();
+    _contactController.dispose();   
+    _addressController.dispose(); 
     super.dispose();
   }
 
@@ -184,6 +188,47 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
+
+                        Container(
+                          width: double.infinity,
+                          decoration: const BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(24),
+                              topRight: Radius.circular(24),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0x10000000),
+                                blurRadius: 8,
+                                offset: Offset(0, -2),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+
+                            children: [
+                              _FieldLabel(label: 'Contact Number:'),
+                              const SizedBox(height: 8),
+                              _ContactNumberField(controller: _contactController),
+                              const SizedBox(height: 20),
+                              _FieldLabel(label: 'Full Address:'),
+                              const SizedBox(height: 8),
+                              _WhiteFormField(
+                                controller: _addressController,
+                                hintText: 'Enter Full Address',
+                                validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Address is required'
+                                  : null,
+                              ),
+                              const SizedBox(height: 28),
+                              
+                              // ----
+                            ],
+                          ),
+                        ),
                         
 
                       ],
