@@ -201,6 +201,8 @@ exports.getTransactionHistory = async (req, res) => {
   } catch (err) {
     console.error('getTransactionHistory:', err);
     res.status(500).json({ success: false, message: 'Failed to fetch transactions.' });
+  }
+};
 
 // save current cart as paused
 exports.pauseCart = async (req, res) => {
