@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import 'dart:math';
 
 class AddStaffScreen extends StatefulWidget {
   final void Function(Map<String, dynamic> newStaff)? onStaffAdded;
@@ -19,6 +20,41 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
   static const List<String> _roles = ['Inventory Staff', 'Cashier'];
   final TextEditingController _contactController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  String? _generatedUsername; 
+  String? _generatedPassword;  
+  bool _credentialsGenerated = false;
+
+  /* Generate credentials based on full name and selected role
+     - Username: DinglePM_<LastName>
+     - Password: <lastname><firstname>(3-digit random number)dpm 
+     - displays snackbar if name or role is missing
+  */
+  void _generateCredentials() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter the employee\'s full name first.')),
+      );
+      return;
+    }
+
+    if (_selectedRole == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please choose a role first.')),
+      );
+      return;
+    }
+    final parts = name.split(RegExp(r'\s+'));
+    final lastName = parts.last;
+    final firstName = parts.first.toLowerCase();
+    final lastNameLower = lastName.toLowerCase();
+    final suffix = (100 + Random().nextInt(900)).toString(); // random 3-digit number
+    setState(() {
+      _generatedUsername = 'DinglePM_$lastName';
+      _generatedPassword = '$lastNameLower${firstName.substring(0, min(firstName.length, 6))}${suffix}dpm';
+      _credentialsGenerated = true;
+    });
+  }
 
 
  // dispose of controllers to prevent memory leaks when the widget is destroyed
@@ -225,7 +261,42 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                               ),
                               const SizedBox(height: 28),
                               
-                              // ----
+                              // --- Generate button
+                              Center(
+                                child: ElevatedButton(
+                                  onPressed: _generateCredentials,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.mutedGreen,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                  ),
+                                  
+                                  child: const Text('Generate Login Account',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontFamily: AppFonts.poppins,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    )
+                                  ),
+                                ),
+                              ),
+
+                              // Credentials card (visible only after generation)
+                              if (_credentialsGenerated) ...[
+                                const SizedBox(height: 24),
+                                _SystemLoginCard(
+                                  username: _generatedUsername!,
+                                  password: _generatedPassword!,
+                                ),
+                              ],
+
+                              const SizedBox(height: 28),
+                              
+                              
                             ],
                           ),
                         ),
@@ -539,3 +610,93 @@ class _WhiteFormField extends StatelessWidget {
     );
   }
 }
+
+// --- 'Generate Login Account' button and System Login Account card
+class _SystemLoginCard extends StatelessWidget {
+  final String username;
+  final String password;
+
+  const _SystemLoginCard({
+    required this.username,
+    required this.password,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.primaryDarkTeal,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Center(
+
+            child: Text('System Login Account',
+              style: TextStyle(
+                color: Colors.white,
+                fontFamily: AppFonts.poppins,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              )),
+          ),
+
+          const SizedBox(height: 16),
+          const Text('Username:',
+            style: TextStyle(
+              color: Colors.white70,
+              fontFamily: AppFonts.avenir,
+              fontSize: 12,
+            )),
+          const SizedBox(height: 6),
+          _CredentialDisplay(value: username), // reusable credential row
+
+          const SizedBox(height: 14),
+
+          const Text('Password:',
+            style: TextStyle(
+              color: Colors.white70,
+              fontFamily: AppFonts.avenir,
+              fontSize: 12,
+            )),
+          const SizedBox(height: 6),
+          _CredentialDisplay(value: password),
+        ],
+      ),
+    );
+  }
+}
+
+// u da real credential display
+class _CredentialDisplay extends StatelessWidget {
+  final String value;
+  const _CredentialDisplay({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+
+      child: Text(value,
+        style: const TextStyle(
+          color: Colors.black87,
+          fontFamily: AppFonts.poppins,
+          fontSize: 14,
+        )
+      ),
+    );
+  }
+}
+
+/* 
+_CredentialDisplay shows login credentials (username/password) that the 
+system generated for the new staff member.
+*/
