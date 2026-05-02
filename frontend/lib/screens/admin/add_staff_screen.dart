@@ -156,7 +156,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                             fontWeight: FontWeight.bold,
                           )),
                         
-                        // photo picker
+                        // photo picker (just a placeholder atm)
                         const SizedBox(height: 20),
                         const _ProfilePhotoPicker(),
                         const SizedBox(height: 24),
@@ -199,6 +199,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
   }
 }
 
+// -- Helper widgets --
 // --- Profile photo picker placeholder
 class _ProfilePhotoPicker extends StatelessWidget {
   const _ProfilePhotoPicker();
@@ -238,7 +239,7 @@ class _ProfilePhotoPicker extends StatelessWidget {
   }
 }
 
-// --- text fields
+// --- reusable _TextField with validator
 class _TextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
@@ -290,7 +291,7 @@ class _TextField extends StatelessWidget {
   }
 }
 
-// --- role dropdown
+// --- _RoleDropdown for selecting staff role
 class _RoleDropdown extends StatelessWidget {
   final List<String> roles;
   final String? value;
@@ -340,6 +341,155 @@ class _RoleDropdown extends StatelessWidget {
           onChanged: onChanged,
         ),
         
+      ),
+    );
+  }
+}
+
+// --- Contact number & Full address
+// _FieldLabel – bold label with underline ... for later
+class _FieldLabel extends StatelessWidget {
+  final String label;
+  const _FieldLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(label,
+      style: const TextStyle(
+        fontFamily: AppFonts.poppins,
+        fontWeight: FontWeight.bold,
+        fontSize: 13,
+        color: AppColors.primaryDarkTeal,
+      )
+    );
+  }
+}
+
+// _ContactNumberField with +639 prefix pill and validation
+class _ContactNumberField extends StatelessWidget {
+  final TextEditingController controller;
+  const _ContactNumberField({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        
+        // "+639" prefix pill
+        Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.primaryDarkTeal,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: const Text('+ 639',
+            style: TextStyle(
+              color: Colors.white,
+              fontFamily: AppFonts.poppins,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            )),
+        ),
+        
+        const SizedBox(width: 10),
+
+        // validator
+        Expanded(
+          child: TextFormField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            // remaining 9 digits
+            maxLength: 9,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Contact number is required';
+              if (v.trim().length < 9) return 'Enter 9 digits after +639';
+              return null;
+            },
+
+            style: const TextStyle(
+              color: Colors.black87,
+              fontFamily: AppFonts.poppins,
+              fontSize: 14,
+            ),
+
+            decoration: InputDecoration(
+              counterText: '',
+              filled: true,
+              fillColor: AppColors.surfaceLightGray.withValues(alpha: .4),
+              hintText: 'Enter Contact Number',
+              hintStyle: const TextStyle(
+                color: Colors.black38,
+                fontFamily: AppFonts.avenir,
+                fontSize: 13,
+              ),
+
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Colors.redAccent),
+              ),
+
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// _WhiteFormField - generic white field (used for address, etc.)
+class _WhiteFormField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final String? Function(String?)? validator;
+
+  const _WhiteFormField({
+    required this.controller,
+    required this.hintText,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      style: const TextStyle(
+        color: Colors.black87,
+        fontFamily: AppFonts.poppins,
+        fontSize: 14,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: AppColors.surfaceLightGray.withValues(alpha: .4),
+        hintText: hintText,
+        hintStyle: const TextStyle(
+          color: Colors.black38,
+          fontFamily: AppFonts.avenir,
+          fontSize: 13,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
       ),
     );
   }
