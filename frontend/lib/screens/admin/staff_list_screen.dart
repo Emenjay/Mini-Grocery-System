@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:frontend/theme/text_styles.dart';
 import '../../theme/colors.dart';
 import '../admin/staff_info_screen.dart';
-// import 'add_staff_screen.dart';
+import 'add_staff_screen.dart';
 // import 'edit_staff_screen.dart';
-// -- TODO: fix temporary placeholders for add staff & edit staff
+// -- TODO: fix temporary placeholders for edit staff
 
 
 class StaffListScreen extends StatefulWidget {
@@ -288,11 +288,14 @@ class _StaffListScreenState extends State<StaffListScreen> {
     );
   }
 
-  // Add and Edit staff 
+  // -- Add and Edit staff 
+  // Navigate to add_staff_screen.dart
   void _openAddNew() {
-    // TODO: Navigate to AddStaffScreen when ready
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add Staff... ')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => AddStaffScreen(
+        onStaffAdded: (newStaff) => setState(() => staffList.add(newStaff)),
+      )),
     );
   }
 
