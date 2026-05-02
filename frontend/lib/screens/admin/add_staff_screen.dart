@@ -11,6 +11,21 @@ class AddStaffScreen extends StatefulWidget {
 }
 
 class _AddStaffScreenState extends State<AddStaffScreen> {
+
+  // state variables
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  String? _selectedRole;
+  static const List<String> _roles = ['Inventory Staff', 'Cashier'];
+
+
+ // dispose of controllers to prevent memory leaks when the widget is destroyed
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,49 +118,228 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // back button row
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                      child: Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () => Navigator.pop(context),
-                            child: Container(
-                              width: 40, height: 40,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        // back button row
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => Navigator.pop(context),
+                                child: Container(
+                                  width: 40, height: 40,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.arrow_back,
+                                      color: AppColors.primaryDarkTeal, size: 20),
+                                ),
                               ),
-                              child: const Icon(Icons.arrow_back,
-                                  color: AppColors.primaryDarkTeal, size: 20),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 12),
+                        ),
+                        
+                        const SizedBox(height: 12),
 
-                    // screen title
-                    const Text('Add New Employee',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: AppFonts.poppins,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      )),
-                    const SizedBox(height: 20),
-                    
-                    
-                  ],
+                        // screen title
+                        const Text('Add New Employee',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontFamily: AppFonts.poppins,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          )),
+                        
+                        // photo picker
+                        const SizedBox(height: 20),
+                        const _ProfilePhotoPicker(),
+                        const SizedBox(height: 24),
+              
+                        // name field
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
+                          child: _TextField(
+                            controller: _nameController,
+                            hintText: 'Enter Full Name',
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Full name is required'
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // role dropdown
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
+                          child: _RoleDropdown(
+                            roles: _roles,
+                            value: _selectedRole,
+                            onChanged: (v) => setState(() => _selectedRole = v),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        
+
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// --- Profile photo picker placeholder
+class _ProfilePhotoPicker extends StatelessWidget {
+  const _ProfilePhotoPicker();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      // TODO: wire up image_picker when ready
+      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo picker coming soon...')),
+      ),
+      child: Container(
+        width: 120, height: 120,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha:0.20),
+          border: Border.all(color: Colors.white38, width: 2),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add, color: Colors.white, size: 32),
+
+            SizedBox(height: 4),
+
+            Text('Profile Photo',
+              style: TextStyle(
+                color: Colors.white70,
+                fontFamily: AppFonts.avenir,
+                fontSize: 11,
+              )
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- text fields
+class _TextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final String? Function(String?)? validator;
+
+  const _TextField({
+    required this.controller,
+    required this.hintText,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+
+      style: const TextStyle(
+        color: Colors.black87,
+        fontFamily: AppFonts.poppins,
+        fontSize: 14,
+      ),
+
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.white.withValues(alpha:0.88),
+        hintText: hintText,
+        hintStyle: const TextStyle(
+          color: Colors.black38,
+          fontFamily: AppFonts.avenir,
+          fontSize: 14,
+        ),
+
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+      ),
+    );
+  }
+}
+
+// --- role dropdown
+class _RoleDropdown extends StatelessWidget {
+  final List<String> roles;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  const _RoleDropdown({
+    required this.roles,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha:0.88),
+        borderRadius: BorderRadius.circular(10),
+      ),
+
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: value,
+          hint: const Text('Choose Role',
+            style: TextStyle(
+              color: Colors.black38,
+              fontFamily: AppFonts.avenir,
+              fontSize: 14,
+            )
+          ),
+          
+          icon: const Icon(Icons.arrow_drop_down,
+              color: AppColors.primaryDarkTeal),
+          dropdownColor: Colors.white,
+          style: const TextStyle(
+            
+            color: Colors.black87,
+            fontFamily: AppFonts.poppins,
+            fontSize: 14,
+          ),
+
+          items: roles
+          .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+          .toList(),
+          onChanged: onChanged,
+        ),
+        
       ),
     );
   }
