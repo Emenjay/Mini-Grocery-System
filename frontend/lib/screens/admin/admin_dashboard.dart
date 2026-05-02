@@ -1,8 +1,12 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:syncfusion_flutter_calendar/calendar.dart';
+import 'package:syncfusion_flutter_core/theme.dart';
+import 'package:frontend/theme/text_styles.dart';
 import 'admin_inventory.dart';
 import 'staff_list_screen.dart';
+import 'admin_profile_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STAFF DATA MODEL
@@ -42,13 +46,121 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _selectedIndex = -1;
 
   void _onItemTapped(int index) {
-    if (index == 4) { Navigator.pushReplacementNamed(context, '/'); return; }
+    if (index == 4) { 
+      _showLogoutConfirmation(context);
+      return; 
+    }
     setState(() {
       if      (index == 0) _selectedIndex = 0;
       else if (index == 1) _selectedIndex = 1;
       else if (index == 2) _selectedIndex = -1;
       else if (index == 3) _selectedIndex = 2;
     });
+  }
+
+  // --- ʟᴏɢᴏᴜᴛ ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ ᴅɪᴀʟᴏɢ ---
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.help_outline_rounded, color: Color(0xFF35524A), size: 60),
+                const SizedBox(height: 16),
+                const Text(
+                  "Logout Session",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Are you sure you want to log out of your account?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.black12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: const Text("Cancel", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context); // Close confirm
+                        _showLogoutSuccess(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF35524A),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: const Text("Logout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- ʟᴏɢᴏᴜᴛ ꜱᴜᴄᴄᴇꜱꜱ ᴍᴏᴅᴀʟ ---
+  void _showLogoutSuccess(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF2D936C), size: 60),
+                const SizedBox(height: 16),
+                const Text(
+                  "Logged Out",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "You have been successfully logged out.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF35524A),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text("Close", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -77,7 +189,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     switch (_selectedIndex) {
       case 0: return const AdminInventoryScreen(key: ValueKey('Inventory'), isSubPage: true);
       case 1: return const StaffListScreen(key: ValueKey('StaffList'), isSubPage: true);
-      case 2: return const PlaceholderPage(key: ValueKey('Profile'), title: 'Admin Profile');
+      case 2: return const AdminProfileScreen(key: ValueKey('Profile'), isSubPage: true);
       default:
         return _DashboardContent(
           key: const ValueKey('Dashboard'),
@@ -99,56 +211,51 @@ class _DashboardContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       bottom: false,
-      child: LayoutBuilder(builder: (context, constraints) {
-        final double mh = constraints.maxHeight;
-
-        const double gap      = 8.0;
-        const double hPad     = 20.0;
-        final double salesH   = math.max(mh * 0.100, 75.0);
-        final double staffH   = math.max(mh * 0.190, 160.0);
-        final double navClear = math.max(mh * 0.130, 95.0);
-
-        return Column(
+      child: SingleChildScrollView(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: hPad),
+            const SizedBox(height: 20.0),
             const _Header(),
-            const SizedBox(height: gap * 1.5),
+            const SizedBox(height: 12.0),
 
-            SizedBox(height: salesH,
-              child: const _SalesCard(
+            const SizedBox(
+              height: 90.0,
+              child: _SalesCard(
                 title: 'Daily Sales Report',
                 amount: '₱ 10,352',
                 subtitle: 'as of March 11, 2026',
                 isMonthly: false,
               ),
             ),
-            const SizedBox(height: gap),
+            const SizedBox(height: 8.0),
 
-            SizedBox(height: salesH,
-              child: const _SalesCard(
+            const SizedBox(
+              height: 90.0,
+              child: _SalesCard(
                 title: 'Monthly Sales Report',
                 amount: '₱ 37,124',
                 subtitle: 'for the month of March',
                 isMonthly: true,
               ),
             ),
-            const SizedBox(height: gap),
+            const SizedBox(height: 8.0),
 
-            const Expanded(flex: 12, child: _CalendarCard()),
-            const SizedBox(height: gap),
+            const _CalendarCard(),
+            const SizedBox(height: 12.0),
 
-            SizedBox(height: staffH,
+            SizedBox(
+              height: 160.0,
               child: _ActiveStaffCard(
                 staffList: _sampleStaff,
                 onViewMore: onViewStaff,
               ),
             ),
 
-            SizedBox(height: navClear),
+            const SizedBox(height: 100.0), // navClear
           ],
-        );
-      }),
+        ),
+      ),
     );
   }
 }
@@ -239,7 +346,7 @@ class _SalesCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: const LinearGradient(
-          colors: [Color(0xFF2E8B7F), Color(0xFF3FAF9F)],
+          colors: [Color(0xFF2E8B7F), Color(0xFF6CCC97)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -264,7 +371,7 @@ class _SalesCard extends StatelessWidget {
                   alignment: isMonthly ? Alignment.centerRight : Alignment.centerLeft,
                   child: Text(amount,
                     style: GoogleFonts.poppins(
-                      fontSize: 24, fontWeight: FontWeight.w600,
+                      fontSize: 30, fontWeight: FontWeight.w600,
                       color: Colors.white, letterSpacing: 1.5, height: 1.1,
                     ),
                   ),
@@ -315,263 +422,76 @@ class _BarPainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────────────────
 // CALENDAR CARD
 // ─────────────────────────────────────────────────────────────────────────────
-class _CalendarCard extends StatefulWidget {
+class _CalendarCard extends StatelessWidget {
   const _CalendarCard();
 
   @override
-  State<_CalendarCard> createState() => _CalendarCardState();
-}
-
-class _CalendarCardState extends State<_CalendarCard> {
-  DateTime  _currentDate  = DateTime.now();
-  DateTime? _selectedDate;
-  bool      _isNext       = true;
-
-  static const _monthNames = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December',
-  ];
-  static const _dayLabels = ['S','M','T','W','T','F','S'];
-
-  void _changeMonth(int offset) {
-    setState(() {
-      _isNext      = offset > 0;
-      _currentDate = DateTime(_currentDate.year, _currentDate.month + offset);
-    });
-  }
-
-  // Always 42 cells (6 × 7) — card height never changes
-  List<int?> _buildCells(DateTime date) {
-    final firstWeekday = DateTime(date.year, date.month, 1).weekday % 7;
-    final daysInMonth  = DateTime(date.year, date.month + 1, 0).day;
-    return List.generate(42, (i) {
-      final d = i - firstWeekday + 1;
-      return (d >= 1 && d <= daysInMonth) ? d : null;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final label = '${_monthNames[_currentDate.month - 1]} ${_currentDate.year}';
-
     return Container(
+      height: 320,
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF35524A),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-
-          // Month header + nav
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label,
-                style: GoogleFonts.poppins(
-                  color: Colors.white, fontSize: 17, fontWeight: FontWeight.w500,
-                ),
-              ),
-              Row(children: [
-                _CalNavBtn(icon: Icons.chevron_left,  onTap: () => _changeMonth(-1)),
-                const SizedBox(width: 4),
-                _CalNavBtn(icon: Icons.chevron_right, onTap: () => _changeMonth(1)),
-              ]),
-            ],
+      child: SfCalendarTheme(
+        data: SfCalendarThemeData(
+          backgroundColor: Colors.transparent,
+        ),
+        child: SfCalendar(
+          view: CalendarView.month,
+          showNavigationArrow: true,
+          headerHeight: 50,
+          backgroundColor: Colors.transparent,
+          headerStyle: const CalendarHeaderStyle(
+            textAlign: TextAlign.left,
+            backgroundColor: Colors.transparent,
+            textStyle: TextStyle(
+              fontFamily: AppFonts.poppins,
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-
-          const SizedBox(height: 8),
-          const Divider(color: Colors.white24, thickness: 1, height: 1),
-          const SizedBox(height: 6),
-
-          // Day-of-week labels
-          Row(
-            children: _dayLabels.map((d) => Expanded(
-              child: Center(
-                child: Text(d,
-                  style: GoogleFonts.poppins(
-                    color: const Color(0xFF76BA99),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            )).toList(),
+          viewHeaderStyle: const ViewHeaderStyle(
+            backgroundColor: Colors.transparent,
+            dayTextStyle: TextStyle(
+              fontFamily: AppFonts.avenir,
+              color: Color(0xFF76BA99),
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
           ),
-
-          const SizedBox(height: 2),
-
-          // Date grid with slide animation
-          Expanded(
-            child: ClipRect(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 260),
-                transitionBuilder: (child, animation) {
-                  final isEntering =
-                      child.key == ValueKey('${_currentDate.month}-${_currentDate.year}');
-                  final offset = Offset(
-                    isEntering
-                        ? (_isNext ? 1.0 : -1.0)
-                        : (_isNext ? -1.0 : 1.0),
-                    0,
-                  );
-                  return SlideTransition(
-                    position: Tween<Offset>(
-                      begin: offset, end: Offset.zero,
-                    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-                    child: child,
-                  );
-                },
-                child: _DateGrid(
-                  key: ValueKey('${_currentDate.month}-${_currentDate.year}'),
-                  cells:        _buildCells(_currentDate),
-                  currentDate:  _currentDate,
-                  selectedDate: _selectedDate,
-                  onDateSelected: (d) => setState(() => _selectedDate = d),
-                ),
+          monthViewSettings: const MonthViewSettings(
+            showTrailingAndLeadingDates: false,
+            monthCellStyle: MonthCellStyle(
+              backgroundColor: Colors.transparent,
+              textStyle: TextStyle(
+                fontFamily: AppFonts.figtree,
+                color: Colors.white,
+                fontSize: 13,
+              ),
+              todayTextStyle: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold
               ),
             ),
           ),
-        ],
+          todayHighlightColor: const Color(0xFF76BA99),
+          selectionDecoration: BoxDecoration(
+            color: const Color(0xFF76BA99).withOpacity(0.3),
+            border: Border.all(color: const Color(0xFF76BA99), width: 2),
+            shape: BoxShape.circle,
+          ),
+          cellBorderColor: Colors.transparent,
+        ),
       ),
     );
   }
-}
-
-class _DateGrid extends StatelessWidget {
-  final List<int?> cells;
-  final DateTime   currentDate;
-  final DateTime?  selectedDate;
-  final ValueChanged<DateTime> onDateSelected;
-
-  const _DateGrid({
-    super.key,
-    required this.cells,
-    required this.currentDate,
-    required this.selectedDate,
-    required this.onDateSelected,
-  });
-
-  static const Color _todayColor    = Color(0x8376BA99);
-  static const Color _selectedColor = Color(0xFF76BA99);
-  static const double _selectedOpacity = 0.38;
-
-  @override
-  Widget build(BuildContext context) {
-    final today = DateTime.now();
-
-    return LayoutBuilder(builder: (_, box) {
-      final rowH = box.maxHeight / 6;
-      final colW = box.maxWidth  / 7;
-
-      // Circle diameter = min(row height, column width)
-      final circleD = math.min(rowH, colW) * 1.5;
-
-      // Increase font size relative to circle diameter
-      final fontSize = circleD * 0.70;
-
-      return Column(
-        children: List.generate(6, (row) => SizedBox(
-          height: rowH,
-          child: Row(
-            children: List.generate(7, (col) {
-              final day = cells[row * 7 + col];
-              if (day == null) return SizedBox(width: colW);
-
-              final isToday = today.year  == currentDate.year  &&
-                  today.month == currentDate.month &&
-                  today.day   == day;
-
-              final isSelected = selectedDate != null                        &&
-                  selectedDate!.year  == currentDate.year  &&
-                  selectedDate!.month == currentDate.month &&
-                  selectedDate!.day   == day;
-
-              // Build circle decoration
-              BoxDecoration circleDeco;
-              if (isToday) {
-                // Solid filled bubble — today
-                circleDeco = const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _todayColor,
-                );
-              } else if (isSelected) {
-                // Similar to today: solid/opaque filled bubble
-                circleDeco = BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _selectedColor.withOpacity(0.8),
-                );
-              } else {
-                circleDeco = const BoxDecoration(shape: BoxShape.circle);
-              }
-
-              return GestureDetector(
-                onTap: () => onDateSelected(
-                    DateTime(currentDate.year, currentDate.month, day)),
-                child: SizedBox(
-                  width: colW,
-                  height: rowH,
-                  child: Center(
-                    child: Container(
-                      width:  circleD,
-                      height: circleD,
-                      decoration: circleDeco,
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$day',
-                        softWrap: false,
-                        maxLines: 1,
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: fontSize,
-                          fontWeight: FontWeight.w500,
-                          height: 1.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        )),
-      );
-    });
-  }
-}
-
-// ── Calendar nav button ───────────────────────────────────────────────────────
-class _CalNavBtn extends StatefulWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _CalNavBtn({required this.icon, required this.onTap});
-
-  @override
-  State<_CalNavBtn> createState() => _CalNavBtnState();
-}
-
-class _CalNavBtnState extends State<_CalNavBtn> {
-  double _scale = 1.0;
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTapDown:   (_) => setState(() => _scale = 0.80),
-    onTapUp:     (_) => setState(() => _scale = 1.00),
-    onTapCancel: ()  => setState(() => _scale = 1.00),
-    onTap: widget.onTap,
-    child: AnimatedScale(
-      scale: _scale,
-      duration: const Duration(milliseconds: 90),
-      child: Container(
-        width: 26, height: 26,
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-        child: Icon(widget.icon, size: 16, color: const Color(0xFF35524A)),
-      ),
-    ),
-  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -587,7 +507,7 @@ class _ActiveStaffCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 17),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 15),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: const LinearGradient(

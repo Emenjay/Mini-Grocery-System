@@ -3,35 +3,37 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 
-class StaffInfoScreen extends StatefulWidget {
-  final Map<String, dynamic> staff;
-  final bool initialIsEditing;
+class AdminProfileScreen extends StatefulWidget {
+  final bool isSubPage;
 
-  const StaffInfoScreen({
+  const AdminProfileScreen({
     super.key, 
-    required this.staff,
-    this.initialIsEditing = false,
+    this.isSubPage = false,
   });
 
   @override
-  State<StaffInfoScreen> createState() => _StaffInfoScreenState();
+  State<AdminProfileScreen> createState() => _AdminProfileScreenState();
 }
 
-class _StaffInfoScreenState extends State<StaffInfoScreen> {
-  late bool _isEditing;
-
-  // Controllers for future DB integration
+class _AdminProfileScreenState extends State<AdminProfileScreen> {
+  bool _isEditing = false;
+  
+  // Controllers for easy database integration
   late TextEditingController _nameController;
   late TextEditingController _contactController;
   late TextEditingController _addressController;
+  late TextEditingController _usernameController;
+  late TextEditingController _passwordController;
 
   @override
   void initState() {
     super.initState();
-    _isEditing = widget.initialIsEditing;
-    _nameController = TextEditingController(text: widget.staff['name'].toString());
-    _contactController = TextEditingController(text: widget.staff['contactNumber'].toString());
-    _addressController = TextEditingController(text: widget.staff['address'].toString());
+    // Initial data matching the reference image
+    _nameController = TextEditingController(text: 'Russel Marie Soliman');
+    _contactController = TextEditingController(text: '0912345678');
+    _addressController = TextEditingController(text: 'Brgy. New Jenshan, California');
+    _usernameController = TextEditingController(text: 'dinglePM_soliman');
+    _passwordController = TextEditingController(text: 'password123admin');
   }
 
   @override
@@ -39,6 +41,8 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
     _nameController.dispose();
     _contactController.dispose();
     _addressController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -56,6 +60,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
     }
   }
 
+  // --- ᴜᴘᴅᴀᴛᴇ ꜱᴜᴄᴄᴇꜱꜱ ᴍᴏᴅᴀʟ ---
   void _showUpdateSuccess(BuildContext context) {
     showDialog(
       context: context,
@@ -76,7 +81,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  "Staff information has been successfully updated.",
+                  "Your account information has been successfully updated.",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: Colors.black54),
                 ),
@@ -103,16 +108,13 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool onDuty = widget.staff['onDuty'] as bool? ?? false;
-    final List shifts = widget.staff["shifts"] as List? ?? [];
-
     return Scaffold(
-      backgroundColor: Colors.white, // Extend white background to bottom
+      backgroundColor: Colors.white, // Ensures white background extends to bottom
       appBar: AppBar(
         backgroundColor: const Color(0xFF2E8B7F), // Match gradient start
         elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0, // Prevents white line on scroll
+        surfaceTintColor: Colors.transparent, 
         shadowColor: Colors.transparent,
         automaticallyImplyLeading: false,
         toolbarHeight: 70,
@@ -143,7 +145,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                       fontWeight: FontWeight.w400
                     )
                   ),
-                  Text('Russel Marie!', // Logged-in admin name
+                  Text('Russel Marie!',
                     style: GoogleFonts.poppins(
                       fontSize: 15, 
                       fontWeight: FontWeight.bold, 
@@ -153,6 +155,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                 ],
               ),
               const Spacer(),
+              // Vertical line
               Container(width: 1, height: 25, color: Colors.white38),
               const SizedBox(width: 10),
               GestureDetector(
@@ -202,62 +205,13 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                 ),
               ),
               width: double.infinity,
-              padding: const EdgeInsets.only(bottom: 45),
+              padding: const EdgeInsets.only(bottom: 45), // Transition overlap
               child: Column(
                 children: [
-                  // Back button and duty status row
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.arrow_back,
-                              color: Color(0xFF2E4F4F),
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            Text(
-                              onDuty ? 'On Duty' : 'Off Duty',
-                              style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: onDuty
-                                    ? const Color(0xFF7BF07F)
-                                    : Colors.white38,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
                   if (_isEditing) ...[
                     const SizedBox(height: 5),
                     Text(
-                      'Edit Staff Information',
+                      'Edit Admin Information',
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 18,
@@ -344,7 +298,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                   
                   const SizedBox(height: 4),
                   Text(
-                    widget.staff['role'].toString(),
+                    'Admin',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Color.fromARGB(153, 236, 233, 233),
@@ -352,7 +306,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                       fontSize: 14,
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 10),
                 ],
               ),
             ),
@@ -369,7 +323,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Action Button Row
+                  // Row with Label and Action Button for alignment
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -405,7 +359,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   if (_isEditing)
                     _buildEditableField(_contactController)
                   else
@@ -414,7 +368,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                   const SizedBox(height: 18),
 
                   const _SectionLabel(label: 'Full Address:'),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   if (_isEditing)
                     _buildEditableField(_addressController)
                   else
@@ -422,19 +376,18 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                   
                   const SizedBox(height: 32),
 
-                  // -- Tracked Attendance Section --
+                  // -- System Login Account Section --
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryLightTeal,
+                      color: const Color(0xFF2E4F4F),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     padding: const EdgeInsets.all(24),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Tracked Attendance',
+                          'System Login Account',
                           style: TextStyle(
                             fontFamily: AppFonts.poppins,
                             color: Colors.white,
@@ -442,35 +395,25 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(height: 20),
+                        
+                        _AccountField(
+                          label: 'Username:', 
+                          value: _usernameController.text,
+                          controller: _isEditing ? _usernameController : null,
+                        ),
                         const SizedBox(height: 16),
-                        shifts.isEmpty
-                          ? const Center(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(vertical: 20),
-                                child: Text(
-                                  'No attendance records yet.',
-                                  style: TextStyle(
-                                    fontFamily: AppFonts.avenir,
-                                    color: Colors.white54,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: shifts.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 10),
-                              itemBuilder: (context, index) {
-                                final shift = shifts[index] as Map<String, dynamic>;
-                                return _AttendanceRow(shift: shift);
-                              },
-                            ),
+                        
+                        _AccountField(
+                          label: 'Password:', 
+                          value: _passwordController.text,
+                          isPassword: true,
+                          controller: _isEditing ? _passwordController : null,
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 140),
                 ],
               ),
             ),
@@ -510,14 +453,19 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontFamily: AppFonts.poppins,
-        fontWeight: FontWeight.bold,
-        fontSize: 13,
-        color: Colors.black87,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: AppFonts.poppins,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -529,7 +477,7 @@ class _SectionValue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 14, top: 0),
+      padding: const EdgeInsets.only(left: 14, top: 2),
       child: Text(
         value,
         style: const TextStyle(
@@ -542,59 +490,97 @@ class _SectionValue extends StatelessWidget {
   }
 }
 
-class _AttendanceRow extends StatelessWidget {
-  final Map<String, dynamic> shift;
-  const _AttendanceRow({required this.shift});
+class _AccountField extends StatefulWidget {
+  final String label;
+  final String value;
+  final bool isPassword;
+  final TextEditingController? controller;
+
+  const _AccountField({
+    required this.label, 
+    required this.value, 
+    this.isPassword = false,
+    this.controller,
+  });
+
+  @override
+  State<_AccountField> createState() => _AccountFieldState();
+}
+
+class _AccountFieldState extends State<_AccountField> {
+  bool _obscureText = true;
 
   @override
   Widget build(BuildContext context) {
-    final bool isLogOut = shift['type'].toString().toLowerCase() == 'log out';
-
-    final Color timeColor = isLogOut 
-        ? const Color.fromARGB(255, 229, 57, 53) 
-        : const Color.fromARGB(255, 80, 193, 84);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            shift['type'].toString(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            widget.label,
             style: const TextStyle(
-              fontFamily: AppFonts.figtree,
-              fontSize: 14,
-              color: Colors.black87,
+              color: Colors.white,
+              fontSize: 11,
+              fontFamily: AppFonts.poppins,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
             children: [
-              Text(
-                shift['time'].toString(),
-                style: TextStyle(
-                  fontFamily: AppFonts.figtree,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: timeColor,
+              Expanded(
+                child: widget.controller != null 
+                ? TextField(
+                    controller: widget.controller,
+                    obscureText: widget.isPassword && _obscureText,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 14,
+                      fontFamily: AppFonts.poppins,
+                    ),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  )
+                : Text(
+                  (widget.isPassword && _obscureText) 
+                      ? '•' * (widget.value.length > 20 ? 20 : widget.value.length) 
+                      : widget.value,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 14,
+                    fontFamily: AppFonts.poppins,
+                  ),
                 ),
               ),
-              Text(
-                shift['date'].toString(),
-                style: const TextStyle(
-                  fontFamily: AppFonts.poppins,
-                  fontSize: 11,
-                  color: Colors.black45,
+              if (widget.isPassword)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _obscureText = !_obscureText;
+                    });
+                  },
+                  child: Icon(
+                    _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined, 
+                    color: Colors.black54, 
+                    size: 20
+                  ),
                 ),
-              ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
