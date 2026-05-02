@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/colors.dart';
-import '../admin/staff_info_screen.dart';
+import '../../theme/text_styles.dart';
+import 'staff_info_screen.dart';
+import 'add_staff_screen.dart';
 
 class StaffListScreen extends StatefulWidget {
   final bool isSubPage;
@@ -26,6 +28,24 @@ class _StaffListScreenState extends State<StaffListScreen> {
     'Cashier',
   ];
 
+  // Search controller lets the search icon button read & submit the field
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+
+  // Filter state - 'All' means no filter applied
+  String _filterRole  = 'All';
+  String _filterDuty  = 'All';
+
+ // dispose of controllers to prevent memory leaks when the widget is destroyed
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocus.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // mock data
   final List<Map<String, dynamic>> staffList = [
     {
       'id': 1,
@@ -49,7 +69,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
       'onDuty': true,
       'photo': 'assets/images/staff_2.png',
       'contactNumber': '+639511698350',
-      'address': 'Brgy. Idk, Idc City',
+      'address': 'Brgy. New Jenshan, California',
       'username': 'DinglePM_Ramos',
       'shifts': [],
     },
@@ -102,25 +122,195 @@ class _StaffListScreenState extends State<StaffListScreen> {
     return filtered;
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
+  // Submits the search — called by keyboard submit
+  void _submitSearch() {
+    setState(() => searchQuery = _searchController.text);
+    _searchFocus.unfocus();
   }
 
-  void _openAddNew() {
-    showDialog(
+  // Filter bottom sheet — role + duty toggles.
+  void _openFilter() {
+    // Temp variables so user can cancel without applying.
+    String tempRole = _filterRole;
+    String tempDuty = _filterDuty;
+
+    showModalBottomSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Add New Staff'),
-        content: const Text('Coming soon!!'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+
+                  // filter - role
+                  const Text('Filter Staff',
+                    style: TextStyle(
+                      fontFamily: AppFonts.figtree,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryDarkTeal,
+                    )),
+
+                  const Divider(height: 24),
+
+                  const Text('Role',
+                    style: TextStyle(
+                      fontFamily: AppFonts.figtree,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryDarkTeal,
+                    )),
+
+                  const SizedBox(height: 8),
+
+                  Wrap(
+                    spacing: 8,
+                    children: ['All', 'Inventory Staff', 'Cashier'].map((role) {
+                      final selected = tempRole == role;
+                      return GestureDetector(
+                        onTap: () => setSheetState(() => tempRole = role),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: selected
+                              ? AppColors.primaryDarkTeal
+                              : AppColors.surfaceLightGray,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+
+                          child: Text(role,
+                            style: const TextStyle(
+                              fontFamily: AppFonts.avenir,
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // filter - duty status
+                  const Text('Duty Status',
+                    style: TextStyle(
+                      fontFamily: AppFonts.figtree,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryDarkTeal,
+                    )),
+
+                  const SizedBox(height: 8),
+
+                  Wrap(
+                    spacing: 8,
+                    children: ['All', 'On Duty', 'Off Duty'].map((duty) {
+                      final selected = tempDuty == duty;
+                      return GestureDetector(
+                        onTap: () => setSheetState(() => tempDuty = duty),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: selected
+                              ? AppColors.primaryDarkTeal
+                              : AppColors.surfaceLightGray,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+
+                          child: Text(duty,
+                            style: const TextStyle(
+                                fontFamily: AppFonts.avenir,
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  //  Apply & Reset buttons
+                  Row(
+                    children: [
+                      // Reset
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            setState(() {
+                              _filterRole = 'All';
+                              _filterDuty = 'All';
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                            color: AppColors.primaryDarkTeal),
+                            shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Reset',
+                            style: TextStyle(
+                            color: AppColors.primaryDarkTeal,
+                            fontFamily: AppFonts.avenir)
+                          ),
+
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      // Apply
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            setState(() {
+                              _filterRole = tempRole;
+                              _filterDuty = tempDuty;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.mutedGreen,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Apply',
+                          style: TextStyle(
+                            color: Colors.white, fontFamily:
+                            AppFonts.avenir)
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // -- Add and Edit staff
+  // Navigate to add_staff_screen.dart
+  void _openAddNew() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => AddStaffScreen(
+        onStaffAdded: (newStaff) => setState(() => staffList.add(newStaff)),
+      )),
     );
   }
 
@@ -134,12 +324,8 @@ class _StaffListScreenState extends State<StaffListScreen> {
         staff: staff,
         onView: () {
           Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => StaffInfoScreen(staff: staff),
-            ),
-          );
+          Navigator.push(context,
+          MaterialPageRoute(builder: (_) => StaffInfoScreen(staff: staff)));
         },
         onEdit: () {
           Navigator.pop(context);
@@ -683,6 +869,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
   }
 }
 
+// ---- Staff card ----
 class _StaffCard extends StatelessWidget {
   final Map<String, dynamic> staff;
   final VoidCallback onMenuTap;
@@ -808,10 +995,27 @@ class _StaffMenuSheet extends StatelessWidget {
           Text(staff['name'].toString(),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2E4F4F))),
           const Divider(height: 20),
-          _MenuOption(icon: Icons.visibility, label: 'View Staff Information', onTap: onView),
-          _MenuOption(icon: Icons.edit,       label: 'Edit Details', onTap: onEdit),
-          _MenuOption(icon: Icons.swap_horiz, label: 'Toggle Duty',  onTap: onToggleDuty),
-          _MenuOption(icon: Icons.delete,     label: 'Remove Staff', onTap: onRemove, isDestructive: true),
+          _MenuOption(
+            icon: Icons.visibility,
+            label: 'View Staff Information',
+            onTap: onView,
+          ),
+          _MenuOption(
+            icon: Icons.edit,
+            label: 'Edit Details',
+            onTap: onEdit,
+          ),
+          _MenuOption(
+            icon: Icons.swap_horiz,
+            label: 'Toggle Duty',
+            onTap: onToggleDuty,
+          ),
+          _MenuOption(
+            icon: Icons.delete,
+            label: 'Remove Staff',
+            onTap: onRemove,
+            isDestructive: true,
+          ),
         ],
       ),
     );
@@ -837,7 +1041,10 @@ class _MenuOption extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(icon, color: color, size: 20),
-      title: Text(label, style: TextStyle(color: color, fontSize: 14)),
+      title: Text(
+        label,
+        style: TextStyle(color: color, fontSize: 14),
+      ),
       onTap: onTap,
     );
   }
