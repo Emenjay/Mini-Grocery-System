@@ -24,7 +24,6 @@ class _StaffListScreenState extends State<StaffListScreen> {
   final List<String> availableRoles = [
     'Inventory Staff',
     'Cashier',
-    'Admin',
   ];
 
   final List<Map<String, dynamic>> staffList = [
@@ -377,7 +376,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
-        actions: const [],
+        actions: const [SizedBox.shrink()],
         toolbarHeight: 70,
         title: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
