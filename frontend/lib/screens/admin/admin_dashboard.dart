@@ -6,6 +6,7 @@ import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:frontend/theme/text_styles.dart';
 import 'admin_inventory.dart';
 import 'staff_list_screen.dart';
+import 'admin_profile_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STAFF DATA MODEL
@@ -188,7 +189,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     switch (_selectedIndex) {
       case 0: return const AdminInventoryScreen(key: ValueKey('Inventory'), isSubPage: true);
       case 1: return const StaffListScreen(key: ValueKey('StaffList'), isSubPage: true);
-      case 2: return const PlaceholderPage(key: ValueKey('Profile'), title: 'Admin Profile');
+      case 2: return const AdminProfileScreen(key: ValueKey('Profile'), isSubPage: true);
       default:
         return _DashboardContent(
           key: const ValueKey('Dashboard'),
