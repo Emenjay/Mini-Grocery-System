@@ -293,7 +293,9 @@ class _StaffListScreenState extends State<StaffListScreen> {
   void _openAddNew() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const AddStaffScreen()),
+      MaterialPageRoute(builder: (_) => AddStaffScreen(
+        onStaffAdded: (newStaff) => setState(() => staffList.add(newStaff)),
+      )),
     );
   }
 

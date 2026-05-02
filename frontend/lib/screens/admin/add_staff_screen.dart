@@ -56,6 +56,33 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
     });
   }
 
+  // form validation
+  void _submitForm() {
+  if (!(_formKey.currentState?.validate() ?? false)) return;
+  if (!_credentialsGenerated) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please generate login credentials before saving.')),
+    );
+    return;
+  }
+  final newStaff = <String, dynamic>{
+    'id': DateTime.now().millisecondsSinceEpoch,
+    'name': _nameController.text.trim(),
+    'role': _selectedRole,
+    'onDuty': false,
+    'photo': 'assets/images/logo.png',
+    'contactNumber': '+639${_contactController.text.trim()}',
+    'address': _addressController.text.trim(),
+    'username': _generatedUsername,
+    'shifts': <Map<String, dynamic>>[],
+  };
+  widget.onStaffAdded?.call(newStaff);
+  Navigator.pop(context);
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Staff member added successfully! :)')),
+  );
+}
+
 
  // dispose of controllers to prevent memory leaks when the widget is destroyed
   @override
@@ -295,7 +322,30 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                               ],
 
                               const SizedBox(height: 28),
-                              
+
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: _submitForm,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primaryDarkTeal,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  
+                                  child: const Text('Add Employee',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontFamily: AppFonts.poppins,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    )),
+                                ),
+                              ),
+
                               
                             ],
                           ),
