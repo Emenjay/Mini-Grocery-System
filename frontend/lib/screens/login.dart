@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/theme/colors.dart';
+import '../services/auth_service.dart';
+import '../services/session_service.dart';
+import '../utils/app_state.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,39 +18,50 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
 
   Future<void> _handleLogin() async {
-    final user = _userController.text;
-    final pin = _pinController.text;
+    final username = _userController.text.trim();
+    final password = _pinController.text.trim();
 
-    if (user.isEmpty || pin.isEmpty) {
+    if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please enter both username and pincode")),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    // simulate delay before showing the dashboard (transition)
-    await Future.delayed(const Duration(seconds: 2));
+    final result = await AuthService.login(username, password);
 
     if (!mounted) return;
+    setState(() => _isLoading = false);
 
-    setState(() {
-      _isLoading = false;
-    });
+    if (!result['success']) {
+      // show error from backend e.g. 'Invalid username or password' or 'Account is disabled'
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'])),
+      );
+      return;
+    }
 
-    // mock api routing rule
-    if (user == "admin" && pin == "1234") {
+    // login success — save token and user to storage and app state
+    final data = result['data'];
+    final token = data['token'];
+    final user = data['user'];
+
+    await SessionService.saveSession(token, user);
+    AppState.setSession(token, user);
+
+    // route based on role returned from backend
+    final role = user['role'];
+    if (role == 'Admin') {
       Navigator.pushReplacementNamed(context, '/admin-dashboard');
-    } else if (user == "cashier1" && pin == "0000") {
+    } else if (role == 'Cashier') {
       Navigator.pushReplacementNamed(context, '/cash-in');
-    } else if (user == "staff1" && pin == "8888") {
+    } else if (role == 'Inventory') {
       Navigator.pushReplacementNamed(context, '/inventory-dashboard');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("invalid credentials")),
+        const SnackBar(content: Text("Unknown role. Contact admin.")),
       );
     }
   }
@@ -78,7 +92,6 @@ class _LoginPageState extends State<LoginPage> {
                     child: Image.asset(
                       'assets/images/logo.png',
                       fit: BoxFit.contain,
-                      // If the image still won't show, this errorBuilder will tell us why
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.broken_image, color: Colors.red, size: 40);
                       },
@@ -112,7 +125,7 @@ class _LoginPageState extends State<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Center(
-                    child: Text("Welcome!", 
+                    child: Text("Welcome!",
                       style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
                   ),
                   const SizedBox(height: 30),
@@ -130,11 +143,11 @@ class _LoginPageState extends State<LoginPage> {
                   TextField(
                     controller: _pinController,
                     obscureText: true,
-                    keyboardType: TextInputType.number, 
+                    keyboardType: TextInputType.number,
                     decoration: const InputDecoration(hintText: "Enter your pincode"),
                   ),
                   const Spacer(),
-
+                  
                   // login button
                   SizedBox(
                     width: double.infinity,
