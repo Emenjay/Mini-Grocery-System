@@ -2,11 +2,62 @@
 
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
-import 'package:frontend/theme/text_styles.dart'; 
+import 'package:frontend/theme/text_styles.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
+import '../../services/auth_service.dart';
+import '../../services/inventory_service.dart';
+import '../../services/session_service.dart';
+import '../../utils/app_state.dart';
 
-class InventoryDashboard extends StatelessWidget {
+class InventoryDashboard extends StatefulWidget {
   const InventoryDashboard({super.key});
+
+  @override
+  State<InventoryDashboard> createState() => _InventoryDashboardState();
+}
+
+class _InventoryDashboardState extends State<InventoryDashboard> {
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  // dashboard counts
+  String totalProducts = '...';
+  String lowStock = '...';
+  String expiredStocks = '...';
+  String outOfStock = '...';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboard();
+  }
+
+  Future<void> _loadDashboard() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    // call dashboard api
+    final result = await InventoryService.getDashboardCounts();
+
+    if (!mounted) return;
+
+    if (result['success']) {
+      final data = result['data'];
+      setState(() {
+        totalProducts = data['totalProducts'].toString();
+        lowStock = data['lowStock'].toString();
+        expiredStocks = data['expired'].toString();
+        outOfStock = data['outOfStock'].toString();
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = result['message'];
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,8 +68,22 @@ class InventoryDashboard extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 12),
-              const _Header(),
+              _Header(onDashboardRefresh: _loadDashboard),
               const SizedBox(height: 16),
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.redAccent),
+                    ),
+                    child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                  ),
+                ),
               // --- stats section grid ---
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -27,7 +92,7 @@ class InventoryDashboard extends StatelessWidget {
                     Expanded(
                       child: _InventoryStatCard(
                         title: "Total Products",
-                        count: "10, 352",
+                        count: _isLoading ? '...' : totalProducts,
                         icon: Icons.shopping_bag_outlined,
                       ),
                     ),
@@ -35,7 +100,7 @@ class InventoryDashboard extends StatelessWidget {
                     Expanded(
                       child: _InventoryStatCard(
                         title: "Low Stock Products",
-                        count: "10, 352",
+                        count: _isLoading ? '...' : lowStock,
                         icon: Icons.inventory_2_outlined,
                       ),
                     ),
@@ -50,7 +115,7 @@ class InventoryDashboard extends StatelessWidget {
                     Expanded(
                       child: _InventoryStatCard(
                         title: "Expired Stocks",
-                        count: "10, 352",
+                        count: _isLoading ? '...' : expiredStocks,
                         icon: Icons.calendar_today_outlined,
                       ),
                     ),
@@ -58,7 +123,7 @@ class InventoryDashboard extends StatelessWidget {
                     Expanded(
                       child: _InventoryStatCard(
                         title: "Out of Stock Products",
-                        count: "10, 352",
+                        count: _isLoading ? '...' : outOfStock,
                         icon: Icons.layers_clear_outlined,
                       ),
                     ),
@@ -100,9 +165,10 @@ class InventoryDashboard extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  final VoidCallback onDashboardRefresh;
+  const _Header({required this.onDashboardRefresh});
 
-  // --- ʟᴏɢᴏᴜᴛ ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ ᴅɪᴀʟᴏɢ ---
+    // --- ʟᴏɢᴏᴜᴛ ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ ᴅɪᴀʟᴏɢ ---
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
@@ -141,9 +207,9 @@ class _Header extends StatelessWidget {
                       child: const Text("Cancel", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
                     ),
                     ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context); // Close confirm
-                        _showLogoutSuccess(context);
+                      onPressed: () async {
+                        Navigator.pop(context); // close confirm dialog
+                        await _handleLogout(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF35524A),
@@ -162,6 +228,17 @@ class _Header extends StatelessWidget {
     );
   }
 
+  Future<void> _handleLogout(BuildContext context) async {
+    // call logout API - clocks out attendance and deletes paused carts
+    await AuthService.logout(AppState.token!);
+
+    // clear local session regardless of API result
+    await SessionService.clearSession();
+    AppState.clearSession();
+
+    if (!context.mounted) return;
+    _showLogoutSuccess(context);
+  }
   // --- ʟᴏɢᴏᴜᴛ ꜱᴜᴄᴄᴇꜱꜱ ᴍᴏᴅᴀʟ ---
   void _showLogoutSuccess(BuildContext context) {
     showDialog(
@@ -191,7 +268,7 @@ class _Header extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false),
+                    onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF35524A),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -219,29 +296,31 @@ class _Header extends StatelessWidget {
             backgroundImage: AssetImage('assets/images/logo.png'),
           ),
           const SizedBox(width: 12),
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Hello,", 
+              const Text(
+                "Hello,",
                 style: TextStyle(
-                  fontFamily: AppFonts.avenir, 
-                  fontSize: 14, 
-                  color: Colors.grey
-                )
+                  fontFamily: AppFonts.avenir,
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
               ),
+              // display logged in user's name from AppState
               Text(
-                "Lyra Bellah!",
-                style: TextStyle(
-                  fontFamily: AppFonts.poppins, 
-                  fontSize: 18, 
-                  fontWeight: FontWeight.bold, 
-                  color: Color(0xFF2E4F4F)
+                "${AppState.userName}!",
+                style: const TextStyle(
+                  fontFamily: AppFonts.poppins,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2E4F4F),
                 ),
               ),
             ],
           ),
-          const Spacer(),
           // --- ᴛʀɪɢɢᴇʀ ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ ᴏɴ ᴛᴀᴘ ---
+          const Spacer(),
           IconButton(
             onPressed: () => _showLogoutConfirmation(context),
             icon: const Icon(Icons.logout_rounded, color: Colors.black87),
@@ -294,9 +373,9 @@ class _InventoryStatCard extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     fontFamily: AppFonts.figtree,
-                    color: Colors.white, 
-                    fontSize: 11, 
-                    fontWeight: FontWeight.w500
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -307,9 +386,9 @@ class _InventoryStatCard extends StatelessWidget {
             count,
             style: const TextStyle(
               fontFamily: AppFonts.poppins,
-              color: Colors.white, 
-              fontSize: 24, 
-              fontWeight: FontWeight.bold
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
@@ -328,7 +407,7 @@ class _SyncfusionCalendarCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF35524A), 
+        color: const Color(0xFF35524A),
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))
@@ -340,16 +419,16 @@ class _SyncfusionCalendarCard extends StatelessWidget {
         ),
         child: SfCalendar(
           view: CalendarView.month,
-          showNavigationArrow: true, 
+          showNavigationArrow: true,
           headerHeight: 50,
           backgroundColor: Colors.transparent,
           headerStyle: const CalendarHeaderStyle(
-            textAlign: TextAlign.left, 
+            textAlign: TextAlign.left,
             backgroundColor: Colors.transparent,
             textStyle: TextStyle(
               fontFamily: AppFonts.poppins,
-              color: Colors.white, 
-              fontSize: 18, 
+              color: Colors.white,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -357,7 +436,7 @@ class _SyncfusionCalendarCard extends StatelessWidget {
             backgroundColor: Colors.transparent,
             dayTextStyle: TextStyle(
               fontFamily: AppFonts.avenir,
-              color: Color(0xFF76BA99), 
+              color: Color(0xFF76BA99),
               fontWeight: FontWeight.bold,
               fontSize: 13,
             ),
@@ -367,17 +446,17 @@ class _SyncfusionCalendarCard extends StatelessWidget {
             monthCellStyle: MonthCellStyle(
               backgroundColor: Colors.transparent,
               textStyle: TextStyle(
-                fontFamily: AppFonts.figtree, 
+                fontFamily: AppFonts.figtree,
                 color: Colors.white,
                 fontSize: 13,
               ),
               todayTextStyle: TextStyle(
-                color: Colors.white, 
-                fontWeight: FontWeight.bold
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          todayHighlightColor: const Color(0xFF76BA99), 
+          todayHighlightColor: const Color(0xFF76BA99),
           selectionDecoration: BoxDecoration(
             color: const Color(0xFF76BA99).withOpacity(0.3),
             border: Border.all(color: const Color(0xFF76BA99), width: 2),
@@ -426,9 +505,9 @@ class _ActionButton extends StatelessWidget {
               label,
               style: const TextStyle(
                 fontFamily: AppFonts.poppins,
-                color: Colors.white, 
-                fontSize: 16, 
-                fontWeight: FontWeight.bold
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
