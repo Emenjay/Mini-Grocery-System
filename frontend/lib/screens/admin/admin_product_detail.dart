@@ -18,8 +18,10 @@ class AdminProductDetailScreen extends StatefulWidget {
 class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
   late int _currentIndex;
   bool _isMarkupEditing = false;
-  late TextEditingController _markupController;
-  final FocusNode _markupFocusNode = FocusNode();
+  
+  // PERCENTAGE DROPDOWN VALUES
+  final List<int> _markupPercentages = [10, 12, 15, 20, 25, 30];
+  int? _selectedPercentage;
 
   @override
   void initState() {
@@ -29,9 +31,9 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
   }
 
   void _loadProductData() {
-    // casual check for markup in your data map
-    double markup = widget.productList[_currentIndex]['markup'] ?? 0.0;
-    _markupController = TextEditingController(text: markup.toStringAsFixed(2));
+    // casual check for markup percentage in your data map
+    // BACKEND: FETCH SAVED PERCENTAGE OR DEFAULT TO 10
+    _selectedPercentage = widget.productList[_currentIndex]['markupPercentage'] ?? 10;
   }
 
   void _navigate(int direction) {
@@ -43,12 +45,19 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
     });
   }
 
+  // LOGIC: BASE PRICE + (BASE PRICE * PERCENTAGE)
+  // ROUNDED UP TO THE NEAREST WHOLE NUMBER
+  double get _calculatedMarkup {
+    final p = widget.productList[_currentIndex];
+    double base = (p['basePrice'] ?? p['price'] ?? 0.0).toDouble();
+    double percentage = (_selectedPercentage ?? 0) / 100;
+    return (base * percentage).ceilToDouble(); // ROUND UP TO WHOLE NUMBER
+  }
+
   double get _retailPrice {
     final p = widget.productList[_currentIndex];
-    // supports both 'basePrice' and 'price' keys
     double base = (p['basePrice'] ?? p['price'] ?? 0.0).toDouble();
-    double markup = double.tryParse(_markupController.text) ?? 0.0;
-    return base + markup;
+    return base + _calculatedMarkup;
   }
 
   @override
@@ -117,7 +126,8 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                   _readOnlyTile(Icons.inventory_2_outlined, "Available Stocks", (currentProduct['stocks'] ?? 0).toString()),
                   _readOnlyTile(Icons.calendar_month_outlined, "Expiration Date", currentProduct['expiry'] ?? "n/a"),
                   const SizedBox(height: 10),
-                  // markup editor card
+                  
+                  // UPDATED: MARKUP PERCENTAGE DROPDOWN CARD
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
@@ -130,37 +140,49 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Markup Price:", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51))),
+                        Text("Markup:", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51))),
                         Row(
                           children: [
-                            Text("₱ ", style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
-                            SizedBox(
-                              width: 85,
-                              child: TextField(
-                                controller: _markupController,
-                                focusNode: _markupFocusNode,
-                                enabled: _isMarkupEditing,
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.right,
-                                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, color: _isMarkupEditing ? const Color(0xFF3E5C51) : Colors.black87),
-                                decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-                                onChanged: (value) => setState(() {}),
-                              ),
-                            ),
-                            const SizedBox(width: 5),
+                            _isMarkupEditing 
+                            ? Container(
+                                height: 35,
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F1F1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<int>(
+                                    value: _selectedPercentage,
+                                    items: _markupPercentages.map((int value) {
+                                      return DropdownMenuItem<int>(
+                                        value: value,
+                                        child: Text("$value%", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51))),
+                                      );
+                                    }).toList(),
+                                    onChanged: (newValue) {
+                                      setState(() {
+                                        _selectedPercentage = newValue;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              )
+                            : Text("$_selectedPercentage% (₱ ${_calculatedMarkup.toStringAsFixed(0)})", 
+                                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+                            
+                            const SizedBox(width: 10),
                             GestureDetector(
                               onTap: () {
                                 setState(() {
                                   _isMarkupEditing = !_isMarkupEditing;
-                                  if (_isMarkupEditing) {
-                                    _markupFocusNode.requestFocus();
-                                  } else {
-                                    widget.productList[_currentIndex]['markup'] = double.tryParse(_markupController.text) ?? 0.0;
-                                    _markupFocusNode.unfocus();
+                                  if (!_isMarkupEditing) {
+                                    // BACKEND: UPDATE PRODUCT_MARKUP_PERCENTAGE IN DATABASE
+                                    widget.productList[_currentIndex]['markupPercentage'] = _selectedPercentage;
                                   }
                                 });
                               },
-                              child: Icon(_isMarkupEditing ? Icons.check_circle : Icons.edit, size: 22, color: _isMarkupEditing ? const Color(0xFF3E5C51) : Colors.black38),
+                              child: Icon(_isMarkupEditing ? Icons.check_circle : Icons.edit, size: 22, color: _isMarkupEditing ? const Color(0xFF2D936C) : Colors.black38),
                             ),
                           ],
                         ),

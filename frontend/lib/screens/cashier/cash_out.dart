@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'package:flutter/material.dart';
 
 class CashOutScreen extends StatefulWidget {
@@ -11,7 +13,6 @@ class CashOutScreen extends StatefulWidget {
 class _CashOutScreenState extends State<CashOutScreen> {
   final _amountController = TextEditingController();
   bool _isValid = false;
-  String? _errorMessage;
 
   @override
   void initState() {
@@ -19,25 +20,14 @@ class _CashOutScreenState extends State<CashOutScreen> {
     _amountController.addListener(_checkAmount);
   }
 
+  // check if the input is a valid number
   void _checkAmount() {
     String text = _amountController.text.trim();
-    if (text.isEmpty) {
-      setState(() {
-        _isValid = false;
-        _errorMessage = null;
-      });
-      return;
-    }
-
-    double entered = double.tryParse(text) ?? 0.0;
+    double? entered = double.tryParse(text);
+    
     setState(() {
-      if (entered < widget.startingCash) {
-        _isValid = false;
-        _errorMessage = "Cash out amount cannot be lower than cash in (₱${widget.startingCash.toStringAsFixed(2)})";
-      } else {
-        _isValid = true;
-        _errorMessage = null;
-      }
+      // button is clickable as long as input is not empty and is a valid number
+      _isValid = text.isNotEmpty && entered != null;
     });
   }
 
@@ -47,9 +37,9 @@ class _CashOutScreenState extends State<CashOutScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Icon(Icons.check_circle, color: Color(0xFF8BC34A), size: 80),
             SizedBox(height: 20),
             Text(
@@ -115,11 +105,20 @@ class _CashOutScreenState extends State<CashOutScreen> {
                     style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: Color(0xFF345149), letterSpacing: 0.5),
                   ),
                   const SizedBox(height: 35),
+                  // display the cash-in amount clearly
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Cash-in Amount: ₱${widget.startingCash.toStringAsFixed(2)}",
+                      style: const TextStyle(color: Color(0xFF638D7E), fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "Enter Final Money:",
-                      style: TextStyle(color: Color(0xFF638D7E), fontWeight: FontWeight.bold, fontSize: 15),
+                      style: TextStyle(color: Color(0xFF345149), fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -136,14 +135,6 @@ class _CashOutScreenState extends State<CashOutScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
                     ),
                   ),
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _errorMessage!,
-                      style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w500),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
                   const SizedBox(height: 35),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

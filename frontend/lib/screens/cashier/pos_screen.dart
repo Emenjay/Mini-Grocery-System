@@ -5,7 +5,7 @@ import 'transactions.dart';
 import 'cash_out.dart';
 
 class PosScreen extends StatefulWidget {
-  final double startingCash; // keep track of start money
+  final double startingCash; 
   const PosScreen({super.key, this.startingCash = 0.0});
 
   @override
@@ -13,6 +13,9 @@ class PosScreen extends StatefulWidget {
 }
 
 class _PosScreenState extends State<PosScreen> {
+  // BACKEND: TRACK THE CURRENT TRANSACTION SEQUENCE NUMBER
+  int currentCartIndex = 3; 
+
   List<Map<String, dynamic>> cartItems = [
     {'name': 'Ligo Sardines in Tomato Sauce | 155 g', 'price': 22.00, 'quantity': 2},
     {'name': 'Lucky Me! Pancit Canton (Original)', 'price': 28.50, 'quantity': 1},
@@ -20,7 +23,84 @@ class _PosScreenState extends State<PosScreen> {
     {'name': 'Safeguard Pure White | 175 g', 'price': 68.00, 'quantity': 1},
   ];
 
+  // BACKEND: LIST TO STORE SUSPENDED SESSIONS WITH THEIR UNIQUE IDS
+  List<Map<String, dynamic>> pendingCarts = [];
+
+  // BACKEND: DYNAMICALLY GENERATE ID BASED ON CURRENT INDEX
+  String get cartId => "#01000${currentCartIndex.toString().padLeft(1, '0')}";
+
   double get total => cartItems.fold(0, (sum, item) => sum + (item['price'] * item['quantity']));
+
+  // LOGIC TO MOVE ACTIVE CART TO PENDING LIST
+  void _suspendCurrentCart() {
+    if (cartItems.isEmpty) return;
+    
+    setState(() {
+      // BACKEND: PUSH CURRENT_CART_DATA TO PENDING_QUEUE
+      pendingCarts.add({
+        'id': cartId,
+        'items': List.from(cartItems),
+        'total': total,
+      });
+      cartItems.clear();
+      currentCartIndex++; // INCREMENT FOR THE NEXT CUSTOMER
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Cart $cartId moved to Pending")),
+    );
+  }
+
+  // LOGIC TO VIEW AND RETRIEVE HELD CARTS
+  void _showPendingCarts() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Pending Carts", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Divider(),
+              pendingCarts.isEmpty 
+                ? const Padding(padding: EdgeInsets.all(20), child: Text("No pending transactions"))
+                : Expanded(
+                    child: ListView.builder(
+                      itemCount: pendingCarts.length,
+                      itemBuilder: (context, index) {
+                        var pending = pendingCarts[index];
+                        return ListTile(
+                          leading: const CircleAvatar(backgroundColor: Color(0xFFE8F1EF), child: Icon(Icons.shopping_cart, color: Color(0xFF2D4B42))),
+                          title: Text("Cart ${pending['id']}"),
+                          subtitle: Text("${pending['items'].length} items • ₱ ${pending['total'].toStringAsFixed(2)}"),
+                          trailing: const Icon(Icons.refresh, color: Colors.orange),
+                          onTap: () {
+                            setState(() {
+                              // BACKEND: SWAP ACTIVE_CART WITH PENDING_RECORD_BY_ID
+                              if (cartItems.isNotEmpty) {
+                                pendingCarts.add({
+                                  'id': cartId,
+                                  'items': List.from(cartItems),
+                                  'total': total,
+                                });
+                              }
+                              cartItems = List.from(pending['items']);
+                              pendingCarts.removeAt(index);
+                            });
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,11 +131,13 @@ class _PosScreenState extends State<PosScreen> {
                     ],
                   ),
                   const Spacer(),
+                  // BUTTON TO VIEW PENDING CARTS
+                  _topCircleButton(Icons.pause_presentation_rounded, _showPendingCarts),
+                  const SizedBox(width: 10),
                   _topCircleButton(Icons.history, () {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const TransactionsScreen()));
                   }),
                   const SizedBox(width: 10),
-                  // door button to cash out
                   _topCircleButton(Icons.logout, () {
                     Navigator.push(context, MaterialPageRoute(
                       builder: (context) => CashOutScreen(startingCash: widget.startingCash)
@@ -77,16 +159,26 @@ class _PosScreenState extends State<PosScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Column(
+                          Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("Cart No.", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                              Text("#010003", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF2D4B42))),
+                              const Text("Cart No.", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              // DYNAMIC CART NUMBER DISPLAY
+                              Text(cartId, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF2D4B42))),
                             ],
                           ),
                           Row(
                             children: [
-                              _headerAction(Icons.refresh, "Reset"),
+                              // BUTTON TO HOLD CURRENT CART
+                              GestureDetector(
+                                onTap: _suspendCurrentCart,
+                                child: _headerAction(Icons.pause_circle_outline, "Hold", color: Colors.orange)
+                              ),
+                              const SizedBox(width: 10),
+                              GestureDetector(
+                                onTap: () => setState(() => cartItems.clear()),
+                                child: _headerAction(Icons.refresh, "Reset")
+                              ),
                               const SizedBox(width: 10),
                               _headerAction(Icons.delete_outline, "Delete", color: Colors.red),
                             ],
@@ -155,7 +247,11 @@ class _PosScreenState extends State<PosScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentScreen(totalAmount: total))),
+                          onPressed: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentScreen(totalAmount: total)));
+                            // BACKEND: AFTER SUCCESSFUL PAYMENT, CLEAR CART AND INCREMENT ID
+                            // setState(() { currentCartIndex++; cartItems.clear(); });
+                          },
                           style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF76BA99), padding: const EdgeInsets.symmetric(vertical: 18), shape: const StadiumBorder()),
                           child: const Text("Checkout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                         ),

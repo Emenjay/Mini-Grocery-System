@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget{
         useMaterial3: true,
       ),
       
-      // set login as the starting point for the flow
+      // starting point
       initialRoute: '/',
       routes: {
         '/inventory-dashboard': (context) => const InventoryDashboard(),
