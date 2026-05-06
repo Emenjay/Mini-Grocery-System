@@ -2,8 +2,9 @@
 
 import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
-import 'add_new_product.dart'; 
-import 'product_detail.dart'; 
+import '../../../services/product_service.dart';
+import 'add_new_product.dart';
+import 'product_detail.dart';
 
 class InventoryStaffScreen extends StatefulWidget {
   const InventoryStaffScreen({super.key});
@@ -16,7 +17,16 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   String selectedCategory = 'Recently Added';
   String searchQuery = '';
   int currentPage = 1;
-  final int itemsPerPage = 4; 
+  final int itemsPerPage = 20;
+
+  // live data from backend
+  List<Map<String, dynamic>> staffItems = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  // pagination info from backend
+  int _totalItems = 0;
+  int _totalPages = 1;
 
   // --- ᴍᴀᴘᴘɪɴɢ ꜰᴏʀ ɪᴅ ᴄᴏɴꜱɪꜱᴛᴇɴᴄʏ ---
   final Map<String, String> categoryCodes = {
@@ -44,39 +54,80 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     'Miscellaneous',
   ];
 
-  // ᴜᴘᴅᴀᴛᴇᴅ ɪᴛᴇᴍ ʟɪꜱᴛ ᴡɪᴛʜ ᴛʜᴇ ɴᴇᴡ ᴅᴀᴛᴀʙᴀꜱᴇ-ꜱᴛʏʟᴇ ɪᴅ ꜰᴏʀᴍᴀᴛ
-  final List<Map<String, dynamic>> staffItems = [
-    {'id': 'PER-202604-0001', 'name': 'Malunggay Lotion 500mL', 'category': 'Personal Care', 'stocks': 0, 'status': 'No Stock'},
-    {'id': 'BEV-202604-0002', 'name': 'Malunggay Juice 80mL', 'category': 'Beverages', 'stocks': 13, 'status': 'Low Stock'},
-    {'id': 'SNA-202604-0003', 'name': 'Malunggay Chips 20g', 'category': 'Snacks & Sweets', 'stocks': 80, 'status': 'In Stock'},
-    {'id': 'FRO-202604-0004', 'name': 'Frozen Malunggay', 'category': 'Frozen Goods', 'stocks': 45, 'status': 'In Stock'},
-    {'id': 'SNA-202604-0005', 'name': 'Corn Chips 50g', 'category': 'Snacks & Sweets', 'stocks': 100, 'status': 'In Stock'},
-  ];
-
-  List<Map<String, dynamic>> get _filteredItems {
-    return staffItems.where((item) {
-      final matchesCategory = selectedCategory == 'Recently Added' || item['category'] == selectedCategory;
-      final matchesSearch = item['name'].toLowerCase().contains(searchQuery.toLowerCase()) || 
-                           item['id'].toLowerCase().contains(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    // load products from backend on screen init
+    _loadProducts();
   }
 
-  List<Map<String, dynamic>> get _paginatedItems {
-    final filtered = _filteredItems;
-    int start = (currentPage - 1) * itemsPerPage;
-    int end = start + itemsPerPage;
-    
-    if (start >= filtered.length) return [];
-    return filtered.sublist(start, end > filtered.length ? filtered.length : end);
+  // --- ꜰᴇᴛᴄʜ ᴘʀᴏᴅᴜᴄᴛꜱ ꜰʀᴏᴍ ʙᴀᴄᴋᴇɴᴅ ---
+  Future<void> _loadProducts() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    // map 'Recently Added' tab to no category filter
+    final categoryFilter = selectedCategory == 'Recently Added' ? '' : selectedCategory;
+
+    final result = await ProductService.getProducts(
+      search: searchQuery,
+      category: categoryFilter,
+      page: currentPage,
+      limit: itemsPerPage,
+    );
+
+    if (!mounted) return;
+
+    if (result['success']) {
+      final data = result['data'];
+      final List<dynamic> products = data['products'];
+
+      setState(() {
+        // map backend fields to the shape the UI expects
+        staffItems = products.map((p) => {
+          'id': p['product_id'],           // int from backend
+          'name': p['product_name'],
+          'category': p['category_name'],
+          'stocks': p['stock_quantity'] ?? 0,
+          'status': p['stock_status'] ?? 'Out of Stock',
+        }).toList();
+
+        // update pagination from backend response
+        _totalItems = data['pagination']['total'];
+        _totalPages = data['pagination']['totalPages'];
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = result['message'];
+        _isLoading = false;
+      });
+    }
   }
 
-  int get _totalPages => (_filteredItems.length / itemsPerPage).ceil();
+  // call delete api then refresh list
+  Future<void> _deleteProduct(Map<String, dynamic> item) async {
+    final result = await ProductService.deleteProduct(item['id']);
+
+    if (!mounted) return;
+
+    if (result['success']) {
+      _showSuccessModal();
+      // refresh list after deletion
+      await _loadProducts();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Failed to delete product')),
+      );
+    }
+  }
 
   void _showDeleteConfirmation(BuildContext context, Map<String, dynamic> item) {
     showDialog(
       context: context,
-      barrierDismissible: false, 
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -107,12 +158,9 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                       child: const Text("Cancel", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
                     ),
                     ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          staffItems.removeWhere((element) => element['id'] == item['id']);
-                        });
-                        Navigator.pop(context); 
-                        _showSuccessModal();
+                      onPressed: () async {
+                        Navigator.pop(context); // close confirm dialog
+                        await _deleteProduct(item); // call delete api
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.redAccent,
@@ -168,13 +216,15 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final itemsToShow = _paginatedItems;
-
     return Scaffold(
       backgroundColor: Colors.white,
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductScreen())),
-        backgroundColor: const Color(0xFF004D40), 
+        onPressed: () async {
+          // go to add product screen, refresh list when returning
+          await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductScreen()));
+          _loadProducts();
+        },
+        backgroundColor: const Color(0xFF004D40),
         child: const Icon(Icons.add, color: Colors.white, size: 35),
       ),
       body: SafeArea(
@@ -189,26 +239,38 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                   Expanded(
                     child: Container(
                       height: 38,
-                      decoration: BoxDecoration(color: AppColors.surfaceLightGray.withOpacity(0.3), borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLightGray.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: TextField(
-                        onChanged: (val) => setState(() { searchQuery = val; currentPage = 1; }),
+                        onChanged: (val) {
+                          // reset to page 1 and reload on search change
+                          setState(() {
+                            searchQuery = val;
+                            currentPage = 1;
+                          });
+                          _loadProducts();
+                        },
                         decoration: const InputDecoration(
                           hintText: "Search name or ID...",
                           hintStyle: TextStyle(fontSize: 12, color: Colors.black26),
-                          border: InputBorder.none, 
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _circleIcon(Icons.search, () {}),
+                  _circleIcon(Icons.search, _loadProducts),
                   const SizedBox(width: 6),
+                  // filter button - logic herer
                   _circleIcon(Icons.tune, () {}),
                 ],
               ),
             ),
 
+            // category filter chips
             SizedBox(
               height: 40,
               child: ListView.builder(
@@ -221,9 +283,22 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(cat, style: TextStyle(color: isSelected ? Colors.white : Colors.black54, fontSize: 12)),
+                      label: Text(
+                        cat,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
                       selected: isSelected,
-                      onSelected: (val) => setState(() { selectedCategory = cat; currentPage = 1; }),
+                      onSelected: (val) {
+                        // reset page and reload when category changes
+                        setState(() {
+                          selectedCategory = cat;
+                          currentPage = 1;
+                        });
+                        _loadProducts();
+                      },
                       selectedColor: AppColors.primaryDarkTeal,
                       backgroundColor: AppColors.surfaceLightGray,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -236,18 +311,24 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
 
             const Divider(height: 24),
 
-            if (_filteredItems.isNotEmpty) _buildPagination(),
+            // pagination controls
+            if (_totalItems > 0) _buildPagination(),
 
             const SizedBox(height: 10),
 
+            // product list
             Expanded(
-              child: itemsToShow.isEmpty 
-                ? const Center(child: Text("No items found"))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: itemsToShow.length,
-                    itemBuilder: (context, index) => _buildProductCard(itemsToShow, index),
-                  ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF35524A)))
+                  : _errorMessage != null
+                      ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)))
+                      : staffItems.isEmpty
+                          ? const Center(child: Text("No items found"))
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: staffItems.length,
+                              itemBuilder: (context, index) => _buildProductCard(staffItems, index),
+                            ),
             ),
           ],
         ),
@@ -256,16 +337,41 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   }
 
   Widget _buildPagination() {
-    int total = _totalPages;
-    bool hasMultiplePages = total > 1;
-    
+    bool hasMultiplePages = _totalPages > 1;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _pageBtn(Icons.chevron_left, (hasMultiplePages && currentPage > 1) ? () => setState(() => currentPage--) : null),
-        for (int i = 1; i <= total; i++)
-          _pageNum(i.toString(), currentPage == i, hasMultiplePages, () => hasMultiplePages ? setState(() => currentPage = i) : null),
-        _pageBtn(Icons.chevron_right, (hasMultiplePages && currentPage < total) ? () => setState(() => currentPage++) : null),
+        _pageBtn(
+          Icons.chevron_left,
+          (hasMultiplePages && currentPage > 1)
+              ? () {
+                  setState(() => currentPage--);
+                  _loadProducts();
+                }
+              : null,
+        ),
+        for (int i = 1; i <= _totalPages; i++)
+          _pageNum(
+            i.toString(),
+            currentPage == i,
+            hasMultiplePages,
+            () {
+              if (hasMultiplePages) {
+                setState(() => currentPage = i);
+                _loadProducts();
+              }
+            },
+          ),
+        _pageBtn(
+          Icons.chevron_right,
+          (hasMultiplePages && currentPage < _totalPages)
+              ? () {
+                  setState(() => currentPage++);
+                  _loadProducts();
+                }
+              : null,
+        ),
       ],
     );
   }
@@ -274,11 +380,12 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     final item = list[index];
 
     return Dismissible(
-      key: Key(item['id']),
+      // use product_id as key since dummy string ids are gone
+      key: Key(item['id'].toString()),
       direction: DismissDirection.endToStart,
       confirmDismiss: (direction) async {
         _showDeleteConfirmation(context, item);
-        return false; 
+        return false;
       },
       background: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
@@ -288,16 +395,18 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
         child: const Icon(Icons.delete_forever_outlined, color: Colors.white, size: 28),
       ),
       child: GestureDetector(
-        onTap: () {
-          Navigator.push(
+        onTap: () async {
+          // go to product detail, refresh list on return in case edits were made
+          await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => ProductDetailScreen(
-                productList: list, 
+                productList: list,
                 initialIndex: index,
               ),
             ),
           );
+          _loadProducts();
         },
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 6),
@@ -306,7 +415,13 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(15),
             border: Border.all(color: Colors.black12),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              )
+            ],
           ),
           child: Row(
             children: [
@@ -316,8 +431,8 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                   children: [
                     Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     Text(item['category'], style: const TextStyle(fontSize: 11, color: Colors.black45, fontStyle: FontStyle.italic)),
-                    // ᴅɪꜱᴘʟᴀʏ ɴᴇᴡ ꜰᴏʀᴍᴀᴛᴛᴇᴅ ɪᴅ
-                    Text(item['id'], style: const TextStyle(fontSize: 10, color: Color(0xFF3E5C51), fontWeight: FontWeight.bold)),
+                    // display product id from backend
+                    Text('#${item['id']}', style: const TextStyle(fontSize: 10, color: Color(0xFF3E5C51), fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -337,12 +452,13 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
       ),
     );
   }
-  
+
   Widget _circleIcon(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 36, height: 36,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.black12)),
         child: Icon(icon, size: 18, color: AppColors.primaryDarkTeal),
       ),
@@ -356,8 +472,8 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: onTap != null ? const Color(0xFF3E5C51) : Colors.grey[400], 
-          borderRadius: BorderRadius.circular(4)
+          color: onTap != null ? const Color(0xFF3E5C51) : Colors.grey[400],
+          borderRadius: BorderRadius.circular(4),
         ),
         child: Icon(icon, color: Colors.white, size: 16),
       ),
@@ -372,8 +488,8 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: active ? activeColor : Colors.black12, 
-          borderRadius: BorderRadius.circular(4)
+          color: active ? activeColor : Colors.black12,
+          borderRadius: BorderRadius.circular(4),
         ),
         child: Text(txt, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
       ),
@@ -381,7 +497,9 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   }
 
   Widget _statusTag(String status) {
-    Color color = (status == 'In Stock') ? const Color(0xFF2D936C) : (status == 'Low Stock' ? Colors.orange : Colors.redAccent);
+    Color color = (status == 'In Stock')
+        ? const Color(0xFF2D936C)
+        : (status == 'Low Stock' ? Colors.orange : Colors.redAccent);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),

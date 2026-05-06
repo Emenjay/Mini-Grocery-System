@@ -18,7 +18,8 @@ exports.getAllProducts = async (req, res) => {
       sortPrice || '',
       parseInt(page) || 1,
       parseInt(limit) || 20,
-      all === 'true' // converts string 'true' to boolean
+      all === 'true', // converts string 'true' to boolean
+      req.query.recentlyAdded === 'true',
     );
     res.status(200).json({
       message: 'Products retrieved successfully',

@@ -4,7 +4,7 @@ const Config = require('./configModel');
 const Product = {
 
   // get all products, with filters and computed retail price
-  getAllProducts: async (search = '', category = '', stockStatus = '', expirationFilter = '', sortName = '', sortPrice = '', page = 1, limit = 20, all = false) => {
+getAllProducts: async (search = '', category = '', stockStatus = '', expirationFilter = '', sortName = '', sortPrice = '', page = 1, limit = 20, all = false, recentlyAdded = false) => {
   const keyword = `%${search}%`;
   const offset = (page - 1) * limit;
 
@@ -22,6 +22,33 @@ const Product = {
 
   const params = [keyword, keyword];
 
+  // if recentlyAdded, skip all other filters and just sort by last_updated DESC
+  if (recentlyAdded) {
+    query += ` ORDER BY i.last_updated DESC`;
+
+    if (!all) {
+      query += ` LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+    }
+
+    const [rows] = await db.query(query, params);
+
+    // count query for pagination
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM product p
+      JOIN category c ON p.category_id = c.category_id
+      LEFT JOIN inventory i ON p.product_id = i.product_id
+      WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
+    `;
+    const [[{ total }]] = await db.query(countQuery, [keyword, keyword]);
+
+    return {
+      products: rows,
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
+    };
+  }
+
   // filter by category name
   if (category) {
     query += ` AND c.category_name = ?`;
@@ -34,7 +61,7 @@ const Product = {
     params.push(stockStatus);
   }
 
-  // filter by expiration date - Option C preset options
+  // filter by expiration date
   if (expirationFilter === 'Expired') {
     query += ` AND i.spoilage_date < CURDATE()`;
   } else if (expirationFilter === 'Expiring Soon') {
@@ -43,7 +70,7 @@ const Product = {
     query += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
   }
 
-  // sorting - name and price can be combined
+  // sorting
   const orderClauses = [];
   if (sortName === 'A-Z') orderClauses.push('p.product_name ASC');
   if (sortName === 'Z-A') orderClauses.push('p.product_name DESC');
@@ -59,11 +86,11 @@ const Product = {
     query += ` LIMIT ? OFFSET ?`;
     params.push(limit, offset);
   }
-
+  
 
   const [rows] = await db.query(query, params);
 
-  // get total count for pagination info (same filters, no limit/offset)
+  // count query
   let countQuery = `
     SELECT COUNT(*) AS total
     FROM product p
@@ -87,12 +114,7 @@ const Product = {
 
   return {
     products: rows,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
-    }
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
   };
 },
 
