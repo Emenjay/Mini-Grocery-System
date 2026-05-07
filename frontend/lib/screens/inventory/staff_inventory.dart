@@ -1,7 +1,6 @@
 // ignore_for_file: unused_element
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart'; 
 import '../../../theme/colors.dart';
 import 'add_new_product.dart'; 
 import 'product_detail.dart'; 
@@ -19,12 +18,38 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   int currentPage = 1;
   final int itemsPerPage = 4; 
 
-  // synchronization with inventory_screen states
+  // original filter states
   String selectedCategory = 'Recently Added';
   String activeStockFilter = '';
   String activeExpiryFilter = '';
   String activeSortAlpha = 'A-Z'; 
   String activeSortPrice = 'None'; 
+
+  // logic for dashboard navigation
+  bool _hasInitialFilterApplied = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // catch arguments and update filter state
+    if (!_hasInitialFilterApplied) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is String) {
+        setState(() {
+          if (args == 'Low Stock') {
+            activeStockFilter = 'Low Stock';
+          } else if (args == 'No Stock') {
+            activeStockFilter = 'No Stock';
+          } else if (args == 'All') {
+            activeStockFilter = '';
+            selectedCategory = 'Recently Added';
+          }
+        });
+      }
+      _hasInitialFilterApplied = true; 
+    }
+  }
 
   final List<String> categories = [
     'Recently Added', 'Beverages', 'Liquor & Tobacco', 'Snacks & Sweets',
@@ -58,13 +83,13 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
       return matchesCategory && matchesSearch && matchesStock;
     }).toList();
 
-    // alphabetical sort
+    // sorting alpha
     filtered.sort((a, b) {
       int cmp = a['name'].toString().toLowerCase().compareTo(b['name'].toString().toLowerCase());
       return activeSortAlpha == 'A-Z' ? cmp : -cmp;
     });
 
-    // price sort
+    // sorting price
     if (activeSortPrice != 'None') {
       filtered.sort((a, b) {
         double pA = (a['basePrice'] ?? 0) + (a['markup'] ?? 0);
@@ -85,15 +110,12 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
 
   int get _totalPages => (_filteredItems.length / itemsPerPage).ceil();
 
-  // sidebar methods from inventory_screen.dart
+  // sidebar builders
   Widget _buildSortRadio(String title, String value, String groupValue, Function(String?) onChanged) {
     return RadioListTile<String>(
       title: Text(title, style: const TextStyle(color: Colors.black54, fontSize: 15)),
-      value: value,
-      groupValue: groupValue,
-      activeColor: AppColors.primaryDarkTeal,
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+      value: value, groupValue: groupValue, activeColor: AppColors.primaryDarkTeal,
+      dense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 15),
       onChanged: onChanged,
     );
   }
@@ -112,18 +134,14 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return InkWell(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
-        child: Text(
-          text, 
-          style: TextStyle(
-            color: isSelected ? AppColors.primaryDarkTeal : Colors.black54, 
-            fontSize: 15,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
-            decorationThickness: 2,
-          )
-        ),
+        width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+        child: Text(text, style: TextStyle(
+          color: isSelected ? AppColors.primaryDarkTeal : Colors.black54, 
+          fontSize: 15,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
+          decorationThickness: 2,
+        )),
       ),
     );
   }
@@ -134,39 +152,25 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return Scaffold(
       key: _scaffoldKey, 
       backgroundColor: Colors.white,
-      
-      // exact drawer from inventory_screen.dart
       endDrawer: Drawer(
         width: MediaQuery.of(context).size.width * 0.75,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(topLeft: Radius.circular(30), bottomLeft: Radius.circular(30)),
-        ),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.only(topLeft: Radius.circular(30), bottomLeft: Radius.circular(30))),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(25, 60, 20, 20),
-              child: Text(
-                "Filters",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal),
-              ),
+              child: Text("Filters", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
             ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 children: [
                   _buildExpansionTile("Categories", children: [
-                    ...categories.map((cat) => _buildDrawerLink(
-                      cat, 
-                      isSelected: selectedCategory == cat,
-                      onTap: () {
-                        setState(() {
-                          selectedCategory = cat;
-                          currentPage = 1;
-                        });
-                        Navigator.pop(context);
-                      }
-                    )),
+                    ...categories.map((cat) => _buildDrawerLink(cat, isSelected: selectedCategory == cat, onTap: () {
+                      setState(() { selectedCategory = cat; currentPage = 1; });
+                      Navigator.pop(context);
+                    })),
                   ]),
                   _buildExpansionTile("Stock Status", children: [
                     _buildDrawerLink("Available", isSelected: activeStockFilter == "Available", onTap: () => setState(() => activeStockFilter = "Available")),
@@ -174,32 +178,17 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                     _buildDrawerLink("No Stock", isSelected: activeStockFilter == "No Stock", onTap: () => setState(() => activeStockFilter = "No Stock")),
                   ]),
                   _buildExpansionTile("Expiration Date", children: [
-                    ...expirationMonths.map((month) => _buildDrawerLink(
-                      month, 
-                      isSelected: activeExpiryFilter == month,
-                      onTap: () => setState(() => activeExpiryFilter = month),
-                    )),
+                    ...expirationMonths.map((month) => _buildDrawerLink(month, isSelected: activeExpiryFilter == month, onTap: () => setState(() => activeExpiryFilter = month))),
                   ]),
-                  
                   const Divider(height: 40, thickness: 1, indent: 15, endIndent: 15),
-
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("Alphabetical Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
-                  ),
+                  const Padding(padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8), child: Text("Alphabetical Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal))),
                   _buildSortRadio("A - Z", "A-Z", activeSortAlpha, (val) => setState(() => activeSortAlpha = val!)),
                   _buildSortRadio("Z - A", "Z-A", activeSortAlpha, (val) => setState(() => activeSortAlpha = val!)),
-                  
                   const SizedBox(height: 15),
-
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text("Price Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
-                  ),
+                  const Padding(padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8), child: Text("Price Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal))),
                   _buildSortRadio("None", "None", activeSortPrice, (val) => setState(() => activeSortPrice = val!)),
                   _buildSortRadio("Ascending", "Ascending", activeSortPrice, (val) => setState(() => activeSortPrice = val!)),
                   _buildSortRadio("Descending", "Descending", activeSortPrice, (val) => setState(() => activeSortPrice = val!)),
-                  
                   const SizedBox(height: 40),
                 ],
               ),
@@ -207,7 +196,6 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
           ],
         ),
       ),
-
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductScreen())),
         backgroundColor: const Color(0xFF004D40), 
@@ -228,12 +216,7 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                       decoration: BoxDecoration(color: AppColors.surfaceLightGray.withOpacity(0.3), borderRadius: BorderRadius.circular(10)),
                       child: TextField(
                         onChanged: (val) => setState(() { searchQuery = val; currentPage = 1; }),
-                        decoration: const InputDecoration(
-                          hintText: "Search name or ID...",
-                          hintStyle: TextStyle(fontSize: 12, color: Colors.black26),
-                          border: InputBorder.none, 
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)
-                        ),
+                        decoration: const InputDecoration(hintText: "Search name or ID...", hintStyle: TextStyle(fontSize: 12, color: Colors.black26), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
                       ),
                     ),
                   ),
@@ -244,13 +227,10 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                 ],
               ),
             ),
-            
-            // horizontal category chips
             SizedBox(
               height: 40,
               child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: categories.length,
                 itemBuilder: (context, index) {
                   final cat = categories[index];
@@ -259,15 +239,9 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
                       label: Text(cat, style: TextStyle(color: isSelected ? Colors.white : Colors.black54, fontSize: 12)),
-                      selected: isSelected,
-                      onSelected: (val) => setState(() { 
-                        if (val) selectedCategory = cat;
-                        currentPage = 1; 
-                      }),
-                      selectedColor: AppColors.primaryDarkTeal,
-                      backgroundColor: AppColors.surfaceLightGray,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      showCheckmark: false,
+                      selected: isSelected, onSelected: (val) => setState(() { if (val) selectedCategory = cat; currentPage = 1; }),
+                      selectedColor: AppColors.primaryDarkTeal, backgroundColor: AppColors.surfaceLightGray,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), showCheckmark: false,
                     ),
                   );
                 },
@@ -303,20 +277,14 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
       background: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(15)),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 20),
         child: const Icon(Icons.delete_forever_outlined, color: Colors.white, size: 28),
       ),
       child: GestureDetector(
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProductDetailScreen(productList: list, initialIndex: index))),
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.black12),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))],
-          ),
+          margin: const EdgeInsets.symmetric(vertical: 6), padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.black12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))]),
           child: Row(
             children: [
               Expanded(
@@ -401,8 +369,7 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return GestureDetector(
       onTap: interactive ? onTap : null,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 4), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(color: active ? const Color(0xFFB2DFDB) : Colors.black12, borderRadius: BorderRadius.circular(4)),
         child: Text(txt, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
       ),
