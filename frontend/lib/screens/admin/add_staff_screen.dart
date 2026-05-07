@@ -26,7 +26,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
 
   /* Generate credentials based on full name and selected role
      - Username: DinglePM_<LastName>
-     - Password: <lastname><firstname>(3-digit random number)dpm 
+     - PIN: Numeric PIN with length between 4 and 6 digits.
      - displays snackbar if name or role is missing
   */
   void _generateCredentials() {
@@ -46,12 +46,14 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
     }
     final parts = name.split(RegExp(r'\s+'));
     final lastName = parts.last;
-    final firstName = parts.first.toLowerCase();
-    final lastNameLower = lastName.toLowerCase();
-    final suffix = (100 + Random().nextInt(900)).toString(); // random 3-digit number
     setState(() {
       _generatedUsername = 'DinglePM_$lastName';
-      _generatedPassword = '$lastNameLower${firstName.substring(0, min(firstName.length, 6))}${suffix}dpm';
+
+      // PIN length: 4-6 digits
+      final int pinLength = 4 + Random().nextInt(3);
+      final int pinMin = pow(10, pinLength - 1).toInt();
+      final int pinMax = pow(10, pinLength).toInt();
+      _generatedPassword = (pinMin + Random().nextInt(pinMax - pinMin)).toString();
       _credentialsGenerated = true;
     });
   }
@@ -706,7 +708,7 @@ class _SystemLoginCard extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          const Text('Password:',
+          const Text('PIN:',
             style: TextStyle(
               color: Colors.white70,
               fontFamily: AppFonts.avenir,
