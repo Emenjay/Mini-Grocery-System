@@ -3,18 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class AddProductScreen extends StatefulWidget {
-  const AddProductScreen({super.key}); // Remove 'const' when calling this in main.dart
+  const AddProductScreen({super.key});
 
   @override
   State<AddProductScreen> createState() => _AddProductScreenState();
 }
 
 class _AddProductScreenState extends State<AddProductScreen> {
-  // --- STATE VARIABLES ---
+  // --- state variables ---
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _measureController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
+  final TextEditingController _stockController = TextEditingController(); // added for stock logic
 
   String? selectedType;
   String? selectedCategory;
@@ -24,6 +25,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
   String generatedId = "SELECT CATEGORY";
   int currentProductCount = 124;
 
+  // new velocity state
+  bool isFastMoving = false; 
   bool _submittedOnce = false;
 
   final Map<String, String> categoryCodes = {
@@ -62,6 +65,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return _nameController.text.isNotEmpty &&
         _priceController.text.isNotEmpty &&
         _measureController.text.isNotEmpty &&
+        _stockController.text.isNotEmpty && // required for threshold check
         selectedType != null &&
         selectedCategory != null &&
         selectedStatus != null &&
@@ -82,6 +86,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   void _confirmAddProduct() {
+    // backend integration note: calculate threshold here
+    // int threshold = isFastMoving ? 50 : 15;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -189,7 +196,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // --- HEADER ---
+            // --- header ---
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
@@ -232,7 +239,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               ),
             ),
 
-            // --- FORM ---
+            // --- form ---
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -247,16 +254,36 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
+                    
+                    // --- inventory velocity selector ---
+                    const Text("Inventory Velocity", style: TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: _buildVelocityToggle("Normal (15 Threshold)", !isFastMoving, () => setState(() => isFastMoving = false))),
+                        const SizedBox(width: 10),
+                        Expanded(child: _buildVelocityToggle("Fast (50 Threshold)", isFastMoving, () => setState(() => isFastMoving = true))),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(child: _buildBottomDropdown("Stock Status", selectedStatus ?? "Status", ["In Stock", "Low Stock", "No Stock"], (val) => setState(() => selectedStatus = val), showError: selectedStatus == null)),
                         const SizedBox(width: 15),
-                        Expanded(child: _buildDateTile("Expiration Date", expirationDate, () => _pickDate(context, true), showError: expirationDate == null)),
+                        Expanded(child: _buildTopField("Initial Stock", "0", _stockController, isPrice: true, showError: _stockController.text.isEmpty, isStock: true)),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    _buildDateTile("Date Received", dateReceived, () => _pickDate(context, false), showError: dateReceived == null),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _buildDateTile("Expiration Date", expirationDate, () => _pickDate(context, true), showError: expirationDate == null)),
+                        const SizedBox(width: 15),
+                        Expanded(child: _buildDateTile("Date Received", dateReceived, () => _pickDate(context, false), showError: dateReceived == null)),
+                      ],
+                    ),
                     if (_isExpiredError)
                       Container(
                         margin: const EdgeInsets.only(top: 10),
@@ -294,7 +321,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        flex: 2,
                         child: ElevatedButton.icon(
                           onPressed: () {
                             setState(() => _submittedOnce = true);
@@ -320,7 +346,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // --- HELPERS ---
+  // --- helpers ---
   Widget _buildSectionCard(List<Widget> children) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -329,18 +355,53 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  Widget _buildTopField(String label, String hint, TextEditingController controller, {bool isPrice = false, bool showError = false}) {
+  // velocity toggle helper
+  Widget _buildVelocityToggle(String label, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 45,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF3E5C51) : const Color(0xFFF8F9FA),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: isSelected ? const Color(0xFF3E5C51) : Colors.black12),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black54,
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopField(String label, String hint, TextEditingController controller, {bool isPrice = false, bool showError = false, bool isStock = false}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
+      Text(label, style: TextStyle(color: isStock ? Colors.black87 : Colors.white70, fontSize: isStock ? 13 : 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       Container(
         height: 48,
-        decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12), border: Border.all(color: (showError && _submittedOnce) ? Colors.redAccent : Colors.white.withOpacity(0.1))),
+        decoration: BoxDecoration(
+          color: isStock ? const Color(0xFFF8F9FA) : Colors.white.withOpacity(0.15), 
+          borderRadius: BorderRadius.circular(12), 
+          border: Border.all(color: (showError && _submittedOnce) ? Colors.redAccent : (isStock ? Colors.black12 : Colors.white.withOpacity(0.1)))
+        ),
         child: TextField(
           controller: controller,
-          keyboardType: isPrice ? TextInputType.number : TextInputType.text,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
-          decoration: InputDecoration(prefixText: isPrice ? "₱ " : null, prefixStyle: const TextStyle(color: Colors.white), hintText: hint, hintStyle: const TextStyle(fontSize: 14, color: Colors.white38), border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12)),
+          keyboardType: TextInputType.number,
+          style: TextStyle(color: isStock ? Colors.black87 : Colors.white, fontSize: 15),
+          decoration: InputDecoration(
+            prefixText: (isPrice && !isStock) ? "₱ " : null, 
+            prefixStyle: const TextStyle(color: Colors.white), 
+            hintText: hint, 
+            hintStyle: TextStyle(fontSize: 14, color: isStock ? Colors.black26 : Colors.white38), 
+            border: InputBorder.none, 
+            contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12)
+          ),
         ),
       ),
       if (showError && _submittedOnce) const Padding(padding: EdgeInsets.only(top: 4), child: Text("Required", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold))),
@@ -393,8 +454,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
           height: 48, padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(12), border: Border.all(color: (showError && _submittedOnce) ? Colors.redAccent : Colors.black12)),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(date == null ? "MM/DD/YYYY" : DateFormat('MMM dd, yyyy').format(date), style: TextStyle(fontSize: 13, color: date == null ? Colors.black26 : Colors.black87)),
-            const Icon(Icons.calendar_today_outlined, size: 18, color: Colors.black26),
+            Text(date == null ? "MM/DD/YYYY" : DateFormat('MMM dd, yyyy').format(date), style: TextStyle(fontSize: 11, color: date == null ? Colors.black26 : Colors.black87)),
+            const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.black26),
           ]),
         ),
       ),
@@ -405,7 +466,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label, style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.bold)),
       const SizedBox(height: 14),
-      Text(value, style: const TextStyle(color: Color(0xFF3E5C51), fontSize: 14, fontWeight: FontWeight.bold)),
+      Text(value, style: const TextStyle(color: Color(0xFF3E5C51), fontSize: 13, fontWeight: FontWeight.bold)),
     ]);
   }
 

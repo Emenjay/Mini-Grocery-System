@@ -32,6 +32,11 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     'Miscellaneous',
   ];
 
+  final List<String> expirationMonths = [
+    'May 2026', 'June 2026', 'July 2026', 'August 2026',
+    'September 2026', 'October 2026', 'November 2026', 'December 2026'
+  ];
+
   List<Map<String, dynamic>> adminProducts = [
     {
       'id': 1, 
@@ -148,7 +153,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
 
     Widget mainContent = Column(
       children: [
-        // Search and Filters
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
           child: Row(
@@ -181,7 +185,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
             ],
           ),
         ),
-        // Category List
         SizedBox(
           height: 38,
           child: ListView.builder(
@@ -197,11 +200,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                 child: GestureDetector(
                   onTap: () {
                     setState(() {
-                      if (cat == 'Recently Added') {
-                        selectedCategories = {'Recently Added'};
-                      } else {
-                        selectedCategories = {cat};
-                      }
+                      selectedCategories = {cat};
                     });
                   },
                   child: Container(
@@ -226,7 +225,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
         ),
         const SizedBox(height: 12),
         const Divider(height: 1, color: Colors.black12),
-        // Product List
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -320,7 +318,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
       endDrawer: _buildFilterSidebar(),
       body: Column(
         children: [
-          // Header with Logo and Gradient
           Container(
             width: double.infinity,
             padding: EdgeInsets.fromLTRB(20, topPadding + 10, 20, 40),
@@ -334,7 +331,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Logo
                 Container(
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
@@ -347,7 +343,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                   ),
                 ),
                 const SizedBox(width: 15),
-                // Inventory Label
                 Text(
                   'Inventory',
                   style: GoogleFonts.poppins(
@@ -359,7 +354,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
               ],
             ),
           ),
-          // Content Area (Combined with header)
           Expanded(
             child: Container(
               transform: Matrix4.translationValues(0, -25, 0),
@@ -379,247 +373,127 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.75,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), bottomLeft: Radius.circular(20)),
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(30), bottomLeft: Radius.circular(30)),
       ),
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 4, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Filter Products',
-                      style: GoogleFonts.poppins(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2F3E46),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        selectedCategories = {'Recently Added'};
-                        selectedStockStatuses = {};
-                        selectedExpirationFilters = {};
-                        selectedSort = null;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Text(
-                        'Reset',
-                        style: GoogleFonts.poppins(
-                          color: Colors.redAccent,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  )
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  _buildFilterSectionTitle('Categories'),
-                  const SizedBox(height: 8),
-                  ...categories.map((cat) {
-                    bool isChecked = selectedCategories.contains(cat);
-                    return Theme(
-                      data: Theme.of(context).copyWith(
-                        checkboxTheme: CheckboxThemeData(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                        ),
-                      ),
-                      child: CheckboxListTile(
-                        value: isChecked,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            if (cat == 'Recently Added') {
-                              selectedCategories = {'Recently Added'};
-                            } else {
-                              if (value == true) {
-                                selectedCategories.remove('Recently Added');
-                                selectedCategories.add(cat);
-                              } else {
-                                selectedCategories.remove(cat);
-                                if (selectedCategories.isEmpty) {
-                                  selectedCategories.add('Recently Added');
-                                }
-                              }
-                            }
-                          });
-                        },
-                        title: Text(
-                          cat,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: isChecked ? const Color(0xFF2F3E46) : Colors.black54,
-                            fontWeight: isChecked ? FontWeight.bold : FontWeight.w500,
-                          ),
-                        ),
-                        controlAffinity: ListTileControlAffinity.leading,
-                        contentPadding: EdgeInsets.zero,
-                        activeColor: const Color(0xFF35524A),
-                        dense: true,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 10),
-                  _buildExpandableChecklistFilter(
-                    'Stock Status',
-                    ['In Stock', 'Low Stock', 'No Stock'],
-                    selectedStockStatuses,
-                    (val) {
-                      setState(() {
-                        if (selectedStockStatuses.contains(val)) {
-                          selectedStockStatuses.remove(val);
-                        } else {
-                          selectedStockStatuses.add(val);
-                        }
-                      });
-                    }
-                  ),
-                  _buildExpandableChecklistFilter(
-                    'Expiration Date',
-                    ['Expiring Soon', 'Fresh'],
-                    selectedExpirationFilters,
-                    (val) {
-                      setState(() {
-                        if (selectedExpirationFilters.contains(val)) {
-                          selectedExpirationFilters.remove(val);
-                        } else {
-                          selectedExpirationFilters.add(val);
-                        }
-                      });
-                    }
-                  ),
-                  const SizedBox(height: 30),
-                  const Divider(),
-                  _buildFilterSectionTitle('Sort Alphabetically'),
-                  const SizedBox(height: 5),
-                  _buildRadioSortOption('A-Z', 'A-Z'),
-                  _buildRadioSortOption('Z-A', 'Z-A'),
-                  const SizedBox(height: 15),
-                  _buildFilterSectionTitle('Price'),
-                  const SizedBox(height: 5),
-                  _buildRadioSortOption('Ascending', 'Price-Asc'),
-                  _buildRadioSortOption('Descending', 'Price-Desc'),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 45,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF35524A),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: Text(
-                    'Apply Filters',
-                    style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(25, 60, 20, 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Filters",
+                  style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF35524A)),
                 ),
-              ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      selectedCategories = {'Recently Added'};
+                      selectedStockStatuses = {};
+                      selectedExpirationFilters = {};
+                      selectedSort = null;
+                    });
+                  },
+                  child: Text("Reset", style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                )
+              ],
             ),
-          ],
-        ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              children: [
+                _buildExpansionTile("Categories", children: [
+                  ...categories.map((cat) => _buildDrawerLink(
+                    cat, 
+                    isSelected: selectedCategories.contains(cat),
+                    onTap: () {
+                      setState(() => selectedCategories = {cat});
+                      Navigator.pop(context);
+                    }
+                  )),
+                ]),
+                _buildExpansionTile("Stock Status", children: [
+                  _buildDrawerLink("In Stock", isSelected: selectedStockStatuses.contains("In Stock"), onTap: () => setState(() => selectedStockStatuses = {"In Stock"})),
+                  _buildDrawerLink("Low Stock", isSelected: selectedStockStatuses.contains("Low Stock"), onTap: () => setState(() => selectedStockStatuses = {"Low Stock"})),
+                  _buildDrawerLink("No Stock", isSelected: selectedStockStatuses.contains("No Stock"), onTap: () => setState(() => selectedStockStatuses = {"No Stock"})),
+                ]),
+                _buildExpansionTile("Expiration Date", children: [
+                  ...expirationMonths.map((month) => _buildDrawerLink(
+                    month, 
+                    isSelected: selectedExpirationFilters.contains(month),
+                    onTap: () => setState(() => selectedExpirationFilters = {month}),
+                  )),
+                ]),
+                
+                const Divider(height: 40, thickness: 1, indent: 15, endIndent: 15),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text("Alphabetical Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A))),
+                ),
+                _buildSortRadio("A - Z", "A-Z"),
+                _buildSortRadio("Z - A", "Z-A"),
+                
+                const SizedBox(height: 15),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text("Price Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A))),
+                ),
+                _buildSortRadio("None", null),
+                _buildSortRadio("Ascending", "Price-Asc"),
+                _buildSortRadio("Descending", "Price-Desc"),
+                
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildFilterSectionTitle(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.poppins(
-        fontSize: 17,
-        fontWeight: FontWeight.bold,
-        color: const Color(0xFF35524A),
-      ),
+  Widget _buildSortRadio(String title, String? value) {
+    return RadioListTile<String?>(
+      title: Text(title, style: GoogleFonts.poppins(color: Colors.black54, fontSize: 15)),
+      value: value,
+      groupValue: selectedSort,
+      activeColor: const Color(0xFF35524A),
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+      onChanged: (val) => setState(() => selectedSort = val),
     );
   }
 
-  Widget _buildRadioSortOption(String label, String value) {
+  Widget _buildExpansionTile(String title, {required List<Widget> children}) {
     return Theme(
-      data: Theme.of(context).copyWith(
-        unselectedWidgetColor: Colors.grey,
-      ),
-      child: RadioListTile<String>(
-        value: value,
-        groupValue: selectedSort,
-        onChanged: (String? newValue) {
-          setState(() => selectedSort = newValue);
-        },
-        title: Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 15,
-            color: selectedSort == value ? const Color(0xFF2F3E46) : Colors.black54,
-            fontWeight: selectedSort == value ? FontWeight.bold : FontWeight.w500,
-          ),
-        ),
-        activeColor: const Color(0xFF35524A),
-        contentPadding: EdgeInsets.zero,
-        dense: true,
-        visualDensity: VisualDensity.compact,
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        title: Text(title, style: GoogleFonts.poppins(color: const Color(0xFF35524A), fontWeight: FontWeight.bold)),
+        children: children,
       ),
     );
   }
 
-  Widget _buildExpandableChecklistFilter(String title, List<String> options, Set<String> selectedValues, Function(String) onToggle) {
-    return ExpansionTile(
-      title: Text(
-        title,
-        style: GoogleFonts.poppins(
-          fontSize: 17,
-          fontWeight: FontWeight.bold,
-          color: const Color(0xFF35524A),
+  Widget _buildDrawerLink(String text, {required bool isSelected, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+        child: Text(
+          text, 
+          style: GoogleFonts.poppins(
+            color: isSelected ? const Color(0xFF35524A) : Colors.black54, 
+            fontSize: 15,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
+          )
         ),
       ),
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: const EdgeInsets.only(left: 10),
-      shape: const RoundedRectangleBorder(side: BorderSide.none),
-      collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
-      children: options.map((opt) {
-        bool isChecked = selectedValues.contains(opt);
-        return Theme(
-          data: Theme.of(context).copyWith(
-            checkboxTheme: CheckboxThemeData(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-            ),
-          ),
-          child: CheckboxListTile(
-            value: isChecked,
-            onChanged: (bool? value) => onToggle(opt),
-            title: Text(
-              opt,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: isChecked ? const Color(0xFF2F3E46) : Colors.black54,
-                fontWeight: isChecked ? FontWeight.bold : FontWeight.w500,
-              ),
-            ),
-            controlAffinity: ListTileControlAffinity.leading,
-            contentPadding: EdgeInsets.zero,
-            activeColor: const Color(0xFF35524A),
-            dense: true,
-            visualDensity: VisualDensity.compact,
-          ),
-        );
-      }).toList(),
     );
   }
 

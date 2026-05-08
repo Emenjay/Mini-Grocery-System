@@ -190,7 +190,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   
                   const Divider(height: 40, thickness: 1, indent: 15, endIndent: 15),
 
-                  // SORTING SECTION - ALWAYS VISIBLE AT BOTTOM
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     child: Text("Alphabetical Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
@@ -216,11 +215,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ),
       ),
 
-appBar: AppBar(
+      appBar: AppBar(
         backgroundColor: AppColors.mutedGreen,
         elevation: 0,
         centerTitle: false,
         automaticallyImplyLeading: false, 
+        // ACTIONS REMOVED to hide the default drawer button
+        actions: [const SizedBox.shrink()], 
         leadingWidth: 70, 
         leading: Padding(
           padding: const EdgeInsets.only(left: 15.0),
@@ -228,13 +229,13 @@ appBar: AppBar(
             child: GestureDetector(
               onTap: () => Navigator.of(context).pop(),
               child: Container(
-                padding: const EdgeInsets.all(8), // Match your example's padding
+                padding: const EdgeInsets.all(8), 
                 decoration: const BoxDecoration(
                   color: Colors.white, 
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.keyboard_return, // Points LEFT by default
+                  Icons.keyboard_return, 
                   color: AppColors.primaryDarkTeal, 
                   size: 22,
                 ),

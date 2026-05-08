@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
-import 'theme/colors.dart';
+//import 'theme/colors.dart';
 import 'screens/login.dart';
 import 'screens/admin/admin_dashboard.dart';
 import 'screens/admin/admin_inventory.dart';
 import 'screens/admin/admin_product_detail.dart';
 import 'screens/admin/notifications_screen.dart';
 import 'screens/admin/staff_list_screen.dart';
-import 'screens/cashier/inventory_screen.dart';
-import 'screens/cashier/payment_screen.dart';
 import 'screens/cashier/cash_in.dart';
 import 'screens/cashier/pos_screen.dart';
 import 'screens/cashier/cash_out.dart';
 import 'screens/cashier/transactions.dart';
 import 'screens/inventory/add_new_product.dart';
-import 'screens/inventory/product_detail.dart';
 import 'screens/inventory/staff_inventory.dart';
 import 'screens/inventory/inventory_dashboard.dart';
 
@@ -34,8 +31,9 @@ class MyApp extends StatelessWidget{
         useMaterial3: true,
       ),
       
-      // set login as the starting point for the flow
-      initialRoute: '/',
+      // starting point
+      initialRoute: '/inventory-dashboard',
+
       routes: {
         '/inventory-dashboard': (context) => const InventoryDashboard(),
         '/': (context) => const LoginPage(),

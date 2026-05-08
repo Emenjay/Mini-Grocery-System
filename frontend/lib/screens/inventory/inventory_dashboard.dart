@@ -94,6 +94,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                         title: "Total Products",
                         count: _isLoading ? '...' : totalProducts,
                         icon: Icons.shopping_bag_outlined,
+                        onTap: () => Navigator.pushNamed(context, '/staff-inventory', arguments: 'All'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -102,6 +103,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                         title: "Low Stock Products",
                         count: _isLoading ? '...' : lowStock,
                         icon: Icons.inventory_2_outlined,
+                        onTap: () => Navigator.pushNamed(context, '/staff-inventory', arguments: 'Low Stock'),
                       ),
                     ),
                   ],
@@ -117,6 +119,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                         title: "Expired Stocks",
                         count: _isLoading ? '...' : expiredStocks,
                         icon: Icons.calendar_today_outlined,
+                        onTap: () => Navigator.pushNamed(context, '/staff-inventory', arguments: 'Expired'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -125,6 +128,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                         title: "Out of Stock Products",
                         count: _isLoading ? '...' : outOfStock,
                         icon: Icons.layers_clear_outlined,
+                        onTap: () => Navigator.pushNamed(context, '/staff-inventory', arguments: 'No Stock'),
                       ),
                     ),
                   ],
@@ -335,63 +339,68 @@ class _InventoryStatCard extends StatelessWidget {
   final String title;
   final String count;
   final IconData icon;
+  final VoidCallback onTap;
 
   const _InventoryStatCard({
     required this.title,
     required this.count,
     required this.icon,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF5E8B7E), Color(0xFF76BA99)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF5E8B7E), Color(0xFF76BA99)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.figtree,
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: AppFonts.figtree,
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            count,
-            style: const TextStyle(
-              fontFamily: AppFonts.poppins,
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text(
+              count,
+              style: const TextStyle(
+                fontFamily: AppFonts.poppins,
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

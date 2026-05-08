@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 // Available fonts: Avenir, Poppins, Figtree
 // Default: Avenir
 // Refer to Figma for sizes.
