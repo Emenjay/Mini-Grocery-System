@@ -30,7 +30,7 @@ exports.checkout = async (req, res) => {
       }
 
       // backend computes retail price
-      const retailPrice = parseFloat((parseFloat(product.base_price) + parseFloat(product.markup_price)).toFixed(2));
+      const retailPrice = Math.round(parseFloat(product.base_price) + parseFloat(product.markup_price));
       const subtotal = parseFloat((retailPrice * item.quantity).toFixed(2));
       totalAmount += subtotal;
 

@@ -30,9 +30,10 @@ exports.getAllProducts = async (req, res) => {
   }
 };
 
+//added features: markup_percent and is_fast_moving
 exports.addProduct = async (req, res) => {
   try {
-    const { categoryID, productName, description, basePrice, unitMeasurement, stockQuantity, spoilageDate } = req.body;
+    const { categoryID, productName, description, basePrice, unitMeasurement, stockQuantity, spoilageDate, markupPercent, isFastMoving } = req.body;
 
     // validate required fields, markup set automatically from config
     if (!categoryID || !productName || !basePrice) {
@@ -41,7 +42,7 @@ exports.addProduct = async (req, res) => {
 
     // insert into product table
     const productID = await Product.addProduct(
-      categoryID, productName, description, basePrice, unitMeasurement
+      categoryID, productName, description, basePrice, unitMeasurement, markupPercent, isFastMoving
     );
 
     // create inventory record for the new product
@@ -54,6 +55,8 @@ exports.addProduct = async (req, res) => {
         productName,
         categoryID,
         basePrice,
+        markupPercent: markupPercent || 0,
+        isFastMoving: isFastMoving || false,
         unitMeasurement: unitMeasurement || null,
         description: description || null,
         stockQuantity: stockQuantity || 0,
@@ -66,10 +69,11 @@ exports.addProduct = async (req, res) => {
   }
 };
 
+//added features: markup_percent and is_fast_moving, markup_price now calculated from base_price and percent, only admin can update pricing 
 exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { productName, categoryID, description, basePrice, markupPrice, unitMeasurement, stockQuantity, spoilageDate } = req.body;
+    const { productName, categoryID, description, basePrice, markupPrice, markupPercent, isFastMoving, unitMeasurement, stockQuantity, spoilageDate } = req.body;
     const requestingRole = req.user.role; // from JWT
 
     const product = await Product.findProductByID(id);
@@ -82,16 +86,31 @@ exports.updateProduct = async (req, res) => {
     if (productName !== undefined) productFields['product_name'] = productName;
     if (categoryID !== undefined) productFields['category_id'] = categoryID;
     if (description !== undefined) productFields['description'] = description;
-    if (basePrice !== undefined) productFields['base_price'] = basePrice;
     if (unitMeasurement !== undefined) productFields['unit_measurement'] = unitMeasurement;
+    if (isFastMoving !== undefined) productFields['is_fast_moving'] = isFastMoving ? 1 : 0;
 
     // markup_price is admin only
-    if (markupPrice !== undefined) {
+      if (basePrice !== undefined || markupPrice !== undefined || markupPercent !== undefined) {
       if (requestingRole !== 'Admin') {
-        return res.status(403).json({ message: 'Only admin can update markup price' });
+        return res.status(403).json({ message: 'Only admin can update pricing' });
       }
-      productFields['markup_price'] = markupPrice;
     }
+
+    // if basePrice or markupPercent provided, compute new markup_price, else if markupPrice provided, use it directly (manual override)
+     const resolvedBase = basePrice !== undefined ? parseFloat(basePrice) : parseFloat(product.base_price);
+
+      if (markupPercent !== undefined) {
+        // compute markup_price from percent, rounded (no cents)
+        const computedMarkup = Math.round(resolvedBase * parseFloat(markupPercent) / 100);
+        productFields['markup_percent'] = parseFloat(markupPercent);
+        productFields['markup_price'] = computedMarkup;
+      } else if (markupPrice !== undefined) {
+        productFields['markup_price'] = Math.round(parseFloat(markupPrice));
+        productFields['markup_percent'] = 0; // manual override, clear percent
+      }
+
+      if (basePrice !== undefined) productFields['base_price'] = resolvedBase;
+    
 
     // build inventory fields
     const inventoryFields = {};

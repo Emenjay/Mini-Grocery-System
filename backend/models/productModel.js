@@ -8,10 +8,12 @@ const Product = {
   const keyword = `%${search}%`;
   const offset = (page - 1) * limit;
 
+  // base query with joins to get category name and inventory details, also computes retail_price
   let query = `
     SELECT p.product_id, p.product_name, c.category_name, c.category_id,
-           p.description, p.base_price, p.markup_price,
-           (p.base_price + p.markup_price) AS retail_price,
+           p.description, p.base_price, p.markup_price, p.markup_percent,
+           p.is_fast_moving,
+           ROUND(p.base_price + p.markup_price) AS retail_price,
            p.unit_measurement,
            i.stock_quantity, i.spoilage_date, i.stock_status, i.last_updated
     FROM product p
@@ -100,32 +102,45 @@ const Product = {
   findProductByID: async (productID) => {
     const [rows] = await db.query(
       `SELECT p.*, 
-              (p.base_price + p.markup_price) AS retail_price,
-              i.inventory_id, i.stock_quantity, i.spoilage_date, i.stock_status
-       FROM product p
-       LEFT JOIN inventory i ON p.product_id = i.product_id
-       WHERE p.product_id = ?`,
+       ROUND (p.base_price + p.markup_price) AS retail_price,
+          p.markup_percent, p.is_fast_moving,
+          i.inventory_id, i.stock_quantity, i.spoilage_date, i.stock_status
+      FROM product p
+      LEFT JOIN inventory i ON p.product_id = i.product_id
+      WHERE p.product_id = ?`,
       [productID]
     );
     return rows[0];
   },
 
+  // added features: markup_percent and is_fast_moving, markup_price now calculated from base_price and percent
   // add new product, markup_price defaults to global default_markup from config
-  addProduct: async (categoryID, productName, description, basePrice, unitMeasurement) => {
-    // fetch default markup from config table
-    const defaultMarkup = await Config.get('default_markup');
+  addProduct: async (categoryID, productName, description, basePrice, unitMeasurement, markupPercent, isFastMoving) => {
+  const defaultMarkup = await Config.get('default_markup');
 
-    const [result] = await db.query(
-      `INSERT INTO product (category_id, product_name, description, base_price, markup_price, unit_measurement)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [categoryID, productName, description || null, basePrice, defaultMarkup, unitMeasurement || null]
-    );
-    return result.insertId;
-  },
+  //compute markup_price from percent if provided, else use default
+  let markupPrice = parseFloat(defaultMarkup);
+  let resolvedPercent = 0;
+  
+  //if markupPercent is provided, use it to calculate markupPrice
+  if (markupPercent !== undefined && markupPercent !== null) {
+    resolvedPercent = parseFloat(markupPercent);
+    markupPrice = Math.round(parseFloat(basePrice) * resolvedPercent / 100);
+  }
+
+  // insert product and return new product ID
+  const [result] = await db.query(
+      `INSERT INTO product (category_id, product_name, description, base_price, markup_price, markup_percent, unit_measurement, is_fast_moving)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [categoryID, productName, description || null, basePrice, markupPrice, resolvedPercent, unitMeasurement || null, isFastMoving ? 1 : 0]
+  );
+  return result.insertId;
+},
+  
 
   // update product, markup_price now editable only by admin (enforced in controller)
   updateProduct: async (productID, fields) => {
-    const allowedFields = ['product_name', 'category_id', 'description', 'base_price', 'markup_price', 'unit_measurement'];
+    const allowedFields = ['product_name', 'category_id', 'description', 'base_price', 'markup_price', 'markup_percent', 'unit_measurement', 'is_fast_moving'];
     const keys = Object.keys(fields).filter(k => allowedFields.includes(k));
     if (keys.length === 0) return 0;
 

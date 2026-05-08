@@ -9,10 +9,14 @@ const EXPIRY_WARN_DAYS    = 7;  // days before expiry to warn
 //Internal helpers to check conditions and create notifications
 async function checkAndNotifyLowStock(productId) {
   const [[product]] = await db.query(
-    `SELECT product_id, product_name, stock_level FROM product WHERE product_id = ?`,
+    // Only fetch products that are at or below the low stock threshold
+    `SELECT p.product_id, p.product_name, i.stock_quantity
+     FROM product p
+     JOIN inventory i ON p.product_id = i.product_id
+     WHERE p.product_id = ?`,
     [productId]
   );
-  if (!product || product.stock_level > LOW_STOCK_THRESHOLD) return;
+  if (!product || product.stock_quantity > LOW_STOCK_THRESHOLD) return;
 
   const [[existing]] = await db.query(
     `SELECT NotificationID FROM Notification
@@ -24,18 +28,20 @@ async function checkAndNotifyLowStock(productId) {
   await NotificationModel.create(
     'LOW_STOCK',
     'Low Stock Alert',
-    `"${product.product_name}" is running low — only ${product.stock_level} unit(s) left.`,
+    `"${product.product_name}" is running low — only ${product.stock_quantity} unit(s) left.`,
     productId
   );
 }
 
 // Checks for products nearing expiry and creates notifications if needed. 
 async function checkAndNotifyExpiredProducts() {
+  // Find all products with spoilage dates within the warning window
   const [products] = await db.query(
-    `SELECT product_id, product_name, ExpirationDate
-     FROM product
-     WHERE ExpirationDate IS NOT NULL
-       AND ExpirationDate <= DATE_ADD(CURDATE(), INTERVAL ? DAY)`,
+    `SELECT p.product_id, p.product_name, i.spoilage_date
+     FROM product p
+     JOIN inventory i ON p.product_id = i.product_id
+     WHERE i.spoilage_date IS NOT NULL
+       AND i.spoilage_date <= DATE_ADD(CURDATE(), INTERVAL ? DAY)`,
     [EXPIRY_WARN_DAYS]
   );
 
@@ -47,7 +53,7 @@ async function checkAndNotifyExpiredProducts() {
     );
     if (existing) continue;
 
-    const expiry   = new Date(product.ExpirationDate);
+    const expiry   = new Date(product.spoilage_date);
     const diffDays = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
 
     await NotificationModel.create(
@@ -85,12 +91,15 @@ async function notifyEmployeeLogout(userId, userName, totalSales, endingCash, sh
 // Automatically runs expiry + low-stock checks on every fetch.
 exports.getAll = async (req, res) => {
   try {
-    // Run checks passively on every fetch — no cron needed
+    // Run checks passively on every fetch — no cron needed 
     await checkAndNotifyExpiredProducts();
     const [lowStockProducts] = await db.query(
-      `SELECT product_id FROM product WHERE stock_level <= ?`,
+      `SELECT p.product_id FROM product p
+      JOIN inventory i ON p.product_id = i.product_id
+      WHERE i.stock_quantity <= ?`,
       [LOW_STOCK_THRESHOLD]
     );
+
     for (const p of lowStockProducts) await checkAndNotifyLowStock(p.product_id);
 
     const { unread, limit = 50, offset = 0 } = req.query;
