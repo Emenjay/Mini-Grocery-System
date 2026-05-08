@@ -2,8 +2,9 @@
 
 import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
-import 'add_new_product.dart'; 
-import 'product_detail.dart'; 
+import '../../../services/product_service.dart';
+import 'add_new_product.dart';
+import 'product_detail.dart';
 
 class InventoryStaffScreen extends StatefulWidget {
   const InventoryStaffScreen({super.key});
@@ -16,7 +17,16 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); 
   String searchQuery = '';
   int currentPage = 1;
-  final int itemsPerPage = 4; 
+  final int itemsPerPage = 20;
+
+  // live data from backend
+  List<Map<String, dynamic>> staffItems = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  // pagination info from backend
+  int _totalItems = 0;
+  int _totalPages = 1;
 
   // original filter states
   String selectedCategory = 'Recently Added';
@@ -108,7 +118,22 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return filtered.sublist(start, end > filtered.length ? filtered.length : end);
   }
 
-  int get _totalPages => (_filteredItems.length / itemsPerPage).ceil();
+  // call delete api then refresh list
+  Future<void> _deleteProduct(Map<String, dynamic> item) async {
+    final result = await ProductService.deleteProduct(item['id']);
+
+    if (!mounted) return;
+
+    if (result['success']) {
+      _showSuccessModal();
+      // refresh list after deletion
+      await _loadProducts();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Failed to delete product')),
+      );
+    }
+  }
 
   // sidebar builders
   Widget _buildSortRadio(String title, String value, String groupValue, Function(String?) onChanged) {
@@ -197,8 +222,12 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductScreen())),
-        backgroundColor: const Color(0xFF004D40), 
+        onPressed: () async {
+          // go to add product screen, refresh list when returning
+          await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductScreen()));
+          _loadProducts();
+        },
+        backgroundColor: const Color(0xFF004D40),
         child: const Icon(Icons.add, color: Colors.white, size: 35),
       ),
       body: SafeArea(
@@ -213,7 +242,10 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                   Expanded(
                     child: Container(
                       height: 38,
-                      decoration: BoxDecoration(color: AppColors.surfaceLightGray.withOpacity(0.3), borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLightGray.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: TextField(
                         onChanged: (val) => setState(() { searchQuery = val; currentPage = 1; }),
                         decoration: const InputDecoration(hintText: "Search name or ID...", hintStyle: TextStyle(fontSize: 12, color: Colors.black26), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
@@ -221,7 +253,7 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _circleIcon(Icons.search, () {}),
+                  _circleIcon(Icons.search, _loadProducts),
                   const SizedBox(width: 6),
                   _circleIcon(Icons.tune, () => _scaffoldKey.currentState?.openEndDrawer()),
                 ],
@@ -251,13 +283,17 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
             if (_filteredItems.isNotEmpty) _buildPagination(),
             const SizedBox(height: 10),
             Expanded(
-              child: itemsToShow.isEmpty 
-                ? const Center(child: Text("No items found"))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: itemsToShow.length,
-                    itemBuilder: (context, index) => _buildProductCard(itemsToShow, index),
-                  ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF35524A)))
+                  : _errorMessage != null
+                      ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)))
+                      : staffItems.isEmpty
+                          ? const Center(child: Text("No items found"))
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: staffItems.length,
+                              itemBuilder: (context, index) => _buildProductCard(staffItems, index),
+                            ),
             ),
           ],
         ),
@@ -268,11 +304,12 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   Widget _buildProductCard(List<Map<String, dynamic>> list, int index) {
     final item = list[index];
     return Dismissible(
-      key: Key(item['id']),
+      // use product_id as key since dummy string ids are gone
+      key: Key(item['id'].toString()),
       direction: DismissDirection.endToStart,
       confirmDismiss: (direction) async {
         _showDeleteConfirmation(context, item);
-        return false; 
+        return false;
       },
       background: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
@@ -335,7 +372,8 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 36, height: 36,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.black12)),
         child: Icon(icon, size: 18, color: AppColors.primaryDarkTeal),
       ),

@@ -12,7 +12,6 @@ const configRoutes = require('./routes/configRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-const transactionRoutes = require('./routes/checkoutRoutes');
 
 // testing code
 const app = express();
@@ -50,17 +49,11 @@ app.use('/api/dashboard', dashboardRoutes);
 // notification routes
 app.use('/api/notification', notificationRoutes);
 
-// transaction routes (for receipt details)
-app.use('/api/transaction', transactionRoutes);
-
-
 app.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
 });
 
-
-
 // Test query
 // db.query('SELECT 1')
-//   .then(() => console.log('✅ MySQL Connected!'))
-//   .catch(err => console.error('❌ DB Error:', err));
+//   .then(() => console.log('MySQL Connected!'))
+//   .catch(err => console.error('DB Error:', err));

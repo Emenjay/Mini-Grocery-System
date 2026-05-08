@@ -27,7 +27,7 @@ CREATE TABLE users (
   full_name VARCHAR(100) NOT NULL,
   contact_number VARCHAR(20),
   address VARCHAR(255),
-  profile_picture VARCHAR(255)
+  profile_picture VARCHAR(255),
   account_status BOOLEAN DEFAULT TRUE,
   created_at DATETIME DEFAULT NOW(),
   FOREIGN KEY (role_id) REFERENCES role(role_id)
@@ -51,6 +51,9 @@ CREATE TABLE product (
   base_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   markup_price DECIMAL(10,2) NOT NULL,
   unit_measurement VARCHAR(50),
+  isfastmoving BOOLEAN DEFAULT FALSE,
+  received_date DATE DEFAULT (CURDATE()),
+  is_approved BOOLEAN DEFAULT FALSE,
   FOREIGN KEY (category_id) REFERENCES category(category_id)
 );
 
@@ -106,7 +109,10 @@ CREATE TABLE transaction_detail (
 CREATE TABLE notification (
   notification_id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
+  type VARCHAR(50) NOT NULL,
+  title VARCHAR(100) NOT NULL,
   message VARCHAR(255) NOT NULL,
+  reference_id INT,
   is_read BOOLEAN DEFAULT FALSE,
   created_at DATETIME DEFAULT NOW(),
   FOREIGN KEY (user_id) REFERENCES users(user_id)

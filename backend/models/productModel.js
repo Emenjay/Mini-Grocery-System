@@ -3,104 +3,117 @@ const Config = require('./configModel');
 
 const Product = {
 
-  // get all products, with filters and computed retail price
-  getAllProducts: async (search = '', category = '', stockStatus = '', expirationFilter = '', sortName = '', sortPrice = '', page = 1, limit = 20, all = false) => {
-  const keyword = `%${search}%`;
-  const offset = (page - 1) * limit;
+  getAllProducts: async (search = '', category = '', stockStatus = '', expirationFilter = '', sortName = '', sortPrice = '', page = 1, limit = 20, all = false, recentlyAdded = false, isApprovedOnly = false) => {
+    const keyword = `%${search}%`;
+    const offset = (page - 1) * limit;
 
-  let query = `
-    SELECT p.product_id, p.product_name, c.category_name, c.category_id,
-           p.description, p.base_price, p.markup_price,
-           (p.base_price + p.markup_price) AS retail_price,
-           p.unit_measurement,
-           i.stock_quantity, i.spoilage_date, i.stock_status, i.last_updated
-    FROM product p
-    JOIN category c ON p.category_id = c.category_id
-    LEFT JOIN inventory i ON p.product_id = i.product_id
-    WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
-  `;
+    let query = `
+      SELECT p.product_id, p.product_name, c.category_name, c.category_id,
+             p.description, p.base_price, p.markup_price, p.isfastmoving,
+             p.is_approved, p.received_date,
+             -- percentage-based retail price, rounded up (no cents)
+             CEIL(p.base_price * (1 + p.markup_price / 100)) AS retail_price,
+             p.unit_measurement,
+             i.stock_quantity, i.spoilage_date, i.stock_status, i.last_updated
+      FROM product p
+      JOIN category c ON p.category_id = c.category_id
+      LEFT JOIN inventory i ON p.product_id = i.product_id
+      WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
+    `;
 
-  const params = [keyword, keyword];
+    const params = [keyword, keyword];
 
-  // filter by category name
-  if (category) {
-    query += ` AND c.category_name = ?`;
-    params.push(category);
-  }
-
-  // filter by stock status
-  if (stockStatus) {
-    query += ` AND i.stock_status = ?`;
-    params.push(stockStatus);
-  }
-
-  // filter by expiration date - Option C preset options
-  if (expirationFilter === 'Expired') {
-    query += ` AND i.spoilage_date < CURDATE()`;
-  } else if (expirationFilter === 'Expiring Soon') {
-    query += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
-  } else if (expirationFilter === 'Not Expiring Soon') {
-    query += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
-  }
-
-  // sorting - name and price can be combined
-  const orderClauses = [];
-  if (sortName === 'A-Z') orderClauses.push('p.product_name ASC');
-  if (sortName === 'Z-A') orderClauses.push('p.product_name DESC');
-  if (sortPrice === 'asc') orderClauses.push('retail_price ASC');
-  if (sortPrice === 'desc') orderClauses.push('retail_price DESC');
-  if (orderClauses.length > 0) {
-    query += ` ORDER BY ${orderClauses.join(', ')}`;
-  }
-
-  // pagination
-  // if all is true, skip pagination
-  if (!all) {
-    query += ` LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-  }
-
-
-  const [rows] = await db.query(query, params);
-
-  // get total count for pagination info (same filters, no limit/offset)
-  let countQuery = `
-    SELECT COUNT(*) AS total
-    FROM product p
-    JOIN category c ON p.category_id = c.category_id
-    LEFT JOIN inventory i ON p.product_id = i.product_id
-    WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
-  `;
-  const countParams = [keyword, keyword];
-
-  if (category) { countQuery += ` AND c.category_name = ?`; countParams.push(category); }
-  if (stockStatus) { countQuery += ` AND i.stock_status = ?`; countParams.push(stockStatus); }
-  if (expirationFilter === 'Expired') {
-    countQuery += ` AND i.spoilage_date < CURDATE()`;
-  } else if (expirationFilter === 'Expiring Soon') {
-    countQuery += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
-  } else if (expirationFilter === 'Not Expiring Soon') {
-    countQuery += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
-  }
-
-  const [[{ total }]] = await db.query(countQuery, countParams);
-
-  return {
-    products: rows,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
+    // cashier POS only sees approved products
+    if (isApprovedOnly) {
+      query += ` AND p.is_approved = TRUE`;
     }
-  };
-},
 
-  // find product by id, also returns retail_price
+  // if recentlyAdded, skip all other filters and just sort by last_updated DESC
+    if (recentlyAdded) {
+      query += ` ORDER BY i.last_updated DESC`;
+
+      if (!all) {
+        query += ` LIMIT ? OFFSET ?`;
+        params.push(limit, offset);
+      }
+
+      const [rows] = await db.query(query, params);
+      // count query for pagination
+      const countQuery = `
+        SELECT COUNT(*) AS total
+        FROM product p
+        JOIN category c ON p.category_id = c.category_id
+        LEFT JOIN inventory i ON p.product_id = i.product_id
+        WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
+        ${isApprovedOnly ? 'AND p.is_approved = TRUE' : ''}
+      `;
+      const [[{ total }]] = await db.query(countQuery, [keyword, keyword]);
+      return { 
+        products: rows, 
+        pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    }
+
+    // filter by category name
+    if (category) { query += ` AND c.category_name = ?`; params.push(category); }
+
+    // filter by stock status
+    if (stockStatus) { query += ` AND i.stock_status = ?`; params.push(stockStatus); }
+
+    // filter by expiration date
+    if (expirationFilter === 'Expired') {
+      query += ` AND i.spoilage_date < CURDATE()`;
+    } else if (expirationFilter === 'Expiring Soon') {
+      query += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
+    } else if (expirationFilter === 'Not Expiring Soon') {
+      query += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
+    }
+
+    // sorting
+    const orderClauses = [];
+    if (sortName === 'A-Z') orderClauses.push('p.product_name ASC');
+    if (sortName === 'Z-A') orderClauses.push('p.product_name DESC');
+    if (sortPrice === 'asc') orderClauses.push('retail_price ASC');
+    if (sortPrice === 'desc') orderClauses.push('retail_price DESC');
+    if (orderClauses.length > 0) query += ` ORDER BY ${orderClauses.join(', ')}`;
+
+    // pagination
+    // if all is true, skip pagination
+    if (!all) {
+      query += ` LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+    }
+
+    const [rows] = await db.query(query, params);
+
+    let countQuery = `
+      SELECT COUNT(*) AS total
+      FROM product p
+      JOIN category c ON p.category_id = c.category_id
+      LEFT JOIN inventory i ON p.product_id = i.product_id
+      WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
+      ${isApprovedOnly ? 'AND p.is_approved = TRUE' : ''}
+    `;
+
+    const countParams = [keyword, keyword];
+
+    if (category) { countQuery += ` AND c.category_name = ?`; countParams.push(category); }
+    if (stockStatus) { countQuery += ` AND i.stock_status = ?`; countParams.push(stockStatus); }
+    if (expirationFilter === 'Expired') {
+      countQuery += ` AND i.spoilage_date < CURDATE()`;
+    } else if (expirationFilter === 'Expiring Soon') {
+      countQuery += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
+    } else if (expirationFilter === 'Not Expiring Soon') {
+      countQuery += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
+    }
+
+    const [[{ total }]] = await db.query(countQuery, countParams);
+    return { products: rows, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+  },
+
   findProductByID: async (productID) => {
     const [rows] = await db.query(
-      `SELECT p.*, 
-              (p.base_price + p.markup_price) AS retail_price,
+      `SELECT p.*,
+              CEIL(p.base_price * (1 + p.markup_price / 100)) AS retail_price,
               i.inventory_id, i.stock_quantity, i.spoilage_date, i.stock_status
        FROM product p
        LEFT JOIN inventory i ON p.product_id = i.product_id
@@ -110,22 +123,21 @@ const Product = {
     return rows[0];
   },
 
-  // add new product, markup_price defaults to global default_markup from config
-  addProduct: async (categoryID, productName, description, basePrice, unitMeasurement) => {
-    // fetch default markup from config table
-    const defaultMarkup = await Config.get('default_markup');
-
+  // add new product
+  addProduct: async (categoryID, productName, description, basePrice, unitMeasurement, isFastMoving, receivedDate) => {
+    // new products start unapproved - admin must set markup to approve
+    // markup_price starts at 0 until admin sets it
     const [result] = await db.query(
-      `INSERT INTO product (category_id, product_name, description, base_price, markup_price, unit_measurement)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [categoryID, productName, description || null, basePrice, defaultMarkup, unitMeasurement || null]
+      `INSERT INTO product (category_id, product_name, description, base_price, markup_price, unit_measurement, isfastmoving, received_date, is_approved)
+       VALUES (?, ?, ?, ?, 0, ?, ?, ?, FALSE)`,
+      [categoryID, productName, description || null, basePrice, unitMeasurement || null, isFastMoving || false, receivedDate || null]
     );
     return result.insertId;
   },
 
-  // update product, markup_price now editable only by admin (enforced in controller)
+  // update product, markup_price editable only by admin (enforced in controller)
   updateProduct: async (productID, fields) => {
-    const allowedFields = ['product_name', 'category_id', 'description', 'base_price', 'markup_price', 'unit_measurement'];
+    const allowedFields = ['product_name', 'category_id', 'description', 'base_price', 'markup_price', 'unit_measurement', 'isfastmoving', 'received_date', 'is_approved'];
     const keys = Object.keys(fields).filter(k => allowedFields.includes(k));
     if (keys.length === 0) return 0;
 
@@ -139,11 +151,8 @@ const Product = {
     return result.affectedRows;
   },
 
-  // delete product
   deleteProduct: async (productID) => {
-    // delete inventory record first
     await db.query('DELETE FROM inventory WHERE product_id = ?', [productID]);
-    // then delete product
     const [result] = await db.query('DELETE FROM product WHERE product_id = ?', [productID]);
     return result.affectedRows;
   },
@@ -153,7 +162,6 @@ const Product = {
     const [rows] = await db.query('SELECT * FROM category ORDER BY category_name ASC');
     return rows;
   }
-
 };
 
 module.exports = Product;

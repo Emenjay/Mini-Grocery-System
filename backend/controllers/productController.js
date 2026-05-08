@@ -1,13 +1,15 @@
 const Product = require('../models/productModel');
 const Inventory = require('../models/inventoryModel');
 const db = require('../config/db');
-const { checkAndNotifyLowStock } = require('./notificationController');
-
 
 exports.getAllProducts = async (req, res) => {
   try {
-    const {search, category, stockStatus, expirationFilter, sortName, sortPrice, page, limit, all} = req.query;
+    const { search, category, stockStatus, expirationFilter, sortName, sortPrice, page, limit, all, recentlyAdded } = req.query;
+    const role = req.user.role;
 
+    
+    // cashier only sees approved products
+    const isApprovedOnly = role === 'Cashier';
     // pass search to model, if no search/filter provided, defaults to return all
     const result = await Product.getAllProducts(
       search || '',
@@ -18,11 +20,13 @@ exports.getAllProducts = async (req, res) => {
       sortPrice || '',
       parseInt(page) || 1,
       parseInt(limit) || 20,
-      all === 'true' // converts string 'true' to boolean
+      all === 'true',
+      recentlyAdded === 'true',
+      isApprovedOnly
     );
     res.status(200).json({
       message: 'Products retrieved successfully',
-      ...result // spreads products and pagination into the response
+      ...result
     });
   } catch (err) {
     console.error(err);
@@ -32,23 +36,24 @@ exports.getAllProducts = async (req, res) => {
 
 exports.addProduct = async (req, res) => {
   try {
-    const { categoryID, productName, description, basePrice, unitMeasurement, stockQuantity, spoilageDate } = req.body;
+    const { categoryID, productName, description, basePrice, unitMeasurement, stockQuantity, spoilageDate, isFastMoving, receivedDate } = req.body;
 
-    // validate required fields, markup set automatically from config
     if (!categoryID || !productName || !basePrice) {
       return res.status(400).json({ message: 'categoryID, productName, and basePrice are required' });
     }
 
-    // insert into product table
+    // insert product — starts unapproved, markup defaults to 0
     const productID = await Product.addProduct(
-      categoryID, productName, description, basePrice, unitMeasurement
+      categoryID, productName, description, basePrice,
+      unitMeasurement, isFastMoving, receivedDate || null
+      // receivedDate defaults to CURDATE() in schema if null
     );
 
     // create inventory record for the new product
     await Inventory.createInventory(productID, stockQuantity || 0, spoilageDate);
 
     res.status(201).json({
-      message: 'Product added successfully',
+      message: 'Product added successfully. Pending admin approval.',
       product: {
         productID,
         productName,
@@ -57,7 +62,10 @@ exports.addProduct = async (req, res) => {
         unitMeasurement: unitMeasurement || null,
         description: description || null,
         stockQuantity: stockQuantity || 0,
-        spoilageDate: spoilageDate || null
+        spoilageDate: spoilageDate || null,
+        isFastMoving: isFastMoving || false,
+        receivedDate: receivedDate || 'today',
+        isApproved: false
       }
     });
   } catch (err) {
@@ -69,7 +77,7 @@ exports.addProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { productName, categoryID, description, basePrice, markupPrice, unitMeasurement, stockQuantity, spoilageDate } = req.body;
+    const { productName, categoryID, description, basePrice, markupPrice, unitMeasurement, stockQuantity, spoilageDate, isFastMoving, receivedDate } = req.body;
     const requestingRole = req.user.role; // from JWT
 
     const product = await Product.findProductByID(id);
@@ -77,20 +85,24 @@ exports.updateProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // build product fields
+    // build product builds
     const productFields = {};
     if (productName !== undefined) productFields['product_name'] = productName;
     if (categoryID !== undefined) productFields['category_id'] = categoryID;
     if (description !== undefined) productFields['description'] = description;
     if (basePrice !== undefined) productFields['base_price'] = basePrice;
     if (unitMeasurement !== undefined) productFields['unit_measurement'] = unitMeasurement;
+    if (isFastMoving !== undefined) productFields['isfastmoving'] = isFastMoving;
+    if (receivedDate !== undefined) productFields['received_date'] = receivedDate;
 
-    // markup_price is admin only
+    // markup is admin only - setting markup also approves the product
     if (markupPrice !== undefined) {
       if (requestingRole !== 'Admin') {
         return res.status(403).json({ message: 'Only admin can update markup price' });
       }
       productFields['markup_price'] = markupPrice;
+      // setting markup approves the product making it visible to cashier
+      productFields['is_approved'] = true;
     }
 
     // build inventory fields
@@ -139,8 +151,6 @@ exports.getAllCategories = async (req, res) => {
   }
 };
 
-//Russ's update: added getNotifications function to check for low stock products and return notifications 
-//PATCH /api/product/:id/restock
 exports.restockProduct = async (req, res) => {
   try {
     const { id } = req.params;
@@ -151,32 +161,34 @@ exports.restockProduct = async (req, res) => {
     }
 
     // check if product exists
-    const [[product]] = await db.query(
-      `SELECT product_id, product_name, stock_level FROM product WHERE product_id = ?`,
+    const [[inventory]] = await db.query(
+      `SELECT i.stock_quantity, p.product_id, p.product_name 
+       FROM product p
+       JOIN inventory i ON p.product_id = i.product_id
+       WHERE p.product_id = ?`,
       [id]
     );
 
-    if (!product) {
+    // correct product name
+    if (!inventory) {
       return res.status(404).json({ success: false, message: 'Product not found.' });
     }
 
-    // update stock level
+    // update inventory stock
     await db.query(
-      `UPDATE product SET stock_level = stock_level + ? WHERE product_id = ?`,
+      `UPDATE inventory SET stock_quantity = stock_quantity + ?, last_updated = NOW() WHERE product_id = ?`,
       [quantity, id]
     );
 
-    const newStock = product.stock_level + quantity;
+    const newStock = inventory.stock_quantity + quantity;
 
-    // check if product is still low stock after restock, if so send low stock notification
     res.json({
       success: true,
-      message: `"${product.product_name}" restocked successfully.`,
-      previous_stock: product.stock_level,
+      message: `"${inventory.product_name}" restocked successfully.`,
+      previous_stock: inventory.stock_quantity,
       added: quantity,
       new_stock: newStock,
     });
-
   } catch (err) {
     console.error('restockProduct:', err);
     res.status(500).json({ success: false, message: 'Failed to restock product.' });
