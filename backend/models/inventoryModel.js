@@ -4,7 +4,8 @@ const Config = require('./configModel');
 const Inventory = {
 
   createInventory: async (productID, stockQuantity, spoilageDate) => {
-    const status = await calculateStockStatus(stockQuantity);
+    // fetch isfastmoving for this product to calculate correct status
+    const status = await calculateStockStatus(productID, stockQuantity);
     const [result] = await db.query(
       `INSERT INTO inventory (product_id, stock_quantity, spoilage_date, stock_status, last_updated)
        VALUES (?, ?, ?, ?, NOW())`,
@@ -21,8 +22,8 @@ const Inventory = {
 
 		// recalculate stock_status if stock_quantity is being updated
     if (fields.stock_quantity !== undefined) {
-      // fetch low stock standard from config dynamically
-      fields.stock_status = await calculateStockStatus(fields.stock_quantity);
+      // use per-product isfastmoving to recalculate status
+      fields.stock_status = await calculateStockStatus(productID, fields.stock_quantity);
       keys.push('stock_status');
     }
 
@@ -36,47 +37,48 @@ const Inventory = {
     return result.affectedRows;
   },
 
-
 	// deduct stock after checkout, allows negative stock for force checkout
   deductStock: async (productID, quantity) => {
-  
-  // fetch low stock standard from config
-  const lowStockStandard = parseInt(await Config.get('low_stock_standard'));
+    // fetch isfastmoving to determine correct low stock threshold
+    const [[product]] = await db.query(
+      'SELECT isfastmoving FROM product WHERE product_id = ?',
+      [productID]
+    );
+    const lowStockThreshold = product.isfastmoving ? 50 : 15;
 
-  // first deduct the stock
-  await db.query(
-    `UPDATE inventory 
-     SET stock_quantity = stock_quantity - ?,
-         last_updated = NOW()
-     WHERE product_id = ?`,
-    [quantity, productID]
-  );
+    // deduct stock
+    await db.query(
+      `UPDATE inventory 
+       SET stock_quantity = stock_quantity - ?,
+           last_updated = NOW()
+       WHERE product_id = ?`,
+      [quantity, productID]
+    );
 
-  // fetch the new stock quantity
-  const [rows] = await db.query(
-    'SELECT stock_quantity FROM inventory WHERE product_id = ?',
-    [productID]
-  );
-  const newQuantity = rows[0].stock_quantity;
+    // fetch new quantity
+    const [rows] = await db.query(
+      'SELECT stock_quantity FROM inventory WHERE product_id = ?',
+      [productID]
+    );
+    const newQuantity = rows[0].stock_quantity;
 
-  // calculate status
-  let newStatus;
-  if (newQuantity <= 0) {
-    newStatus = 'Out of Stock';
-  } else if (newQuantity <= lowStockStandard) {
-    newStatus = 'Low Stock';
-  } else {
-    newStatus = 'In Stock';
-  }
-
-  // update status
-  const [result] = await db.query(
-    `UPDATE inventory SET stock_status = ? WHERE product_id = ?`,
-    [newStatus, productID]
-  );
-
-  return result.affectedRows;
-},
+    // calculate new status using per-product threshold
+    let newStatus;
+    if (newQuantity <= 0) {
+      newStatus = 'Out of Stock';
+    } else if (newQuantity <= lowStockThreshold) {
+      newStatus = 'Low Stock';
+    } else {
+      newStatus = 'In Stock';
+    }
+    
+    // update status
+    const [result] = await db.query(
+      `UPDATE inventory SET stock_status = ? WHERE product_id = ?`,
+      [newStatus, productID]
+    );
+    return result.affectedRows;
+  },
 
   getByProductID: async (productID) => {
     const [rows] = await db.query(
@@ -88,38 +90,37 @@ const Inventory = {
 
   // get inventory dashboard counts
   getDashboardCounts: async () => {
-  const [[productCount]] = await db.query(
-    'SELECT COUNT(*) AS total_products FROM product'
-  );
-
-  const [[lowStockCount]] = await db.query(
-    "SELECT COUNT(*) AS low_stock FROM inventory WHERE stock_status = 'Low Stock'"
-  );
-
-  const [[outOfStockCount]] = await db.query(
-    "SELECT COUNT(*) AS out_of_stock FROM inventory WHERE stock_status = 'Out of Stock'"
-  );
-
-  const [[expiredCount]] = await db.query(
-    'SELECT COUNT(*) AS expired FROM inventory WHERE spoilage_date < CURDATE()'
-  );
-
-  return {
-    totalProducts: productCount.total_products,
-    lowStock: lowStockCount.low_stock,
-    outOfStock: outOfStockCount.out_of_stock,
-    expired: expiredCount.expired
-  };
-}
-
+    const [[productCount]] = await db.query(
+      'SELECT COUNT(*) AS total_products FROM product'
+    );
+    const [[lowStockCount]] = await db.query(
+      "SELECT COUNT(*) AS low_stock FROM inventory WHERE stock_status = 'Low Stock'"
+    );
+    const [[outOfStockCount]] = await db.query(
+      "SELECT COUNT(*) AS out_of_stock FROM inventory WHERE stock_status = 'Out of Stock'"
+    );
+    const [[expiredCount]] = await db.query(
+      'SELECT COUNT(*) AS expired FROM inventory WHERE spoilage_date < CURDATE()'
+    );
+    return {
+      totalProducts: productCount.total_products,
+      lowStock: lowStockCount.low_stock,
+      outOfStock: outOfStockCount.out_of_stock,
+      expired: expiredCount.expired
+    };
+  }
 };
 
 // auto calculate stock status based on quantity
-// fetches low_stock_standard from config table
-async function calculateStockStatus(quantity) {
-  const lowStockStandard = parseInt(await Config.get('low_stock_standard'));
+// fetches per-product isfastmoving
+async function calculateStockStatus(productID, quantity) {
+  const [[product]] = await db.query(
+    'SELECT isfastmoving FROM product WHERE product_id = ?',
+    [productID]
+  );
+  const lowStockThreshold = product.isfastmoving ? 50 : 15;
   if (quantity <= 0) return 'Out of Stock';
-  if (quantity <= lowStockStandard) return 'Low Stock';
+  if (quantity <= lowStockThreshold) return 'Low Stock';
   return 'In Stock';
 }
 

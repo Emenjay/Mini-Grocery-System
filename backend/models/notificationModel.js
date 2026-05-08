@@ -1,74 +1,67 @@
 const db = require('../config/db');
 
-//Data access layer for notifications.
 const NotificationModel = {
 
-  /**
-   * Insert a new notification record.
-   * @param {'LOW_STOCK'|'EXPIRED_PRODUCT'|'EMPLOYEE_LOGIN'|'EMPLOYEE_LOGOUT'} type
-   * @param {string} title
-   * @param {string} message
-   * @param {number|null} referenceId  – ProductID or UserID
-   */
-
-  //Create a new notification.
-  async create(type, title, message, referenceId = null) {
+  // insert a new notification
+  async create(userId, type, title, message, referenceId = null) {
     const [result] = await db.query(
-      `INSERT INTO Notification (Type, Title, Message, ReferenceID)
-       VALUES (?, ?, ?, ?)`,
-      [type, title, message, referenceId]
+      `INSERT INTO notification (user_id, type, title, message, reference_id, is_read, created_at)
+       VALUES (?, ?, ?, ?, ?, FALSE, NOW())`,
+      [userId, type, title, message, referenceId]
     );
     return result.insertId;
   },
 
-  //Return all notifications ordered newest-first. 
+  // return all notifications ordered newest-first
   async findAll({ limit = 50, offset = 0 } = {}) {
     const [rows] = await db.query(
-      `SELECT * FROM Notification
-       ORDER BY CreatedAt DESC`
+      `SELECT * FROM notification
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
     );
     return rows;
   },
 
-  //Return only unread notifications. 
+  // return only unread notifications
   async findUnread() {
     const [rows] = await db.query(
-      `SELECT * FROM Notification
-       WHERE IsRead = 0
-       ORDER BY CreatedAt DESC`
+      `SELECT * FROM notification
+       WHERE is_read = 0
+       ORDER BY created_at DESC`
     );
     return rows;
   },
 
-  //Count of unread notifications (for badge).
+  // count unread notifications
   async countUnread() {
     const [[row]] = await db.query(
-      `SELECT COUNT(*) AS count FROM Notification WHERE IsRead = 0`
+      `SELECT COUNT(*) AS count FROM notification WHERE is_read = 0`
     );
     return row.count;
   },
 
-  //Mark a single notification as read.
+  // mark a single notification as read
   async markOneRead(notificationId) {
     const [result] = await db.query(
-      `UPDATE Notification SET IsRead = 1 WHERE NotificationID = ?`,
+      `UPDATE notification SET is_read = 1 WHERE notification_id = ?`,
       [notificationId]
     );
     return result.affectedRows;
   },
 
-  //Mark ALL notifications as read.
+  // mark all notifications as read
   async markAllRead() {
     const [result] = await db.query(
-      `UPDATE Notification SET IsRead = 1 WHERE IsRead = 0`
+      `UPDATE notification SET is_read = 1 WHERE is_read = 0`
     );
     return result.affectedRows;
   },
 
-  //Delete a single notification.
+  // delete a single notification
   async deleteOne(notificationId) {
     const [result] = await db.query(
-      `DELETE FROM Notification WHERE NotificationID = ?`,
+      `DELETE FROM notification WHERE notification_id = ?`,
       [notificationId]
     );
     return result.affectedRows;

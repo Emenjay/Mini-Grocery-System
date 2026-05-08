@@ -30,7 +30,7 @@ exports.checkout = async (req, res) => {
       }
 
       // backend computes retail price
-      const retailPrice = parseFloat((parseFloat(product.base_price) + parseFloat(product.markup_price)).toFixed(2));
+      const retailPrice = Math.ceil(parseFloat(product.base_price) * (1 + parseFloat(product.markup_price) / 100));
       const subtotal = parseFloat((retailPrice * item.quantity).toFixed(2));
       totalAmount += subtotal;
 
@@ -221,7 +221,7 @@ exports.pauseCart = async (req, res) => {
       if (!product) {
         return res.status(404).json({ message: `Product ID ${item.product_id} not found` });
       }
-      const retailPrice = parseFloat((parseFloat(product.base_price) + parseFloat(product.markup_price)).toFixed(2));
+      const retailPrice = Math.ceil(parseFloat(product.base_price) * (1 + parseFloat(product.markup_price) / 100));
       const subtotal = parseFloat((retailPrice * item.quantity).toFixed(2));
       resolvedItems.push({
         product_id: product.product_id,
