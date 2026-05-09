@@ -5,7 +5,10 @@ import '../../../theme/colors.dart';
 import '../../../services/inventory_service.dart';
 
 class InventoryScreen extends StatefulWidget {
-  const InventoryScreen({super.key});
+  // product IDs already in the POS cart — passed from PosScreen so greyed-out state
+  // persists when the cashier re-opens inventory mid-transaction
+  final Set<int> addedProductIds;
+  const InventoryScreen({super.key, this.addedProductIds = const {}});
 
   @override
   State<InventoryScreen> createState() => _InventoryScreenState();
@@ -48,6 +51,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   void initState() {
     super.initState();
+    // seed with IDs already in the POS cart so they show greyed out on re-open
+    _addedProductIds.addAll(widget.addedProductIds);
     _fetchProducts();
   }
 
@@ -169,10 +174,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
-                              // mark product as added locally
+                              // mark product as added locally so the button greys out in the list
                               setState(() => _addedProductIds.add(product['id']));
 
-                              // pop and return selected item to PosScreen
+                              // close the dialog first
+                              Navigator.pop(context);
+
+                              // then pop InventoryScreen itself back to PosScreen with the selected item
+                              // PosScreen's _openInventory is awaiting this result
                               Navigator.pop(context, {
                                 'product_id': product['id'],
                                 'name': product['name'],

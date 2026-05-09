@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../services/checkout_service.dart';
+import '../../utils/app_state.dart';
 import 'payment_screen.dart';
 import 'inventory_screen.dart';
 import 'transactions.dart';
 import 'cash_out.dart';
 
 class PosScreen extends StatefulWidget {
-  final double startingCash; 
+  final double startingCash;
   const PosScreen({super.key, this.startingCash = 0.0});
 
   @override
@@ -13,90 +15,251 @@ class PosScreen extends StatefulWidget {
 }
 
 class _PosScreenState extends State<PosScreen> {
-  // BACKEND: TRACK THE CURRENT TRANSACTION SEQUENCE NUMBER
-  int currentCartIndex = 3; 
 
-  List<Map<String, dynamic>> cartItems = [
-    {'name': 'Ligo Sardines in Tomato Sauce | 155 g', 'price': 22.00, 'quantity': 2},
-    {'name': 'Lucky Me! Pancit Canton (Original)', 'price': 28.50, 'quantity': 1},
-    {'name': 'Datu Puti Vinegar (1L)', 'price': 43.00, 'quantity': 1},
-    {'name': 'Safeguard Pure White | 175 g', 'price': 68.00, 'quantity': 1},
-  ];
+  // active cart items - each map holds product_id, name, price, quantity
+  List<Map<String, dynamic>> cartItems = [];
 
-  // BACKEND: LIST TO STORE SUSPENDED SESSIONS WITH THEIR UNIQUE IDS
-  List<Map<String, dynamic>> pendingCarts = [];
+  // cart number shown to cashier before checkout - generated locally using #HHmmss format
+  // regenerated on screen load and on delete
+  late String _cartNo;
 
-  // BACKEND: DYNAMICALLY GENERATE ID BASED ON CURRENT INDEX
-  String get cartId => "#01000${currentCartIndex.toString().padLeft(1, '0')}";
+  // paused carts fetched from backend - shown in the pending bottom sheet
+  List<Map<String, dynamic>> _pausedCarts = [];
+
+  // true while pause or resume API calls are in flight
+  bool _isPauseLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // generate initial cart number on screen load
+    _cartNo = _generateCartNo();
+  }
+
+  // generate a local cart number using current time - #HHmmss format
+  // matches the backend generateCartNo format so the number sent on pause is consistent
+  String _generateCartNo() {
+    final now = DateTime.now();
+    return '#${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+  }
 
   double get total => cartItems.fold(0, (sum, item) => sum + (item['price'] * item['quantity']));
 
-  // LOGIC TO MOVE ACTIVE CART TO PENDING LIST
-  void _suspendCurrentCart() {
-    if (cartItems.isEmpty) return;
-    
-    setState(() {
-      // BACKEND: PUSH CURRENT_CART_DATA TO PENDING_QUEUE
-      pendingCarts.add({
-        'id': cartId,
-        'items': List.from(cartItems),
-        'total': total,
-      });
-      cartItems.clear();
-      currentCartIndex++; // INCREMENT FOR THE NEXT CUSTOMER
-    });
+  // collect product IDs currently in the cart so inventory screen can grey them out on re-open
+  Set<int> get _cartProductIds => cartItems.map((i) => i['product_id'] as int).toSet();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Cart $cartId moved to Pending")),
+  // open inventory screen, passing current cart product IDs to preserve greyed-out state
+  // when the cashier returns, any selected product is added to the cart
+  Future<void> _openInventory() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => InventoryScreen(addedProductIds: _cartProductIds),
+      ),
     );
+
+    if (result == null) return;
+
+    setState(() {
+      // check if the product is already in the cart (defensive, inventory screen also prevents this)
+      final existingIndex = cartItems.indexWhere((i) => i['product_id'] == result['product_id']);
+      if (existingIndex >= 0) {
+        // increment quantity if already present
+        cartItems[existingIndex]['quantity'] += result['quantity'] as int;
+      } else {
+        // add as new cart item
+        cartItems.add({
+          'product_id': result['product_id'],
+          'name': result['name'],
+          'price': result['price'],
+          'quantity': result['quantity'],
+        });
+      }
+    });
   }
 
-  // LOGIC TO VIEW AND RETRIEVE HELD CARTS
-  void _showPendingCarts() {
+  // pause the current cart via backend, then optionally reload the pending list
+  // called both from the Hold button and from resume flow
+  Future<bool> _pauseCurrentCart() async {
+    if (cartItems.isEmpty) return true; // nothing to pause, treat as success
+
+    final result = await CheckoutService.pauseCart(cartItems);
+
+    if (!mounted) return false;
+
+    if (!result['success']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Failed to pause cart')),
+      );
+      return false;
+    }
+
+    // clear the active cart after successful pause
+    setState(() => cartItems.clear());
+    return true;
+  }
+
+  // hold button handler - pauses current cart and shows snackbar feedback
+  Future<void> _suspendCurrentCart() async {
+    if (cartItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cart is empty, nothing to hold')),
+      );
+      return;
+    }
+
+    setState(() => _isPauseLoading = true);
+
+    final cartNoSnapshot = _cartNo; // snapshot before clearing
+    final success = await _pauseCurrentCart();
+
+    if (!mounted) return;
+    setState(() => _isPauseLoading = false);
+
+    if (success) {
+      // generate new cart number for the next transaction after holding
+      setState(() => _cartNo = _generateCartNo());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cart $cartNoSnapshot held successfully')),
+      );
+    }
+  }
+
+  // fetch paused carts from backend then show the pending bottom sheet
+  Future<void> _showPendingCarts() async {
+    setState(() => _isPauseLoading = true);
+
+    final result = await CheckoutService.getPausedCarts();
+
+    if (!mounted) return;
+    setState(() => _isPauseLoading = false);
+
+    if (!result['success']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Failed to load paused carts')),
+      );
+      return;
+    }
+
+    // cast to list of maps for type safety
+    _pausedCarts = (result['carts'] as List)
+        .map((c) => Map<String, dynamic>.from(c))
+        .toList();
+
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text("Pending Carts", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const Divider(),
-              pendingCarts.isEmpty 
-                ? const Padding(padding: EdgeInsets.all(20), child: Text("No pending transactions"))
-                : Expanded(
-                    child: ListView.builder(
-                      itemCount: pendingCarts.length,
-                      itemBuilder: (context, index) {
-                        var pending = pendingCarts[index];
-                        return ListTile(
-                          leading: const CircleAvatar(backgroundColor: Color(0xFFE8F1EF), child: Icon(Icons.shopping_cart, color: Color(0xFF2D4B42))),
-                          title: Text("Cart ${pending['id']}"),
-                          subtitle: Text("${pending['items'].length} items • ₱ ${pending['total'].toStringAsFixed(2)}"),
-                          trailing: const Icon(Icons.refresh, color: Colors.orange),
-                          onTap: () {
-                            setState(() {
-                              // BACKEND: SWAP ACTIVE_CART WITH PENDING_RECORD_BY_ID
-                              if (cartItems.isNotEmpty) {
-                                pendingCarts.add({
-                                  'id': cartId,
-                                  'items': List.from(cartItems),
-                                  'total': total,
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("Pending Carts", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Divider(),
+                  _pausedCarts.isEmpty
+                    ? const Padding(padding: EdgeInsets.all(20), child: Text("No pending transactions"))
+                    : Expanded(
+                        child: ListView.builder(
+                          itemCount: _pausedCarts.length,
+                          itemBuilder: (context, index) {
+                            final pending = _pausedCarts[index];
+                            return ListTile(
+                              leading: const CircleAvatar(
+                                backgroundColor: Color(0xFFE8F1EF),
+                                child: Icon(Icons.shopping_cart, color: Color(0xFF2D4B42)),
+                              ),
+                              title: Text("Cart ${pending['cart_no']}"),
+                              subtitle: Text(
+                                "${pending['item_count']} items • ₱ ${double.tryParse(pending['total_amount'].toString())?.toStringAsFixed(2) ?? '0.00'}",
+                              ),
+                              // discard button on the right
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.refresh, color: Colors.orange),
+                                  const SizedBox(width: 8),
+                                  // delete paused cart from backend
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final discardResult = await CheckoutService.discardPausedCart(
+                                        pending['paused_cart_id'],
+                                      );
+                                      if (!context.mounted) return;
+                                      if (discardResult['success']) {
+                                        setSheetState(() => _pausedCarts.removeAt(index));
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(discardResult['message'] ?? 'Failed to discard')),
+                                        );
+                                      }
+                                    },
+                                    child: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                                  ),
+                                ],
+                              ),
+                              onTap: () async {
+                                Navigator.pop(context); // close bottom sheet first
+
+                                setState(() => _isPauseLoading = true);
+
+                                // if current cart has items, pause it first before loading the selected one
+                                if (cartItems.isNotEmpty) {
+                                  final pauseSuccess = await _pauseCurrentCart();
+                                  if (!mounted) return;
+                                  if (!pauseSuccess) {
+                                    setState(() => _isPauseLoading = false);
+                                    return;
+                                  }
+                                }
+
+                                // fetch the full paused cart items from backend
+                                final resumeResult = await CheckoutService.getPausedCartById(
+                                  pending['paused_cart_id'],
+                                );
+
+                                if (!mounted) return;
+                                setState(() => _isPauseLoading = false);
+
+                                if (!resumeResult['success']) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(resumeResult['message'] ?? 'Failed to resume cart')),
+                                  );
+                                  return;
+                                }
+
+                                final resumedCart = resumeResult['cart'];
+
+                                // map backend paused_cart_item fields back to POS cart format
+                                final List<Map<String, dynamic>> resumedItems = (resumedCart['items'] as List).map((item) => {
+                                  'product_id': item['product_id'],
+                                  'name': item['product_name'],
+                                  // retail_price was snapshotted at pause time
+                                  'price': double.tryParse(item['retail_price'].toString()) ?? 0.0,
+                                  'quantity': item['quantity'],
+                                }).toList();
+
+                                setState(() {
+                                  cartItems = resumedItems;
+                                  // restore the cart number from the paused cart
+                                  _cartNo = resumedCart['cart_no'];
                                 });
-                              }
-                              cartItems = List.from(pending['items']);
-                              pendingCarts.removeAt(index);
-                            });
-                            Navigator.pop(context);
+
+                                // delete the paused cart from backend since it's now active again
+                                await CheckoutService.discardPausedCart(pending['paused_cart_id']);
+                              },
+                            );
                           },
-                        );
-                      },
-                    ),
-                  ),
-            ],
-          ),
+                        ),
+                      ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -123,14 +286,25 @@ class _PosScreenState extends State<PosScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Hello,", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                      Text("Michael!", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF2D4B42))),
+                      const Text("Hello,", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                      // display logged-in user's name from AppState
+                      Text(
+                        "${AppState.userName}!",
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF2D4B42)),
+                      ),
                     ],
                   ),
                   const Spacer(),
+                  // show loading indicator in header while pause/resume calls are in flight
+                  if (_isPauseLoading)
+                    const SizedBox(
+                      width: 24, height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2D4B42)),
+                    ),
+                  if (_isPauseLoading) const SizedBox(width: 10),
                   // BUTTON TO VIEW PENDING CARTS
                   _topCircleButton(Icons.pause_presentation_rounded, _showPendingCarts),
                   const SizedBox(width: 10),
@@ -140,7 +314,7 @@ class _PosScreenState extends State<PosScreen> {
                   const SizedBox(width: 10),
                   _topCircleButton(Icons.logout, () {
                     Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => CashOutScreen(startingCash: widget.startingCash)
+                      builder: (context) => CashOutScreen(startingCash: widget.startingCash),
                     ));
                   }),
                 ],
@@ -163,24 +337,33 @@ class _PosScreenState extends State<PosScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text("Cart No.", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                              // DYNAMIC CART NUMBER DISPLAY
-                              Text(cartId, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF2D4B42))),
+                              // locally generated cart number - sent to backend on pause or checkout
+                              Text(_cartNo, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF2D4B42))),
                             ],
                           ),
                           Row(
                             children: [
-                              // BUTTON TO HOLD CURRENT CART
+                              // HOLD: saves current cart to backend and clears active cart
                               GestureDetector(
-                                onTap: _suspendCurrentCart,
-                                child: _headerAction(Icons.pause_circle_outline, "Hold", color: Colors.orange)
+                                onTap: _isPauseLoading ? null : _suspendCurrentCart,
+                                child: _headerAction(Icons.pause_circle_outline, "Hold", color: Colors.orange),
                               ),
                               const SizedBox(width: 10),
+                              // RESET: clears items from the active cart without touching cart number
                               GestureDetector(
                                 onTap: () => setState(() => cartItems.clear()),
-                                child: _headerAction(Icons.refresh, "Reset")
+                                child: _headerAction(Icons.refresh, "Reset"),
                               ),
                               const SizedBox(width: 10),
-                              _headerAction(Icons.delete_outline, "Delete", color: Colors.red),
+                              // DELETE: clears items AND regenerates cart number (new transaction slate)
+                              // no backend call needed since unsaved carts don't exist on backend yet
+                              GestureDetector(
+                                onTap: () => setState(() {
+                                  cartItems.clear();
+                                  _cartNo = _generateCartNo();
+                                }),
+                                child: _headerAction(Icons.delete_outline, "", color: Colors.red),
+                              ),
                             ],
                           )
                         ],
@@ -188,26 +371,33 @@ class _PosScreenState extends State<PosScreen> {
                     ),
                     const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: cartItems.length,
-                        padding: const EdgeInsets.only(top: 10),
-                        itemBuilder: (context, index) {
-                          final item = cartItems[index];
-                          return Dismissible(
-                            key: UniqueKey(),
-                            direction: DismissDirection.endToStart,
-                            onDismissed: (direction) => setState(() => cartItems.removeAt(index)),
-                            background: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(10)),
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              child: const Icon(Icons.delete_outline, color: Colors.white, size: 30),
+                      child: cartItems.isEmpty
+                        ? const Center(
+                            child: Text(
+                              "Cart is empty",
+                              style: TextStyle(color: Colors.black26, fontSize: 16),
                             ),
-                            child: _buildCartItem(item),
-                          );
-                        },
-                      ),
+                          )
+                        : ListView.builder(
+                            itemCount: cartItems.length,
+                            padding: const EdgeInsets.only(top: 10),
+                            itemBuilder: (context, index) {
+                              final item = cartItems[index];
+                              return Dismissible(
+                                key: UniqueKey(),
+                                direction: DismissDirection.endToStart,
+                                onDismissed: (direction) => setState(() => cartItems.removeAt(index)),
+                                background: Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(10)),
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 20),
+                                  child: const Icon(Icons.delete_outline, color: Colors.white, size: 30),
+                                ),
+                                child: _buildCartItem(item),
+                              );
+                            },
+                          ),
                     ),
                   ],
                 ),
@@ -239,7 +429,7 @@ class _PosScreenState extends State<PosScreen> {
                     children: [
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const InventoryScreen())),
+                          onPressed: _openInventory,
                           style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF35524A), padding: const EdgeInsets.symmetric(vertical: 18), shape: const StadiumBorder()),
                           child: const Text("Add Product", style: TextStyle(color: Colors.white, fontSize: 16)),
                         ),
@@ -247,12 +437,22 @@ class _PosScreenState extends State<PosScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentScreen(totalAmount: total)));
-                            // BACKEND: AFTER SUCCESSFUL PAYMENT, CLEAR CART AND INCREMENT ID
-                            // setState(() { currentCartIndex++; cartItems.clear(); });
+                          // disable checkout if cart is empty
+                          onPressed: cartItems.isEmpty ? null : () {
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (context) => PaymentScreen(
+                                totalAmount: total,
+                                // cartNo: _cartNo,
+                                // cartItems: cartItems,
+                              ),
+                            ));
                           },
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF76BA99), padding: const EdgeInsets.symmetric(vertical: 18), shape: const StadiumBorder()),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF76BA99),
+                            disabledBackgroundColor: const Color(0xFF76BA99).withOpacity(0.5),
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            shape: const StadiumBorder(),
+                          ),
                           child: const Text("Checkout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                         ),
                       ),
