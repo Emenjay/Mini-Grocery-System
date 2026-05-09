@@ -49,16 +49,21 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
 
   void _toggleEdit() {
     if (_isEditing) {
-      // Transition from editing to viewing
-      setState(() {
-        _isEditing = false;
-      });
-      _showUpdateSuccess(context);
+      setState(() => _isEditing = false);
+      _showUpdateSuccess(context, _buildUpdatedStaff());
     } else {
-      setState(() {
-        _isEditing = true;
-      });
+      setState(() => _isEditing = true);
     }
+  }
+
+  Map<String, dynamic> _buildUpdatedStaff() {
+    return {
+      ...widget.staff,
+      'name': _nameController.text.trim(),
+      'contactNumber': _contactController.text.trim(),
+      'address': _addressController.text.trim(),
+      if (_pickedPhoto != null) 'photo': _pickedPhoto!.path,
+    };
   }
 
   Future<void> _pickPhoto() async {
@@ -111,7 +116,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
     );
   }
 
-  void _showUpdateSuccess(BuildContext context) {
+  void _showUpdateSuccess(BuildContext context, Map<String, dynamic> updatedStaff) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -135,11 +140,16 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: Colors.black54),
                 ),
+
                 const SizedBox(height: 24),
+
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      Navigator.pop(context); // close dialog
+                      Navigator.pop(context, updatedStaff); // pop screen with updated data
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF35524A),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

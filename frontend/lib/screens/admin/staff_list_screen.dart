@@ -323,20 +323,39 @@ class _StaffListScreenState extends State<StaffListScreen> {
       ),
       builder: (_) => _StaffMenuSheet(
         staff: staff,
+        
         onView: () {
           Navigator.pop(context);
-          Navigator.push(context,
-          MaterialPageRoute(builder: (_) => StaffInfoScreen(staff: staff)));
-        },
-        onEdit: () {
-          Navigator.pop(context);
-          Navigator.push(
+          Navigator.push<Map<String, dynamic>>(
             context,
-            MaterialPageRoute(
-              builder: (context) => StaffInfoScreen(staff: staff, initialIsEditing: true),
-            ),
+            MaterialPageRoute(builder: (_) => StaffInfoScreen(staff: staff)),
+          ).then(
+            (updatedStaff) {
+              if (updatedStaff == null) return;
+              setState(() {
+                final i = staffList.indexWhere((s) => s['id'] == updatedStaff['id']);
+                if (i != -1) staffList[i] = updatedStaff;
+              });
+            }
           );
         },
+
+        onEdit: () {
+          Navigator.pop(context);
+           Navigator.push<Map<String, dynamic>>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StaffInfoScreen(staff: staff, initialIsEditing: true),
+            ),
+          ).then((updatedStaff) {
+            if (updatedStaff == null) return;
+            setState(() {
+              final i = staffList.indexWhere((s) => s['id'] == updatedStaff['id']);
+              if (i != -1) staffList[i] = updatedStaff;
+            });
+          });
+        },
+
         onToggleDuty: () {
           Navigator.pop(context);
           setState(() {
@@ -344,6 +363,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
             if (i != -1) staffList[i]['onDuty'] = !staffList[i]['onDuty'];
           });
         },
+
         onRemove: () {
           Navigator.pop(context);
           _showRemoveConfirmation(context, staff);
