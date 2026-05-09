@@ -2,8 +2,9 @@
 
 import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
-import 'add_new_product.dart'; 
-import 'product_detail.dart'; 
+import '../../../services/inventory_service.dart';
+import 'add_new_product.dart';
+import 'product_detail.dart';
 
 class InventoryStaffScreen extends StatefulWidget {
   const InventoryStaffScreen({super.key});
@@ -13,41 +14,163 @@ class InventoryStaffScreen extends StatefulWidget {
 }
 
 class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String searchQuery = '';
   int currentPage = 1;
-  final int itemsPerPage = 4; 
+  final int itemsPerPage = 20; // matches backend default limit
 
   // original filter states
   String selectedCategory = 'Recently Added';
   String activeStockFilter = '';
   String activeExpiryFilter = '';
-  String activeSortAlpha = 'A-Z'; 
-  String activeSortPrice = 'None'; 
+  String activeSortAlpha = '';
+  String activeSortPrice = 'None';
 
   // logic for dashboard navigation
   bool _hasInitialFilterApplied = false;
 
+  // backend data state
+  List<Map<String, dynamic>> _products = [];
+  int _totalPages = 1;
+  int _totalItems = 0;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // initial fetch happens after didChangeDependencies sets filters
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
-    // catch arguments and update filter state
+
+    // catch arguments from dashboard navigation and apply filters before first fetch
     if (!_hasInitialFilterApplied) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is String) {
-        setState(() {
-          if (args == 'Low Stock') {
-            activeStockFilter = 'Low Stock';
-          } else if (args == 'No Stock') {
-            activeStockFilter = 'No Stock';
-          } else if (args == 'All') {
-            activeStockFilter = '';
-            selectedCategory = 'Recently Added';
-          }
-        });
+        if (args == 'Low Stock') {
+          activeStockFilter = 'Low Stock';
+        } else if (args == 'No Stock') {
+          activeStockFilter = 'Out of Stock'; // backend uses 'Out of Stock' not 'No Stock'
+        } else if (args == 'Expired') {
+          activeExpiryFilter = 'Expired';
+        } else if (args == 'All') {
+          activeStockFilter = '';
+          selectedCategory = 'Recently Added';
+        }
       }
-      _hasInitialFilterApplied = true; 
+      _hasInitialFilterApplied = true;
+      _fetchProducts(); // fetch after filters are set
+    }
+  }
+
+  // fetch products from backend with current filter/search/page state
+  Future<void> _fetchProducts() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    // map frontend filter values to backend expected values
+    final stockStatusParam = _mapStockFilter(activeStockFilter);
+    final expiryParam = _mapExpiryFilter(activeExpiryFilter);
+    final sortNameParam = activeSortAlpha;
+    final sortPriceParam = activeSortPrice == 'Ascending' ? 'asc' : activeSortPrice == 'Descending' ? 'desc' : '';
+    final isRecentlyAdded = selectedCategory == 'Recently Added';
+    final categoryParam = isRecentlyAdded ? '' : selectedCategory;
+
+    final result = await InventoryService.getProducts(
+      search: searchQuery,
+      category: categoryParam,
+      stockStatus: stockStatusParam,
+      expirationFilter: expiryParam,
+      sortName: sortNameParam,
+      sortPrice: sortPriceParam,
+      page: currentPage,
+      limit: itemsPerPage,
+      recentlyAdded: isRecentlyAdded,
+    );
+
+    if (!mounted) return;
+
+    if (result['success']) {
+      setState(() {
+        // map backend product fields to the format the UI expects
+        _products = (result['products'] as List).map((p) => {
+          'id': p['product_id'],
+          'name': p['product_name'],
+          'category': p['category_name'],
+          'stocks': p['stock_quantity'] ?? 0,
+          // map backend stock_status to frontend display values
+          'status': _mapStockStatus(p['stock_status']),
+          'basePrice': double.tryParse(p['base_price'].toString()) ?? 0.0,
+          'markup': double.tryParse(p['markup_price'].toString()) ?? 0.0,
+          'retailPrice': p['retail_price'] ?? 0,
+          'spoilageDate': p['spoilage_date'],
+          'lastUpdated': p['last_updated'],
+          'description': p['description'] ?? '',
+          'unitMeasurement': p['unit_measurement'] ?? '',
+          'isfastmoving': p['isfastmoving'] ?? false,
+          'isApproved': p['is_approved'] ?? false,
+          'receivedDate': p['received_date'],
+          'categoryId': p['category_id'],
+        }).toList();
+        _totalPages = result['pagination']['totalPages'] ?? 1;
+        _totalItems = result['pagination']['total'] ?? 0;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = result['message'];
+        _isLoading = false;
+      });
+    }
+  }
+
+  // map frontend stock filter label to backend expected value
+  String _mapStockFilter(String filter) {
+    switch (filter) {
+      case 'Available': return 'In Stock';
+      case 'Low Stock': return 'Low Stock';
+      case 'No Stock': return 'Out of Stock';
+      default: return '';
+    }
+  }
+
+  // map frontend expiry filter label to backend expected value
+  String _mapExpiryFilter(String filter) {
+    switch (filter) {
+      case 'Expired': return 'Expired';
+      case 'Expiring Soon': return 'Expiring Soon';
+      case 'Not Expiring Soon': return 'Not Expiring Soon';
+      default: return '';
+    }
+  }
+
+  // map backend stock_status to frontend display label
+  String _mapStockStatus(String? status) {
+    switch (status) {
+      case 'In Stock': return 'In Stock';
+      case 'Low Stock': return 'Low Stock';
+      case 'Out of Stock': return 'No Stock';
+      default: return 'No Stock';
+    }
+  }
+
+  // handle delete - calls backend then refreshes list
+  Future<void> _deleteProduct(Map<String, dynamic> item) async {
+    final result = await InventoryService.deleteProduct(item['id']);
+    if (!mounted) return;
+
+    if (result['success']) {
+      _showSuccessModal();
+      _fetchProducts(); // refresh list after deletion
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Failed to delete product')),
+      );
     }
   }
 
@@ -57,58 +180,12 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     'Household Care', 'Miscellaneous',
   ];
 
-  final List<String> expirationMonths = [
-    'May 2026', 'June 2026', 'July 2026', 'August 2026',
-    'September 2026', 'October 2026', 'November 2026', 'December 2026'
+  // expiry filter options matching backend preset options
+  final List<String> expiryFilters = [
+    'Expired',
+    'Expiring Soon',
+    'Not Expiring Soon',
   ];
-
-  final List<Map<String, dynamic>> staffItems = [
-    {'id': 'PER-202604-0001', 'name': 'Malunggay Lotion 500mL', 'category': 'Personal Care', 'stocks': 0, 'status': 'No Stock', 'basePrice': 150.0, 'markup': 20.0, 'expiryStatus': 'Fresh'},
-    {'id': 'BEV-202604-0002', 'name': 'Malunggay Juice 80mL', 'category': 'Beverages', 'stocks': 13, 'status': 'Low Stock', 'basePrice': 45.0, 'markup': 10.0, 'expiryStatus': 'Expiring Soon'},
-    {'id': 'SNA-202604-0003', 'name': 'Malunggay Chips 20g', 'category': 'Snacks & Sweets', 'stocks': 80, 'status': 'In Stock', 'basePrice': 30.0, 'markup': 5.0, 'expiryStatus': 'Fresh'},
-    {'id': 'FRO-202604-0004', 'name': 'Frozen Malunggay', 'category': 'Frozen Goods', 'stocks': 45, 'status': 'In Stock', 'basePrice': 80.0, 'markup': 15.0, 'expiryStatus': 'Fresh'},
-    {'id': 'SNA-202604-0005', 'name': 'Corn Chips 50g', 'category': 'Snacks & Sweets', 'stocks': 100, 'status': 'In Stock', 'basePrice': 25.0, 'markup': 5.0, 'expiryStatus': 'Expiring Soon'},
-  ];
-
-  // filter logic
-  List<Map<String, dynamic>> get _filteredItems {
-    List<Map<String, dynamic>> filtered = staffItems.where((item) {
-      final matchesCategory = selectedCategory == 'Recently Added' || item['category'] == selectedCategory;
-      final matchesSearch = item['name'].toLowerCase().contains(searchQuery.toLowerCase()) || 
-                           item['id'].toLowerCase().contains(searchQuery.toLowerCase());
-      final matchesStock = activeStockFilter.isEmpty || 
-                          (activeStockFilter == "Available" && item['status'] == "In Stock") ||
-                          item['status'] == activeStockFilter;
-      
-      return matchesCategory && matchesSearch && matchesStock;
-    }).toList();
-
-    // sorting alpha
-    filtered.sort((a, b) {
-      int cmp = a['name'].toString().toLowerCase().compareTo(b['name'].toString().toLowerCase());
-      return activeSortAlpha == 'A-Z' ? cmp : -cmp;
-    });
-
-    // sorting price
-    if (activeSortPrice != 'None') {
-      filtered.sort((a, b) {
-        double pA = (a['basePrice'] ?? 0) + (a['markup'] ?? 0);
-        double pB = (b['basePrice'] ?? 0) + (b['markup'] ?? 0);
-        return activeSortPrice == 'Ascending' ? pA.compareTo(pB) : pB.compareTo(pA);
-      });
-    }
-    return filtered;
-  }
-
-  List<Map<String, dynamic>> get _paginatedItems {
-    final filtered = _filteredItems;
-    int start = (currentPage - 1) * itemsPerPage;
-    int end = start + itemsPerPage;
-    if (start >= filtered.length) return [];
-    return filtered.sublist(start, end > filtered.length ? filtered.length : end);
-  }
-
-  int get _totalPages => (_filteredItems.length / itemsPerPage).ceil();
 
   // sidebar builders
   Widget _buildSortRadio(String title, String value, String groupValue, Function(String?) onChanged) {
@@ -136,7 +213,7 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
       child: Container(
         width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
         child: Text(text, style: TextStyle(
-          color: isSelected ? AppColors.primaryDarkTeal : Colors.black54, 
+          color: isSelected ? AppColors.primaryDarkTeal : Colors.black54,
           fontSize: 15,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
@@ -148,9 +225,8 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final itemsToShow = _paginatedItems;
     return Scaffold(
-      key: _scaffoldKey, 
+      key: _scaffoldKey,
       backgroundColor: Colors.white,
       endDrawer: Drawer(
         width: MediaQuery.of(context).size.width * 0.75,
@@ -158,9 +234,30 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(25, 60, 20, 20),
-              child: Text("Filters", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(25, 60, 20, 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Filters", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+                  // reset all filters button
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        selectedCategory = 'Recently Added';
+                        activeStockFilter = '';
+                        activeExpiryFilter = '';
+                        activeSortAlpha = '';
+                        activeSortPrice = 'None';
+                        currentPage = 1;
+                      });
+                      _fetchProducts(); // refetch with cleared filters
+                    },
+                    icon: const Icon(Icons.restart_alt, color: AppColors.primaryDarkTeal, size: 28),
+                    tooltip: 'Reset filters',
+                  ),
+                ],
+              ),
             ),
             Expanded(
               child: ListView(
@@ -170,25 +267,57 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                     ...categories.map((cat) => _buildDrawerLink(cat, isSelected: selectedCategory == cat, onTap: () {
                       setState(() { selectedCategory = cat; currentPage = 1; });
                       Navigator.pop(context);
+                      _fetchProducts(); // refetch when category changes in drawer
                     })),
                   ]),
                   _buildExpansionTile("Stock Status", children: [
-                    _buildDrawerLink("Available", isSelected: activeStockFilter == "Available", onTap: () => setState(() => activeStockFilter = "Available")),
-                    _buildDrawerLink("Low Stock", isSelected: activeStockFilter == "Low Stock", onTap: () => setState(() => activeStockFilter = "Low Stock")),
-                    _buildDrawerLink("No Stock", isSelected: activeStockFilter == "No Stock", onTap: () => setState(() => activeStockFilter = "No Stock")),
+                    _buildDrawerLink("Available", isSelected: activeStockFilter == "Available", onTap: () {
+                      setState(() { activeStockFilter = "Available"; currentPage = 1; });
+                      _fetchProducts();
+                    }),
+                    _buildDrawerLink("Low Stock", isSelected: activeStockFilter == "Low Stock", onTap: () {
+                      setState(() { activeStockFilter = "Low Stock"; currentPage = 1; });
+                      _fetchProducts();
+                    }),
+                    _buildDrawerLink("No Stock", isSelected: activeStockFilter == "No Stock", onTap: () {
+                      setState(() { activeStockFilter = "No Stock"; currentPage = 1; });
+                      _fetchProducts();
+                    }),
                   ]),
                   _buildExpansionTile("Expiration Date", children: [
-                    ...expirationMonths.map((month) => _buildDrawerLink(month, isSelected: activeExpiryFilter == month, onTap: () => setState(() => activeExpiryFilter = month))),
+                    // replaced hardcoded months with backend preset options
+                    ...expiryFilters.map((filter) => _buildDrawerLink(filter,
+                      isSelected: activeExpiryFilter == filter,
+                      onTap: () {
+                        setState(() { activeExpiryFilter = filter; currentPage = 1; });
+                        _fetchProducts();
+                      }
+                    )),
                   ]),
                   const Divider(height: 40, thickness: 1, indent: 15, endIndent: 15),
                   const Padding(padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8), child: Text("Alphabetical Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal))),
-                  _buildSortRadio("A - Z", "A-Z", activeSortAlpha, (val) => setState(() => activeSortAlpha = val!)),
-                  _buildSortRadio("Z - A", "Z-A", activeSortAlpha, (val) => setState(() => activeSortAlpha = val!)),
+                  _buildSortRadio("A - Z", "A-Z", activeSortAlpha, (val) {
+                    setState(() { activeSortAlpha = val!; currentPage = 1; });
+                    _fetchProducts();
+                  }),
+                  _buildSortRadio("Z - A", "Z-A", activeSortAlpha, (val) {
+                    setState(() { activeSortAlpha = val!; currentPage = 1; });
+                    _fetchProducts();
+                  }),
                   const SizedBox(height: 15),
                   const Padding(padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8), child: Text("Price Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal))),
-                  _buildSortRadio("None", "None", activeSortPrice, (val) => setState(() => activeSortPrice = val!)),
-                  _buildSortRadio("Ascending", "Ascending", activeSortPrice, (val) => setState(() => activeSortPrice = val!)),
-                  _buildSortRadio("Descending", "Descending", activeSortPrice, (val) => setState(() => activeSortPrice = val!)),
+                  _buildSortRadio("None", "None", activeSortPrice, (val) {
+                    setState(() { activeSortPrice = val!; currentPage = 1; });
+                    _fetchProducts();
+                  }),
+                  _buildSortRadio("Ascending", "Ascending", activeSortPrice, (val) {
+                    setState(() { activeSortPrice = val!; currentPage = 1; });
+                    _fetchProducts();
+                  }),
+                  _buildSortRadio("Descending", "Descending", activeSortPrice, (val) {
+                    setState(() { activeSortPrice = val!; currentPage = 1; });
+                    _fetchProducts();
+                  }),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -197,8 +326,9 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductScreen())),
-        backgroundColor: const Color(0xFF004D40), 
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductScreen()))
+            .then((_) => _fetchProducts()), // refresh list when returning from add product
+        backgroundColor: const Color(0xFF004D40),
         child: const Icon(Icons.add, color: Colors.white, size: 35),
       ),
       body: SafeArea(
@@ -215,13 +345,22 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                       height: 38,
                       decoration: BoxDecoration(color: AppColors.surfaceLightGray.withOpacity(0.3), borderRadius: BorderRadius.circular(10)),
                       child: TextField(
-                        onChanged: (val) => setState(() { searchQuery = val; currentPage = 1; }),
-                        decoration: const InputDecoration(hintText: "Search name or ID...", hintStyle: TextStyle(fontSize: 12, color: Colors.black26), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                        onChanged: (val) {
+                          setState(() { searchQuery = val; currentPage = 1; });
+                          // fetch from backend on search change
+                          _fetchProducts();
+                        },
+                        decoration: const InputDecoration(
+                          hintText: "Search name or ID...",
+                          hintStyle: TextStyle(fontSize: 12, color: Colors.black26),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _circleIcon(Icons.search, () {}),
+                  _circleIcon(Icons.search, () => _fetchProducts()),
                   const SizedBox(width: 6),
                   _circleIcon(Icons.tune, () => _scaffoldKey.currentState?.openEndDrawer()),
                 ],
@@ -239,7 +378,13 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
                       label: Text(cat, style: TextStyle(color: isSelected ? Colors.white : Colors.black54, fontSize: 12)),
-                      selected: isSelected, onSelected: (val) => setState(() { if (val) selectedCategory = cat; currentPage = 1; }),
+                      selected: isSelected,
+                      onSelected: (val) {
+                        if (val) {
+                          setState(() { selectedCategory = cat; currentPage = 1; });
+                          _fetchProducts(); // refetch when category chip changes
+                        }
+                      },
                       selectedColor: AppColors.primaryDarkTeal, backgroundColor: AppColors.surfaceLightGray,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), showCheckmark: false,
                     ),
@@ -248,16 +393,21 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
               ),
             ),
             const Divider(height: 24),
-            if (_filteredItems.isNotEmpty) _buildPagination(),
+            // show pagination only if there are multiple pages
+            if (_totalPages > 1) _buildPagination(),
             const SizedBox(height: 10),
             Expanded(
-              child: itemsToShow.isEmpty 
-                ? const Center(child: Text("No items found"))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: itemsToShow.length,
-                    itemBuilder: (context, index) => _buildProductCard(itemsToShow, index),
-                  ),
+              child: _isLoading
+                ? const Center(child: CircularProgressIndicator()) // loading state
+                : _errorMessage != null
+                  ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent))) // error state
+                  : _products.isEmpty
+                    ? const Center(child: Text("No items found")) // empty state
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _products.length,
+                        itemBuilder: (context, index) => _buildProductCard(_products, index),
+                      ),
             ),
           ],
         ),
@@ -268,11 +418,11 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   Widget _buildProductCard(List<Map<String, dynamic>> list, int index) {
     final item = list[index];
     return Dismissible(
-      key: Key(item['id']),
+      key: Key(item['id'].toString()), // use backend product_id as key
       direction: DismissDirection.endToStart,
       confirmDismiss: (direction) async {
         _showDeleteConfirmation(context, item);
-        return false; 
+        return false;
       },
       background: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
@@ -281,10 +431,20 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
         child: const Icon(Icons.delete_forever_outlined, color: Colors.white, size: 28),
       ),
       child: GestureDetector(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProductDetailScreen(productList: list, initialIndex: index))),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ProductDetailScreen(
+            productList: list,
+            initialIndex: index,
+          )),
+        ).then((_) => _fetchProducts()), // refresh after returning from product detail
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 6), padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.black12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))]),
+          decoration: BoxDecoration(
+            color: Colors.white, borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.black12),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))]
+          ),
           child: Row(
             children: [
               Expanded(
@@ -293,7 +453,8 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                   children: [
                     Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     Text(item['category'], style: const TextStyle(fontSize: 11, color: Colors.black45, fontStyle: FontStyle.italic)),
-                    Text(item['id'], style: const TextStyle(fontSize: 10, color: Color(0xFF3E5C51), fontWeight: FontWeight.bold)),
+                    // show product_id from backend
+                    Text('ID: ${item['id']}', style: const TextStyle(fontSize: 10, color: Color(0xFF3E5C51), fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -322,12 +483,51 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
         content: Text("Remove ${item['name']}?"),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          TextButton(onPressed: () {
-            setState(() => staffItems.removeWhere((e) => e['id'] == item['id']));
-            Navigator.pop(context);
-          }, child: const Text("Delete", style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteProduct(item); // call backend delete then refresh
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.red))
+          ),
         ],
       ),
+    );
+  }
+
+  void _showSuccessModal() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF2D936C), size: 60),
+                const SizedBox(height: 16),
+                const Text("Deletion Successful", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text("The item has been removed from inventory.", textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: Colors.black54)),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF35524A),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text("Done", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -346,10 +546,10 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _pageBtn(Icons.chevron_left, currentPage > 1 ? () => setState(() => currentPage--) : null),
+        _pageBtn(Icons.chevron_left, currentPage > 1 ? () { setState(() => currentPage--); _fetchProducts(); } : null),
         for (int i = 1; i <= _totalPages; i++)
-          _pageNum(i.toString(), currentPage == i, _totalPages > 1, () => setState(() => currentPage = i)),
-        _pageBtn(Icons.chevron_right, currentPage < _totalPages ? () => setState(() => currentPage++) : null),
+          _pageNum(i.toString(), currentPage == i, _totalPages > 1, () { setState(() => currentPage = i); _fetchProducts(); }),
+        _pageBtn(Icons.chevron_right, currentPage < _totalPages ? () { setState(() => currentPage++); _fetchProducts(); } : null),
       ],
     );
   }

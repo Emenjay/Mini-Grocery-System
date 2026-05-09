@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget{
       ),
       
       // starting point
-      initialRoute: '/inventory-dashboard',
+      initialRoute: '/login',
 
       routes: {
         '/inventory-dashboard': (context) => const InventoryDashboard(),
