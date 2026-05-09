@@ -5,8 +5,12 @@ class ReceiptScreen extends StatelessWidget {
   final double totalAmount;
   final double amountReceived;
   final double change;
+  final String cartNo;
   final String? referenceNumber;
   final List<Map<String, dynamic>> items;
+  // called when cashier taps Done — PosScreen uses this to clear the cart
+  // and generate a new cart number for the next transaction
+  final VoidCallback? onDone;
 
   const ReceiptScreen({
     super.key,
@@ -15,27 +19,23 @@ class ReceiptScreen extends StatelessWidget {
     required this.amountReceived,
     required this.change,
     this.referenceNumber,
+    required this.cartNo,
     required this.items,
+    this.onDone,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF3E5C51), // dark green background
+      backgroundColor: const Color(0xFF3E5C51),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: false, // hide back button for final receipt
-        title: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-            ),
-            const Text("Receipt", 
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
-            ),
-          ],
+        // hide back button - cashier must use Done to ensure cart is cleared properly
+        automaticallyImplyLeading: false,
+        title: const Text(
+          "Receipt",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
       body: Stack(
@@ -54,13 +54,13 @@ class ReceiptScreen extends StatelessWidget {
                 const Text(
                   "Payment Successful!",
                   style: TextStyle(
-                    fontSize: 22, 
-                    fontWeight: FontWeight.bold, 
-                    color: Color(0xFF3E5C51)
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF3E5C51),
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // item list with individual and subtotal prices
                 Expanded(
                   child: Container(
@@ -75,7 +75,7 @@ class ReceiptScreen extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final item = items[index];
                         final double itemSubtotal = item['price'] * item['quantity'];
-                        
+
                         return Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -84,30 +84,27 @@ class ReceiptScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    item['name'], 
+                                    item['name'],
                                     style: const TextStyle(
-                                      fontWeight: FontWeight.bold, 
-                                      fontSize: 13
-                                    )
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   // individual price & subtotal calc
                                   Text(
-                                    "Price: ₱ ${item['price'].toStringAsFixed(2)}  (₱ ${itemSubtotal.toStringAsFixed(2)})", 
-                                    style: const TextStyle(
-                                      color: Colors.grey, 
-                                      fontSize: 12
-                                    )
+                                    "Price: ₱ ${(item['price'] as double).toStringAsFixed(2)}  (₱ ${itemSubtotal.toStringAsFixed(2)})",
+                                    style: const TextStyle(color: Colors.grey, fontSize: 12),
                                   ),
                                 ],
                               ),
                             ),
                             Text(
-                              "x${item['quantity']}", 
+                              "x${item['quantity']}",
                               style: const TextStyle(
-                                fontWeight: FontWeight.bold, 
-                                color: Colors.black87
-                              )
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
                             ),
                           ],
                         );
@@ -115,27 +112,27 @@ class ReceiptScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
                 const Divider(thickness: 1),
-                
+
                 // summary section
-                _receiptRow("Cart No. :", "#010003"),
+                _receiptRow("Cart No. :", cartNo),
                 _receiptRow("Total Amount:", "₱ ${totalAmount.toStringAsFixed(2)}"),
                 _receiptRow("Amount Received:", "₱ ${amountReceived.toStringAsFixed(2)}"),
-                
-                // dynamic row: change vs gcash ref
+
+                // dynamic row: change for cash, reference number for GCash
                 if (paymentMethod == 'Cash')
                   _receiptRow("Change:", "₱ ${change.toStringAsFixed(2)}")
-                else ...[
+                else
                   _receiptRow("Ref No. :", referenceNumber ?? "N/A"),
-                ],
-                
+
                 _receiptRow("Payment Method:", paymentMethod),
 
                 const SizedBox(height: 30),
-                
-                // done button to reset flow
+
+                // done button - fires onDone callback so PosScreen clears cart,
+                // then pops both receipt and payment screens back to PosScreen
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -143,36 +140,41 @@ class ReceiptScreen extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3E5C51),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25)
+                        borderRadius: BorderRadius.circular(25),
                       ),
                     ),
                     onPressed: () {
-                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      // fire PosScreen's cleanup first so cart is cleared before UI updates
+                      onDone?.call();
+                      // pop twice: receipt was pushed, payment used pushReplacement so
+                      // only one screen sits between receipt and PosScreen on the stack
+                      Navigator.of(context).pop();
                     },
-                    child: const Text("Done", 
+                    child: const Text(
+                      "Done",
                       style: TextStyle(
-                        color: Colors.white, 
-                        fontSize: 18, 
-                        fontWeight: FontWeight.bold
-                      )
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          
+
           // success icon badge
           Positioned(
             top: 15,
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: const BoxDecoration(
-                color: Color(0xFF8BC34A), 
+                color: Color(0xFF8BC34A),
                 shape: BoxShape.circle,
                 boxShadow: [
-                  BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))
-                ]
+                  BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5)),
+                ],
               ),
               child: const Icon(Icons.check, size: 60, color: Colors.white),
             ),
@@ -188,19 +190,21 @@ class ReceiptScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, 
+          Text(
+            label,
             style: const TextStyle(
-              fontSize: 14, 
-              fontWeight: FontWeight.w600, 
-              color: Colors.black54
-            )
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black54,
+            ),
           ),
-          Text(value, 
+          Text(
+            value,
             style: const TextStyle(
-              fontSize: 14, 
-              fontWeight: FontWeight.bold, 
-              color: Colors.black87
-            )
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
         ],
       ),

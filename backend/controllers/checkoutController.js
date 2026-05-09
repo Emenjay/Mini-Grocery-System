@@ -7,13 +7,13 @@ const PausedCart = require('../models/pausedCartModel');
 exports.checkout = async (req, res) => {
   try {
     const userID = req.user.userID;
-    const { cart, payment } = req.body;
-    
+    const { cart, payment, cartNo } = req.body;
+
     // validate request body
     if (!cart || cart.length === 0) {
       return res.status(400).json({ message: 'Cart is empty' });
     }
-    if (!payment || !payment.payment_method || !payment.amount_received) {
+    if (!payment || !payment.payment_method || payment.amount_received === undefined) {
       return res.status(400).json({ message: 'Payment details are required' });
     }
 
@@ -22,16 +22,27 @@ exports.checkout = async (req, res) => {
     // Flutter sends only product_id and quantity
     let totalAmount = 0;
     const resolvedCart = [];
-  
+
     for (const item of cart) {
       const product = await Product.findProductByID(item.product_id);
       if (!product) {
         return res.status(404).json({ message: `Product ID ${item.product_id} not found` });
       }
 
-      // backend computes retail price
-      const retailPrice = Math.ceil(parseFloat(product.base_price) * (1 + parseFloat(product.markup_price) / 100));
-      const subtotal = parseFloat((retailPrice * item.quantity).toFixed(2));
+      // block unapproved products from checkout
+      if (!product.is_approved) {
+        return res.status(400).json({
+          message: `${product.product_name} is not yet approved for sale`
+        });
+      }
+
+      // retail price: base_price * (1 + markup_price / 100), rounded up to nearest whole number
+      // markup_price is stored as a percentage e.g. 10 = 10%
+      const retailPrice = Math.ceil(
+        parseFloat(product.base_price) * (1 + parseFloat(product.markup_price || 0) / 100)
+      );
+
+      const subtotal = retailPrice * item.quantity;
       totalAmount += subtotal;
 
       resolvedCart.push({
@@ -43,31 +54,33 @@ exports.checkout = async (req, res) => {
       });
     }
 
-    totalAmount = parseFloat(totalAmount.toFixed(2));
+    // round total to avoid floating point issues
+    totalAmount = Math.ceil(totalAmount);
 
-    // validate amount recieved
-    if (payment.amount_received < totalAmount) {
-      return res.status(400).json({ message: 'Amount received is less than total amount' });
-    }
+    // calculate change — cash-in validation removed per client request
+    // change can be negative if amount received is less than total (flexible payment)
+    const changeAmount = parseFloat(payment.amount_received) - totalAmount;
 
-    // calculate change
-    const changeAmount = parseFloat((payment.amount_received - totalAmount).toFixed(2));
-    
-    // geneate cart number
-    const cartNo = await Transaction.generateCartNo();
-    
-    // create payment record
-    const paymentID = await Transaction.createPayment(payment.payment_method, payment.reference_number);
-    
+    // Use provided cartNo, otherwise generate new one
+    const finalCartNo = cartNo || await Transaction.generateCartNo();
+
+    // create payment record first
+    const paymentID = await Transaction.createPayment(
+      payment.payment_method,
+      payment.reference_number || null
+    );
+
     // create transaction record
     const transactionID = await Transaction.createTransaction(
-      cartNo, userID, paymentID, totalAmount, payment.amount_received, changeAmount
+      finalCartNo, userID, paymentID, totalAmount,
+      parseFloat(payment.amount_received), changeAmount
     );
 
     const warnings = [];
+
     // process each cart item
     for (const item of resolvedCart) {
-
+      
       // insert transaction detail
       await Transaction.createTransactionDetail(
         transactionID, item.product_id, item.product_name,
@@ -79,9 +92,9 @@ exports.checkout = async (req, res) => {
 
       // check stock after deduction and warn if needed
       const inventory = await Inventory.getByProductID(item.product_id);
-      if (inventory.stock_status === 'Out of Stock') {
+      if (inventory && inventory.stock_status === 'Out of Stock') {
         warnings.push(`${item.product_name} is out of stock, please update inventory`);
-      } else if (inventory.stock_status === 'Low Stock') {
+      } else if (inventory && inventory.stock_status === 'Low Stock') {
         warnings.push(`${item.product_name} stock is low, please update inventory`);
       }
     }
@@ -96,7 +109,7 @@ exports.checkout = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error('checkout error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -165,7 +178,7 @@ exports.getTransactionDetail = async (req, res) => {
 //GET /api/transaction
 exports.getTransactionHistory = async (req, res) => {
   try {
-    const { user_id, role } = req.user;
+    const { userID, role } = req.user;
     const isAdmin = role === 'Admin';
     const [transactions] = await db.query(
       `SELECT
@@ -181,7 +194,7 @@ exports.getTransactionHistory = async (req, res) => {
        WHERE t.transaction_type = 'sale'
        ${!isAdmin ? 'AND t.user_id = ?' : ''}
        ORDER BY t.date_time DESC`,
-      !isAdmin ? [user_id] : []
+      !isAdmin ? [userID] : []
     );
 
     // Separate recent transactions (today) from previous transactions
@@ -208,7 +221,7 @@ exports.getTransactionHistory = async (req, res) => {
 exports.pauseCart = async (req, res) => {
   try {
     const userID = req.user.userID;
-    const { cart } = req.body;
+    const { cart, cartNo } = req.body;
 
     if (!cart || cart.length === 0) {
       return res.status(400).json({ message: 'Cart is empty' });
@@ -221,7 +234,7 @@ exports.pauseCart = async (req, res) => {
       if (!product) {
         return res.status(404).json({ message: `Product ID ${item.product_id} not found` });
       }
-      const retailPrice = Math.ceil(parseFloat(product.base_price) * (1 + parseFloat(product.markup_price) / 100));
+      const retailPrice = Math.ceil(parseFloat(product.base_price) * (1 + parseFloat(product.markup_price || 0) / 100));
       const subtotal = parseFloat((retailPrice * item.quantity).toFixed(2));
       resolvedItems.push({
         product_id: product.product_id,
@@ -232,8 +245,8 @@ exports.pauseCart = async (req, res) => {
       });
     }
 
-    // generate unique cart number for this paused cart
-    const cartNo = await Transaction.generateCartNo();
+    // Use provided cartNo, otherwise generate new one
+    const finalCartNo = cartNo || await Transaction.generateCartNo();
     const pausedCartID = await PausedCart.pauseCart(userID, cartNo, resolvedItems);
 
     res.status(201).json({

@@ -85,3 +85,24 @@ exports.endShift = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// GET /api/attendance/active
+// returns the active shift for today if one exists, null otherwise
+// Flutter uses this on cash-in screen load to skip straight to POS if shift is already running
+exports.getActiveShift = async (req, res) => {
+  try {
+    const userID = req.user.userID;
+ 
+    const activeShift = await Attendance.findActiveShift(userID);
+ 
+    res.status(200).json({
+      hasActiveShift: !!activeShift,
+      // only include cashIn if an active shift exists, so PosScreen can restore startingCash
+      cashIn: activeShift ? activeShift.cash_in : null,
+    });
+ 
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

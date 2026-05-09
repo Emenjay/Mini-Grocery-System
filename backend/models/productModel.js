@@ -9,57 +9,38 @@ const Product = {
 
     let query = `
       SELECT p.product_id, p.product_name, c.category_name, c.category_id,
-             p.description, p.base_price, p.markup_price, p.isfastmoving,
-             p.is_approved, p.received_date,
-             -- percentage-based retail price, rounded up (no cents)
-             CEIL(p.base_price * (1 + p.markup_price / 100)) AS retail_price,
-             p.unit_measurement,
-             i.stock_quantity, i.spoilage_date, i.stock_status, i.last_updated
+            p.description, p.base_price, p.markup_price, p.isfastmoving,
+            p.is_approved, p.received_date,
+            CEIL(p.base_price * (1 + p.markup_price / 100)) AS retail_price,
+            p.unit_measurement,
+            i.stock_quantity, i.spoilage_date, i.stock_status, i.last_updated
       FROM product p
       JOIN category c ON p.category_id = c.category_id
       LEFT JOIN inventory i ON p.product_id = i.product_id
-      WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
+      WHERE p.product_name LIKE ?
     `;
 
-    const params = [keyword, keyword];
+    // search by product name only - removed category name search
+    const params = [keyword];
 
-    // cashier POS only sees approved products
+    // approved only filter for cashier
     if (isApprovedOnly) {
       query += ` AND p.is_approved = TRUE`;
     }
 
-  // if recentlyAdded, skip all other filters and just sort by last_updated DESC
-    if (recentlyAdded) {
-      query += ` ORDER BY i.last_updated DESC`;
-
-      if (!all) {
-        query += ` LIMIT ? OFFSET ?`;
-        params.push(limit, offset);
-      }
-
-      const [rows] = await db.query(query, params);
-      // count query for pagination
-      const countQuery = `
-        SELECT COUNT(*) AS total
-        FROM product p
-        JOIN category c ON p.category_id = c.category_id
-        LEFT JOIN inventory i ON p.product_id = i.product_id
-        WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
-        ${isApprovedOnly ? 'AND p.is_approved = TRUE' : ''}
-      `;
-      const [[{ total }]] = await db.query(countQuery, [keyword, keyword]);
-      return { 
-        products: rows, 
-        pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    // category filter - applied even when recentlyAdded is true
+    if (category) {
+      query += ` AND c.category_name = ?`;
+      params.push(category);
     }
 
-    // filter by category name
-    if (category) { query += ` AND c.category_name = ?`; params.push(category); }
+    // stock status filter
+    if (stockStatus) {
+      query += ` AND i.stock_status = ?`;
+      params.push(stockStatus);
+    }
 
-    // filter by stock status
-    if (stockStatus) { query += ` AND i.stock_status = ?`; params.push(stockStatus); }
-
-    // filter by expiration date
+    // expiry filter - applied even when recentlyAdded is true
     if (expirationFilter === 'Expired') {
       query += ` AND i.spoilage_date < CURDATE()`;
     } else if (expirationFilter === 'Expiring Soon') {
@@ -68,16 +49,21 @@ const Product = {
       query += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
     }
 
-    // sorting
+    // sorting - recentlyAdded only sorts by last_updated if no other sort is chosen
     const orderClauses = [];
-    if (sortName === 'A-Z') orderClauses.push('p.product_name ASC');
-    if (sortName === 'Z-A') orderClauses.push('p.product_name DESC');
-    if (sortPrice === 'asc') orderClauses.push('retail_price ASC');
-    if (sortPrice === 'desc') orderClauses.push('retail_price DESC');
-    if (orderClauses.length > 0) query += ` ORDER BY ${orderClauses.join(', ')}`;
+      if (recentlyAdded && sortName === '' && sortPrice === '') {
+        // only use last_updated sort when no explicit sort is selected
+        orderClauses.push('i.last_updated DESC');
+      }
+      if (sortName === 'A-Z') orderClauses.push('p.product_name ASC');
+      if (sortName === 'Z-A') orderClauses.push('p.product_name DESC');
+      if (sortPrice === 'asc') orderClauses.push('retail_price ASC');
+      if (sortPrice === 'desc') orderClauses.push('retail_price DESC');
+      if (orderClauses.length > 0) {
+        query += ` ORDER BY ${orderClauses.join(', ')}`;
+    }
 
     // pagination
-    // if all is true, skip pagination
     if (!all) {
       query += ` LIMIT ? OFFSET ?`;
       params.push(limit, offset);
@@ -85,17 +71,17 @@ const Product = {
 
     const [rows] = await db.query(query, params);
 
+    // count query - same filters, no limit/offset
     let countQuery = `
       SELECT COUNT(*) AS total
       FROM product p
       JOIN category c ON p.category_id = c.category_id
       LEFT JOIN inventory i ON p.product_id = i.product_id
-      WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
-      ${isApprovedOnly ? 'AND p.is_approved = TRUE' : ''}
+      WHERE p.product_name LIKE ?
     `;
+    const countParams = [keyword];
 
-    const countParams = [keyword, keyword];
-
+    if (isApprovedOnly) countQuery += ` AND p.is_approved = TRUE`;
     if (category) { countQuery += ` AND c.category_name = ?`; countParams.push(category); }
     if (stockStatus) { countQuery += ` AND i.stock_status = ?`; countParams.push(stockStatus); }
     if (expirationFilter === 'Expired') {
@@ -107,7 +93,11 @@ const Product = {
     }
 
     const [[{ total }]] = await db.query(countQuery, countParams);
-    return { products: rows, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+
+    return {
+      products: rows,
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
+    };
   },
 
   findProductByID: async (productID) => {
