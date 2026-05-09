@@ -185,7 +185,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                 amountReceived: double.tryParse(_receivedController.text) ?? 0.0,
                                 change: _change,
                                 referenceNumber: _selectedMethod == 'GCash' ? _refController.text : null,
-                                // passing manual list for now
+                                cartNo: '', // placeholder — will be replaced when payment_screen is integrate
                                 items: const [
                                   {'name': 'Ligo Sardines in Tomato Sauce | 155 g', 'price': 23.50, 'quantity': 1},
                                   {'name': 'Lucky Me! Pancit Canton (Original)', 'price': 28.50, 'quantity': 2},

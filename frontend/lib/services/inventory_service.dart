@@ -107,4 +107,43 @@ class InventoryService {
       return {'success': false, 'message': 'Cannot connect to server.'};
     }
   }
+
+  // GET /api/inventory?all=true — fetch all approved products for cashier POS
+  // cashier only sees approved products (backend filters by role from JWT)
+  static Future<Map<String, dynamic>> getCashierProducts({
+    String search = '',
+    String category = '',
+  }) async {
+    try {
+      final queryParams = {
+        'all': 'true', // no pagination for POS product list
+        if (search.isNotEmpty) 'search': search,
+        if (category.isNotEmpty) 'category': category,
+      };
+
+      final uri = Uri.parse('${AppConstants.baseUrl}/api/inventory')
+          .replace(queryParameters: queryParams);
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AppState.token}',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'products': data['products'],
+        };
+      } else {
+        return {'success': false, 'message': data['message'] ?? 'Failed to fetch products'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Cannot connect to server.'};
+    }
+  }
 }

@@ -5,6 +5,7 @@ class ReceiptScreen extends StatelessWidget {
   final double totalAmount;
   final double amountReceived;
   final double change;
+  final String cartNo;
   final String? referenceNumber;
   final List<Map<String, dynamic>> items;
 
@@ -15,6 +16,7 @@ class ReceiptScreen extends StatelessWidget {
     required this.amountReceived,
     required this.change,
     this.referenceNumber,
+    required this.cartNo,
     required this.items,
   });
 
@@ -120,7 +122,7 @@ class ReceiptScreen extends StatelessWidget {
                 const Divider(thickness: 1),
                 
                 // summary section
-                _receiptRow("Cart No. :", "#010003"),
+                _receiptRow("Cart No. :", cartNo),
                 _receiptRow("Total Amount:", "₱ ${totalAmount.toStringAsFixed(2)}"),
                 _receiptRow("Amount Received:", "₱ ${amountReceived.toStringAsFixed(2)}"),
                 

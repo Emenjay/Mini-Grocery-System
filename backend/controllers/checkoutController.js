@@ -165,7 +165,7 @@ exports.getTransactionDetail = async (req, res) => {
 //GET /api/transaction
 exports.getTransactionHistory = async (req, res) => {
   try {
-    const { user_id, role } = req.user;
+    const { userID, role } = req.user;
     const isAdmin = role === 'Admin';
     const [transactions] = await db.query(
       `SELECT
@@ -181,7 +181,7 @@ exports.getTransactionHistory = async (req, res) => {
        WHERE t.transaction_type = 'sale'
        ${!isAdmin ? 'AND t.user_id = ?' : ''}
        ORDER BY t.date_time DESC`,
-      !isAdmin ? [user_id] : []
+      !isAdmin ? [userID] : []
     );
 
     // Separate recent transactions (today) from previous transactions

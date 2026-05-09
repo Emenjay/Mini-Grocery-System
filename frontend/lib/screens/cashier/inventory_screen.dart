@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
+import '../../../services/inventory_service.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -15,13 +16,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   String selectedCategory = 'Recently Added';
   String searchQuery = '';
-  
+
   String activeStockFilter = '';
   String activeExpiryFilter = '';
-  
+
   // SORTING STATES
-  String activeSortAlpha = 'A-Z'; 
-  String activeSortPrice = 'None'; 
+  String activeSortAlpha = '';
+  String activeSortPrice = 'None';
+
+  // backend data state
+  List<Map<String, dynamic>> _products = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  // tracks which product_ids have been added to cart to grey out their button
+  final Set<int> _addedProductIds = {};
 
   final List<String> categories = [
     'Recently Added', 'Beverages', 'Liquor & Tobacco', 'Snacks & Sweets',
@@ -29,46 +38,80 @@ class _InventoryScreenState extends State<InventoryScreen> {
     'Household Care', 'Miscellaneous',
   ];
 
-  final List<String> expirationMonths = [
-    'May 2026', 'June 2026', 'July 2026', 'August 2026',
-    'September 2026', 'October 2026', 'November 2026', 'December 2026'
+  // expiry filter options matching backend preset options
+  final List<String> expiryFilters = [
+    'Expired',
+    'Expiring Soon',
+    'Not Expiring Soon',
   ];
 
-  List<Map<String, dynamic>> products = [
-    {'id': 1, 'name': 'Malunggay Lotion 500mL', 'category': 'Personal Care', 'price': 170.00, 'added': true},
-    {'id': 2, 'name': 'Malunggay Juice 80mL', 'category': 'Beverages', 'price': 55.00, 'added': false},
-    {'id': 3, 'name': 'Malunggay Chips 20g', 'category': 'Snacks', 'price': 35.00, 'added': false},
-    {'id': 4, 'name': 'Frozen Malunggay', 'category': 'Frozen Goods', 'price': 90.00, 'added': false},
-    {'id': 5, 'name': 'Malunggay Facewash 30mL', 'category': 'Personal Care', 'price': 120.00, 'added': false},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchProducts();
+  }
 
-  List<Map<String, dynamic>> get filteredProducts {
-    List<Map<String, dynamic>> list = products.where((p) {
-      final matchesCategory = selectedCategory == 'Recently Added' || p['category'] == selectedCategory;
-      final matchesSearch = p['name'].toString().toLowerCase().contains(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
-
-    list.sort((a, b) {
-      int cmp = a['name'].toString().toLowerCase().compareTo(b['name'].toString().toLowerCase());
-      return activeSortAlpha == 'A-Z' ? cmp : -cmp;
+  Future<void> _fetchProducts() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
     });
 
-    if (activeSortPrice != 'None') {
-      list.sort((a, b) {
-        int cmp = (a['price'] as double).compareTo(b['price'] as double);
-        return activeSortPrice == 'Ascending' ? cmp : -cmp;
+    final isRecentlyAdded = selectedCategory == 'Recently Added';
+    final categoryParam = isRecentlyAdded ? '' : selectedCategory;
+
+    final result = await InventoryService.getCashierProducts(
+      search: searchQuery,
+      category: categoryParam,
+    );
+
+    if (!mounted) return;
+
+    if (result['success']) {
+      setState(() {
+        _products = (result['products'] as List).map((p) => {
+          'id': p['product_id'],
+          'name': p['product_name'],
+          'category': p['category_name'],
+          // retail price computed by backend - cashier only sees final price
+          'price': (p['retail_price'] ?? 0).toDouble(),
+          'stock_quantity': p['stock_quantity'] ?? 0,
+          'stock_status': p['stock_status'] ?? 'Out of Stock',
+        }).toList();
+        _isLoading = false;
       });
+    } else {
+      setState(() {
+        _errorMessage = result['message'];
+        _isLoading = false;
+      });
+    }
+  }
+
+  // filter and sort products locally since all are already fetched
+  List<Map<String, dynamic>> get filteredProducts {
+    List<Map<String, dynamic>> list = _products.where((p) {
+      final matchesSearch = p['name'].toString().toLowerCase().contains(searchQuery.toLowerCase());
+      // stock filter - hide out of stock products from cashier view
+      final matchesStock = p['stock_status'] != 'Out of Stock';
+      return matchesSearch && matchesStock;
+    }).toList();
+
+    // alphabetical sort
+    if (activeSortAlpha == 'A-Z') {
+      list.sort((a, b) => a['name'].toString().toLowerCase().compareTo(b['name'].toString().toLowerCase()));
+    } else if (activeSortAlpha == 'Z-A') {
+      list.sort((a, b) => b['name'].toString().toLowerCase().compareTo(a['name'].toString().toLowerCase()));
+    }
+
+    // price sort
+    if (activeSortPrice == 'Ascending') {
+      list.sort((a, b) => (a['price'] as double).compareTo(b['price'] as double));
+    } else if (activeSortPrice == 'Descending') {
+      list.sort((a, b) => (b['price'] as double).compareTo(a['price'] as double));
     }
 
     return list;
-  }
-
-  void _toggleAdd(int productId) {
-    setState(() {
-      final index = products.indexWhere((p) => p['id'] == productId);
-      if (index != -1) products[index]['added'] = true;
-    });
   }
 
   void _showAddToCartDialog(Map<String, dynamic> product) {
@@ -101,11 +144,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           decoration: BoxDecoration(color: AppColors.surfaceLightGray.withOpacity(0.5), borderRadius: BorderRadius.circular(8)),
                           child: Text("$quantity", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                         ),
-                        _quantityBtn(Icons.add, () => setDialogState(() => quantity++)),
+                        _quantityBtn(Icons.add, () {
+                          // prevent adding more than available stock
+                          if (quantity < product['stock_quantity']) {
+                            setDialogState(() => quantity++);
+                          }
+                        }),
                       ],
                     ),
                     const SizedBox(height: 25),
-                    _priceRow("Retail Price:", "₱ ${product['price'].toStringAsFixed(2)}"),
+                    _priceRow("Retail Price:", "₱ ${(product['price'] as double).toStringAsFixed(2)}"),
                     _priceRow("Total Price:", "₱ ${(product['price'] * quantity).toStringAsFixed(2)}", isTotal: true),
                     const SizedBox(height: 30),
                     Row(
@@ -121,8 +169,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
-                              _toggleAdd(product['id']);
-                              Navigator.pop(context);
+                              // mark product as added locally
+                              setState(() => _addedProductIds.add(product['id']));
+
+                              // pop and return selected item to PosScreen
+                              Navigator.pop(context, {
+                                'product_id': product['id'],
+                                'name': product['name'],
+                                'price': product['price'],
+                                'quantity': quantity,
+                              });
                             },
                             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDarkTeal, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                             child: const Text("Confirm", style: TextStyle(color: Colors.white)),
@@ -154,11 +210,31 @@ class _InventoryScreenState extends State<InventoryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(25, 60, 20, 20),
-              child: Text(
-                "Filters",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(25, 60, 20, 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Filters",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal),
+                  ),
+                  // reset all filters button
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        selectedCategory = 'Recently Added';
+                        activeStockFilter = '';
+                        activeExpiryFilter = '';
+                        activeSortAlpha = '';
+                        activeSortPrice = 'None';
+                      });
+                      _fetchProducts();
+                    },
+                    icon: const Icon(Icons.restart_alt, color: AppColors.primaryDarkTeal, size: 28),
+                    tooltip: 'Reset filters',
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -167,36 +243,34 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 children: [
                   _buildExpansionTile("Categories", children: [
                     ...categories.map((cat) => _buildDrawerLink(
-                      cat, 
+                      cat,
                       isSelected: selectedCategory == cat,
                       onTap: () {
                         setState(() => selectedCategory = cat);
                         Navigator.pop(context);
+                        _fetchProducts();
                       }
                     )),
                   ]),
-                  _buildExpansionTile("Stock Status", children: [
-                    _buildDrawerLink("Available", isSelected: activeStockFilter == "Available", onTap: () => setState(() => activeStockFilter = "Available")),
-                    _buildDrawerLink("Low Stock", isSelected: activeStockFilter == "Low Stock", onTap: () => setState(() => activeStockFilter = "Low Stock")),
-                    _buildDrawerLink("No Stock", isSelected: activeStockFilter == "No Stock", onTap: () => setState(() => activeStockFilter = "No Stock")),
-                  ]),
                   _buildExpansionTile("Expiration Date", children: [
-                    ...expirationMonths.map((month) => _buildDrawerLink(
-                      month, 
-                      isSelected: activeExpiryFilter == month,
-                      onTap: () => setState(() => activeExpiryFilter = month),
+                    // preset options matching backend
+                    ...expiryFilters.map((filter) => _buildDrawerLink(
+                      filter,
+                      isSelected: activeExpiryFilter == filter,
+                      onTap: () => setState(() => activeExpiryFilter = filter),
                     )),
                   ]),
-                  
+
                   const Divider(height: 40, thickness: 1, indent: 15, endIndent: 15),
 
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     child: Text("Alphabetical Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
                   ),
+                  _buildSortRadio("None", "", activeSortAlpha, (val) => setState(() => activeSortAlpha = val!)),
                   _buildSortRadio("A - Z", "A-Z", activeSortAlpha, (val) => setState(() => activeSortAlpha = val!)),
                   _buildSortRadio("Z - A", "Z-A", activeSortAlpha, (val) => setState(() => activeSortAlpha = val!)),
-                  
+
                   const SizedBox(height: 15),
 
                   const Padding(
@@ -206,7 +280,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   _buildSortRadio("None", "None", activeSortPrice, (val) => setState(() => activeSortPrice = val!)),
                   _buildSortRadio("Ascending", "Ascending", activeSortPrice, (val) => setState(() => activeSortPrice = val!)),
                   _buildSortRadio("Descending", "Descending", activeSortPrice, (val) => setState(() => activeSortPrice = val!)),
-                  
+
                   const SizedBox(height: 40),
                 ],
               ),
@@ -219,24 +293,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
         backgroundColor: AppColors.mutedGreen,
         elevation: 0,
         centerTitle: false,
-        automaticallyImplyLeading: false, 
-        // ACTIONS REMOVED to hide the default drawer button
-        actions: [const SizedBox.shrink()], 
-        leadingWidth: 70, 
+        automaticallyImplyLeading: false,
+        actions: [const SizedBox.shrink()],
+        leadingWidth: 70,
         leading: Padding(
           padding: const EdgeInsets.only(left: 15.0),
           child: Center(
             child: GestureDetector(
               onTap: () => Navigator.of(context).pop(),
               child: Container(
-                padding: const EdgeInsets.all(8), 
+                padding: const EdgeInsets.all(8),
                 decoration: const BoxDecoration(
-                  color: Colors.white, 
+                  color: Colors.white,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.keyboard_return, 
-                  color: AppColors.primaryDarkTeal, 
+                  Icons.keyboard_return,
+                  color: AppColors.primaryDarkTeal,
                   size: 22,
                 ),
               ),
@@ -244,10 +317,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
         ),
         title: const Text(
-          'Inventory', 
+          'Inventory',
           style: TextStyle(
-            color: Colors.white, 
-            fontSize: 26, 
+            color: Colors.white,
+            fontSize: 26,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -274,7 +347,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             height: 29,
                             decoration: BoxDecoration(color: AppColors.surfaceLightGray.withOpacity(0.4), borderRadius: BorderRadius.circular(8)),
                             child: TextField(
-                              onChanged: (v) => setState(() => searchQuery = v),
+                              onChanged: (v) {
+                                setState(() => searchQuery = v);
+                                // search filters locally since all products already fetched
+                              },
                               decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
                             ),
                           ),
@@ -301,7 +377,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: GestureDetector(
-                            onTap: () => setState(() => selectedCategory = cat),
+                            onTap: () {
+                              setState(() => selectedCategory = cat);
+                              _fetchProducts();
+                            },
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                               decoration: BoxDecoration(color: isSelected ? AppColors.primaryDarkTeal : AppColors.surfaceLightGray, borderRadius: BorderRadius.circular(18)),
@@ -313,59 +392,70 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ),
                   ),
                   const Divider(height: 16),
+                  // loading, error, empty, and product list states
                   Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      itemCount: filteredProducts.length,
-                      itemBuilder: (context, index) {
-                        final product = filteredProducts[index];
-                        final isAdded = product['added'] as bool;
-                        return Container(
-                          margin: const EdgeInsets.symmetric(vertical: 5),
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            border: Border.all(color: AppColors.surfaceLightGray.withOpacity(0.6)),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _errorMessage != null
+                        ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)))
+                        : filteredProducts.isEmpty
+                          ? const Center(child: Text("No products found"))
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              itemCount: filteredProducts.length,
+                              itemBuilder: (context, index) {
+                                final product = filteredProducts[index];
+                                // check if this product has already been added to cart
+                                final isAdded = _addedProductIds.contains(product['id']);
+                                return Container(
+                                  margin: const EdgeInsets.symmetric(vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.white,
+                                    border: Border.all(color: AppColors.surfaceLightGray.withOpacity(0.6)),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
-                                        Text(product['name'].toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
-                                        const SizedBox(height: 2),
-                                        Text(product['category'].toString(), style: const TextStyle(fontSize: 11, color: Colors.black45, fontStyle: FontStyle.italic)),
-                                        const Spacer(),
-                                        Align(alignment: Alignment.bottomRight, child: Text('₱ ${(product['price'] as double).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.black54))),
+                                        Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(product['name'].toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
+                                                const SizedBox(height: 2),
+                                                Text(product['category'].toString(), style: const TextStyle(fontSize: 11, color: Colors.black45, fontStyle: FontStyle.italic)),
+                                                const Spacer(),
+                                                // show retail price only - base price and markup hidden from cashier
+                                                Align(alignment: Alignment.bottomRight, child: Text('₱ ${(product['price'] as double).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.black54))),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () {
+                                            // prevent adding already-added product again
+                                            if (!isAdded) _showAddToCartDialog(product);
+                                          },
+                                          child: Container(
+                                            width: 56,
+                                            constraints: const BoxConstraints(minHeight: 70),
+                                            decoration: BoxDecoration(
+                                              // grey out button if already added
+                                              color: isAdded ? Colors.grey[400] : AppColors.mutedGreen,
+                                              borderRadius: const BorderRadius.only(topRight: Radius.circular(8), bottomRight: Radius.circular(8)),
+                                            ),
+                                            child: const Icon(Icons.add, color: Colors.white, size: 28),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
-                                ),
-                                GestureDetector(
-                                  onTap: () {
-                                    if (!isAdded) _showAddToCartDialog(product);
-                                  },
-                                  child: Container(
-                                    width: 56,
-                                    constraints: const BoxConstraints(minHeight: 70),
-                                    decoration: BoxDecoration(
-                                      color: isAdded ? Colors.grey[400] : AppColors.mutedGreen,
-                                      borderRadius: const BorderRadius.only(topRight: Radius.circular(8), bottomRight: Radius.circular(8)),
-                                    ),
-                                    child: const Icon(Icons.add, color: Colors.white, size: 28),
-                                  ),
-                                ),
-                              ],
+                                );
+                              },
                             ),
-                          ),
-                        );
-                      },
-                    ),
                   ),
                 ],
               ),
@@ -405,9 +495,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
         child: Text(
-          text, 
+          text,
           style: TextStyle(
-            color: isSelected ? AppColors.primaryDarkTeal : Colors.black54, 
+            color: isSelected ? AppColors.primaryDarkTeal : Colors.black54,
             fontSize: 15,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
