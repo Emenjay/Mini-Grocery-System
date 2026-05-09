@@ -32,12 +32,12 @@ class MyApp extends StatelessWidget{
       ),
       
       // starting point
-      initialRoute: '/inventory-dashboard',
+      initialRoute: '/',
 
       routes: {
-        '/inventory-dashboard': (context) => const InventoryDashboard(),
         '/': (context) => const LoginPage(),
         '/login': (context) => const LoginPage(),
+        '/inventory-dashboard': (context) => const InventoryDashboard(),
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/admin-inventory': (context) => const AdminInventoryScreen(),
         '/admin-product-detail': (context) => const AdminProductDetailScreen(productList: [], initialIndex: 0),
