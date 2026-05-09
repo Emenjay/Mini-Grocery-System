@@ -82,8 +82,8 @@ class _PosScreenState extends State<PosScreen> {
   // called both from the Hold button and from resume flow
   Future<bool> _pauseCurrentCart() async {
     if (cartItems.isEmpty) return true; // nothing to pause, treat as success
-
-    final result = await CheckoutService.pauseCart(cartItems);
+    // Pass the current cart number
+    final result = await CheckoutService.pauseCart(cartItems, cartNo: _cartNo);
 
     if (!mounted) return false;
 
@@ -442,8 +442,15 @@ class _PosScreenState extends State<PosScreen> {
                             Navigator.push(context, MaterialPageRoute(
                               builder: (context) => PaymentScreen(
                                 totalAmount: total,
-                                // cartNo: _cartNo,
-                                // cartItems: cartItems,
+                                cartNo: _cartNo,
+                                cartItems: cartItems,
+                                // clear cart and generate new cart number once receipt is dismissed
+                                onDone: () {
+                                  setState(() {
+                                    cartItems.clear();
+                                    _cartNo = _generateCartNo();
+                                  });
+                                },
                               ),
                             ));
                           },

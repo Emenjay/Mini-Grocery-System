@@ -199,57 +199,58 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   Widget _transactionCard(BuildContext context, Map<String, dynamic> data, {required bool isPrevious}) {
-    return GestureDetector(
-      // fetch full detail on tap to get real items for receipt
-      onTap: () => _openReceipt(data['transaction_id']),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 15),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isPrevious ? const Color(0xFFE1ECEA) : Colors.white,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Cart No.",
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-                Text(
-                  data['cart_no'] ?? '',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF345149),
-                  ),
-                ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  "₱ ${double.tryParse(data['total'].toString())?.toStringAsFixed(2) ?? '0.00'}",
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF4CAF50),
-                  ),
-                ),
-                // date formatted from backend date_time field
-                Text(
-                  data['date'] ?? '',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-            ),
-          ],
-        ),
+  return GestureDetector(
+    // fetch full detail on tap to get real items for receipt
+    onTap: () => _openReceipt(data['transaction_id']),
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isPrevious ? const Color(0xFFE1ECEA) : Colors.white,
+        borderRadius: BorderRadius.circular(15),
       ),
-    );
-  }
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Cart No.",
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              Text(
+                data['cart_no'] ?? '',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF345149),
+                ),
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // backend returns total_amount, not total
+              Text(
+                "₱ ${double.tryParse(data['total_amount'].toString())?.toStringAsFixed(2) ?? '0.00'}",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF4CAF50),
+                ),
+              ),
+              // backend returns date_time, not date
+              Text(
+                data['date_time'] ?? '',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
 }

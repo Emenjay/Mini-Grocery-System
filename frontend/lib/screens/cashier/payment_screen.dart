@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
+import '../../services/checkout_service.dart';
 import 'receipt_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
   final double totalAmount;
-  // w db, pass a list of cart items here too
-  const PaymentScreen({super.key, required this.totalAmount});
+  final String cartNo;
+  // cart items passed from PosScreen — used as payload for the checkout API call
+  final List<Map<String, dynamic>> cartItems;
+  // called after successful checkout, passed through to ReceiptScreen
+  // PosScreen uses this to clear the cart and generate a new cart number
+  final VoidCallback? onDone;
+
+  const PaymentScreen({
+    super.key,
+    required this.totalAmount,
+    required this.cartNo,
+    required this.cartItems,
+    this.onDone,
+  });
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -16,6 +29,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   final TextEditingController _refController = TextEditingController();
   double _change = 0.00;
   bool _isButtonEnabled = false;
+  // tracks loading state while checkout API call is in progress
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -26,7 +41,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   void _validateInputs() {
     double received = double.tryParse(_receivedController.text) ?? 0.0;
-    
+
     setState(() {
       // auto generate change
       _change = received >= widget.totalAmount ? received - widget.totalAmount : 0.00;
@@ -35,10 +50,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (_selectedMethod == 'Cash') {
         _isButtonEnabled = received >= widget.totalAmount && _receivedController.text.isNotEmpty;
       } else {
-        // REMOVED: 13-char alphanumeric restriction. 
+        // REMOVED: 13-char alphanumeric restriction.
         // Now just checks if not empty.
-        _isButtonEnabled = received >= widget.totalAmount && 
-                          _receivedController.text.isNotEmpty && 
+        _isButtonEnabled = received >= widget.totalAmount &&
+                          _receivedController.text.isNotEmpty &&
                           _refController.text.isNotEmpty;
       }
     });
@@ -51,6 +66,74 @@ class _PaymentScreenState extends State<PaymentScreen> {
     super.dispose();
   }
 
+  // call backend checkout endpoint, then navigate to receipt on success
+  Future<void> _confirmPayment() async {
+    final double amountReceived = double.tryParse(_receivedController.text) ?? 0.0;
+
+    setState(() => _isLoading = true);
+
+    final result = await CheckoutService.checkout(
+      cartItems: widget.cartItems,
+      paymentMethod: _selectedMethod,
+      amountReceived: amountReceived,
+      cartNo: widget.cartNo,
+      referenceNumber: _selectedMethod == 'GCash' ? _refController.text : null,
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (!result['success']) {
+      // show error and stay on screen — do not navigate
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Checkout failed')),
+      );
+      return;
+    }
+
+    final data = result['data'];
+
+    // show any stock warnings (low stock / out of stock) after successful checkout
+    if (data['warnings'] != null && (data['warnings'] as List).isNotEmpty) {
+      for (final warning in data['warnings']) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(warning.toString()),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+
+    // map cart items to receipt format — name, price, quantity for display
+    final List<Map<String, dynamic>> receiptItems = widget.cartItems.map((item) => {
+      'name': item['name'],
+      'price': item['price'],
+      'quantity': item['quantity'],
+    }).toList();
+
+    if (!mounted) return;
+
+    // replace PaymentScreen with ReceiptScreen so back button goes to POS not payment
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReceiptScreen(
+          paymentMethod: _selectedMethod,
+          totalAmount: double.tryParse(data['totalAmount'].toString()) ?? widget.totalAmount,
+          amountReceived: amountReceived,
+          change: double.tryParse(data['changeAmount'].toString()) ?? _change,
+          referenceNumber: _selectedMethod == 'GCash' ? _refController.text : null,
+          // cart number comes from backend response to stay in sync
+          cartNo: data['cartNo'] ?? widget.cartNo,
+          items: receiptItems,
+          // clear POS cart and generate new cart number after successful transaction
+          onDone: widget.onDone,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -60,7 +143,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          // disable back button while API call is in progress
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
         ),
       ),
       body: Column(
@@ -95,22 +179,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       items: ['Cash', 'GCash'].map((String value) {
                         return DropdownMenuItem<String>(value: value, child: Text(value));
                       }).toList(),
-                      onChanged: (val) {
+                      // disable dropdown while loading
+                      onChanged: _isLoading ? null : (val) {
                         setState(() {
                           _selectedMethod = val!;
-                          _validateInputs(); 
+                          _validateInputs();
                         });
                       },
                     ),
                   ),
                 ),
                 const SizedBox(height: 25),
-                _summaryRow("Cart No. :", "#010003"),
+                // cart number passed from PosScreen
+                _summaryRow("Cart No. :", widget.cartNo),
                 const SizedBox(height: 10),
                 _summaryRow("Total Amount:", "₱ ${widget.totalAmount.toStringAsFixed(2)}"),
                 const SizedBox(height: 10),
-                
-                // only show change for cash
+
+                // only show change row for cash payments
                 if (_selectedMethod == 'Cash')
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -127,10 +213,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             const Text("₱ ", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
                             Text(_change.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(width: 4),
-                            Icon(Icons.check, size: 14, color: _change >= 0 && _receivedController.text.isNotEmpty ? Colors.green : Colors.grey),
+                            Icon(
+                              Icons.check,
+                              size: 14,
+                              color: _change >= 0 && _receivedController.text.isNotEmpty
+                                  ? Colors.green
+                                  : Colors.grey,
+                            ),
                           ],
                         ),
-                      )
+                      ),
                     ],
                   ),
               ],
@@ -146,7 +238,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     const Text("Enter Reference Number:", style: TextStyle(color: Colors.white, fontSize: 16)),
                     const SizedBox(height: 8),
                     _inputField(_refController, "e.g. 1234ABC567890", isAlphanumeric: true),
-                    
+
                     // REMOVED: 13-character restriction error message
                     const SizedBox(height: 20),
                   ],
@@ -154,8 +246,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   const SizedBox(height: 8),
                   _inputField(_receivedController, "0.00", isAlphanumeric: false),
 
-                  // Error message for Money Received
-                  if (_receivedController.text.isNotEmpty && 
+                  // error message shown when received amount is less than total
+                  if (_receivedController.text.isNotEmpty &&
                       (double.tryParse(_receivedController.text) ?? 0.0) < widget.totalAmount)
                     const Padding(
                       padding: EdgeInsets.only(top: 8.0, left: 4.0),
@@ -172,31 +264,22 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF67B285),
-                        disabledBackgroundColor: Colors.grey, // grey when unclickable
+                        disabledBackgroundColor: Colors.grey,
                         shape: const StadiumBorder(),
                       ),
-                      onPressed: _isButtonEnabled 
-                        ? () => Navigator.push(
-                            context, 
-                            MaterialPageRoute(
-                              builder: (context) => ReceiptScreen(
-                                paymentMethod: _selectedMethod,
-                                totalAmount: widget.totalAmount,
-                                amountReceived: double.tryParse(_receivedController.text) ?? 0.0,
-                                change: _change,
-                                referenceNumber: _selectedMethod == 'GCash' ? _refController.text : null,
-                                cartNo: '', // placeholder — will be replaced when payment_screen is integrate
-                                items: const [
-                                  {'name': 'Ligo Sardines in Tomato Sauce | 155 g', 'price': 23.50, 'quantity': 1},
-                                  {'name': 'Lucky Me! Pancit Canton (Original)', 'price': 28.50, 'quantity': 2},
-                                  {'name': 'Datu Puti Vinegar (1L)', 'price': 43.00, 'quantity': 1},
-                                  {'name': 'Safeguard Pure White | 175 g', 'price': 68.00, 'quantity': 1},
-                                ],
-                              ),
-                            ),
+                      // disable while loading or inputs invalid — calls _confirmPayment which hits the backend
+                      onPressed: _isButtonEnabled && !_isLoading ? _confirmPayment : null,
+                      child: _isLoading
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            // loading spinner while checkout API call is in flight
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
-                        : null, 
-                      child: const Text("Confirm", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        : const Text(
+                            "Confirm",
+                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
                     ),
                   ),
                 ],
@@ -221,6 +304,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Widget _inputField(TextEditingController controller, String hint, {bool isAlphanumeric = false}) {
     return TextField(
       controller: controller,
+      // disable input fields while loading
+      enabled: !_isLoading,
       keyboardType: isAlphanumeric ? TextInputType.text : TextInputType.number,
       textCapitalization: TextCapitalization.characters,
       decoration: InputDecoration(
