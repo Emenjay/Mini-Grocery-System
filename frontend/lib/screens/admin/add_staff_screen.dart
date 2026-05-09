@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import 'dart:math';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class AddStaffScreen extends StatefulWidget {
   final void Function(Map<String, dynamic> newStaff)? onStaffAdded;
@@ -23,6 +25,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
   String? _generatedUsername; 
   String? _generatedPassword;  
   bool _credentialsGenerated = false;
+  File? _pickedPhoto;
 
   /* Generate credentials based on full name and selected role
      - Username: DinglePM_<LastName>
@@ -72,7 +75,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
     'name': _nameController.text.trim(),
     'role': _selectedRole,
     'onDuty': false,
-    'photo': 'assets/images/logo.png',
+    'photo': _pickedPhoto?.path ?? 'assets/images/logo.png',
     'contactNumber': '+639${_contactController.text.trim()}',
     'address': _addressController.text.trim(),
     'username': _generatedUsername,
@@ -82,6 +85,55 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
   Navigator.pop(context);
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(content: Text('Staff member added successfully! :)')),
+  );
+}
+
+// Photo picker
+Future<void> _pickPhoto() async {
+  final picker = ImagePicker();
+  await showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (_) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined,
+                color: AppColors.primaryDarkTeal),
+            title: const Text('Choose from Gallery'),
+            onTap: () async {
+              Navigator.pop(context);
+              final picked = await picker.pickImage(
+                source: ImageSource.gallery,
+                imageQuality: 80,
+              );
+              if (picked != null) {
+                setState(() => _pickedPhoto = File(picked.path));
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.camera_alt_outlined,
+                color: AppColors.primaryDarkTeal),
+            title: const Text('Take a Photo'),
+            onTap: () async {
+              Navigator.pop(context);
+              final picked = await picker.pickImage(
+                source: ImageSource.camera,
+                imageQuality: 80,
+              );
+              if (picked != null) {
+                setState(() => _pickedPhoto = File(picked.path));
+              }
+            },
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
   );
 }
 
@@ -225,9 +277,12 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                             fontWeight: FontWeight.bold,
                           )),
                         
-                        // photo picker (just a placeholder atm)
+                        // photo picker 
                         const SizedBox(height: 20),
-                        const _ProfilePhotoPicker(),
+                        _ProfilePhotoPicker(
+                          photo: _pickedPhoto,
+                          onTap: _pickPhoto,
+                        ),
                         const SizedBox(height: 24),
               
                         // name field
@@ -370,42 +425,71 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
 // -- Helper widgets --
 // --- Profile photo picker placeholder
 class _ProfilePhotoPicker extends StatelessWidget {
-  const _ProfilePhotoPicker();
+  final File? photo;
+  final VoidCallback onTap;
+
+  const _ProfilePhotoPicker({required this.onTap, this.photo});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context){
     return GestureDetector(
-      // TODO: wire up image_picker when ready
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Photo picker coming soon...')),
-      ),
-      child: Container(
-        width: 120, height: 120,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha:0.20),
-          border: Border.all(color: Colors.white38, width: 2),
-        ),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add, color: Colors.white, size: 32),
+      onTap: onTap,
+      child: Stack(
+        children: [
+          Container(
+            width: 120, height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.20),
+              border: Border.all(color: Colors.white38, width: 2),
 
-            SizedBox(height: 4),
-
-            Text('Profile Photo',
-              style: TextStyle(
-                color: Colors.white70,
-                fontFamily: AppFonts.avenir,
-                fontSize: 11,
-              )
+              image: photo != null
+              ? DecorationImage(
+                  image: FileImage(photo!),
+                  fit: BoxFit.cover,
+                )
+              : null,
             ),
-          ],
-        ),
+
+            child: photo == null
+            ? const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add, color: Colors.white, size: 32),
+
+                  SizedBox(height: 4),
+
+                  Text('Profile Photo',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontFamily: AppFonts.avenir,
+                      fontSize: 11,
+                    )
+                  ),
+                ],
+              )
+            : null,
+          ),
+          
+          // edit badge shown after photo is picked
+          if (photo != null)
+            Positioned(
+              bottom: 4, right: 4,
+              child: Container(
+                width: 28, height: 28,
+                decoration: const BoxDecoration(
+                  color: AppColors.mutedGreen,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.edit, color: Colors.white, size: 14),
+              ),
+            ),
+        ],
       ),
     );
   }
 }
+
 
 // --- reusable _TextField with validator
 class _TextField extends StatelessWidget {
@@ -494,10 +578,10 @@ class _RoleDropdown extends StatelessWidget {
           ),
           
           icon: const Icon(Icons.arrow_drop_down,
-              color: AppColors.primaryDarkTeal),
+          color: AppColors.primaryDarkTeal),
           dropdownColor: Colors.white,
           style: const TextStyle(
-            
+    
             color: Colors.black87,
             fontFamily: AppFonts.poppins,
             fontSize: 14,

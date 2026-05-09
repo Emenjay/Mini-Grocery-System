@@ -4,6 +4,7 @@ import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import 'staff_info_screen.dart';
 import 'add_staff_screen.dart';
+import 'dart:io';
 
 class StaffListScreen extends StatefulWidget {
   final bool isSubPage;
@@ -322,20 +323,39 @@ class _StaffListScreenState extends State<StaffListScreen> {
       ),
       builder: (_) => _StaffMenuSheet(
         staff: staff,
+        
         onView: () {
           Navigator.pop(context);
-          Navigator.push(context,
-          MaterialPageRoute(builder: (_) => StaffInfoScreen(staff: staff)));
-        },
-        onEdit: () {
-          Navigator.pop(context);
-          Navigator.push(
+          Navigator.push<Map<String, dynamic>>(
             context,
-            MaterialPageRoute(
-              builder: (context) => StaffInfoScreen(staff: staff, initialIsEditing: true),
-            ),
+            MaterialPageRoute(builder: (_) => StaffInfoScreen(staff: staff)),
+          ).then(
+            (updatedStaff) {
+              if (updatedStaff == null) return;
+              setState(() {
+                final i = staffList.indexWhere((s) => s['id'] == updatedStaff['id']);
+                if (i != -1) staffList[i] = updatedStaff;
+              });
+            }
           );
         },
+
+        onEdit: () {
+          Navigator.pop(context);
+           Navigator.push<Map<String, dynamic>>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StaffInfoScreen(staff: staff, initialIsEditing: true),
+            ),
+          ).then((updatedStaff) {
+            if (updatedStaff == null) return;
+            setState(() {
+              final i = staffList.indexWhere((s) => s['id'] == updatedStaff['id']);
+              if (i != -1) staffList[i] = updatedStaff;
+            });
+          });
+        },
+
         onToggleDuty: () {
           Navigator.pop(context);
           setState(() {
@@ -343,6 +363,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
             if (i != -1) staffList[i]['onDuty'] = !staffList[i]['onDuty'];
           });
         },
+
         onRemove: () {
           Navigator.pop(context);
           _showRemoveConfirmation(context, staff);
@@ -898,13 +919,24 @@ class _StaffCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: staff['photo'].toString().isNotEmpty && staff['photo'].toString().startsWith('assets')
-                      ? Image.asset(
-                    staff['photo'].toString(),
-                    width: 100, height: 100, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
-                  )
-                      : _buildPlaceholderPhoto(),
+                  child: () {
+                    final photo = staff['photo'].toString();
+                    if (photo.startsWith('assets/')) {
+                      return Image.asset(
+                        photo,
+                        width: 100, height: 100, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
+                      );
+                    } else if (photo.isNotEmpty) {
+                      return Image.file(
+                        File(photo),
+                        width: 100, height: 100, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
+                      );
+                    } else {
+                      return _buildPlaceholderPhoto();
+                    }
+                  }(),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
