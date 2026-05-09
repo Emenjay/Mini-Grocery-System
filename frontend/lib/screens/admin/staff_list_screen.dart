@@ -4,6 +4,7 @@ import '../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import 'staff_info_screen.dart';
 import 'add_staff_screen.dart';
+import 'dart:io';
 
 class StaffListScreen extends StatefulWidget {
   final bool isSubPage;
@@ -898,13 +899,24 @@ class _StaffCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: staff['photo'].toString().isNotEmpty && staff['photo'].toString().startsWith('assets')
-                      ? Image.asset(
-                    staff['photo'].toString(),
-                    width: 100, height: 100, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
-                  )
-                      : _buildPlaceholderPhoto(),
+                  child: () {
+                    final photo = staff['photo'].toString();
+                    if (photo.startsWith('assets/')) {
+                      return Image.asset(
+                        photo,
+                        width: 100, height: 100, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
+                      );
+                    } else if (photo.isNotEmpty) {
+                      return Image.file(
+                        File(photo),
+                        width: 100, height: 100, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
+                      );
+                    } else {
+                      return _buildPlaceholderPhoto();
+                    }
+                  }(),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
