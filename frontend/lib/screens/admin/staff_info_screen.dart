@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import '../../services/staff_service.dart';
 
 class StaffInfoScreen extends StatefulWidget {
   final Map<String, dynamic> staff;
   final bool initialIsEditing;
 
   const StaffInfoScreen({
-    super.key, 
+    super.key,
     required this.staff,
     this.initialIsEditing = false,
   });
@@ -19,6 +20,8 @@ class StaffInfoScreen extends StatefulWidget {
 
 class _StaffInfoScreenState extends State<StaffInfoScreen> {
   late bool _isEditing;
+  List<dynamic> _attendance = [];
+  bool _loadingAttendance = true;
 
   // Controllers for future DB integration
   late TextEditingController _nameController;
@@ -29,9 +32,16 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
   void initState() {
     super.initState();
     _isEditing = widget.initialIsEditing;
-    _nameController = TextEditingController(text: widget.staff['name'].toString());
-    _contactController = TextEditingController(text: widget.staff['contactNumber'].toString());
-    _addressController = TextEditingController(text: widget.staff['address'].toString());
+    _nameController = TextEditingController(
+      text: widget.staff['full_name'] ?? '',
+    );
+    _contactController = TextEditingController(
+      text: widget.staff['contact_number'] ?? '',
+    );
+    _addressController = TextEditingController(
+      text: widget.staff['address'] ?? '',
+    );
+    _loadAttendance();
   }
 
   @override
@@ -42,18 +52,39 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
     super.dispose();
   }
 
-  void _toggleEdit() {
+  void _toggleEdit() async {
     if (_isEditing) {
-      // Transition from editing to viewing
-      setState(() {
-        _isEditing = false;
-      });
-      _showUpdateSuccess(context);
+      final result = await StaffService.updateStaff(
+        id: widget.staff['user_id'],
+        fullName: _nameController.text.trim(),
+        contactNumber: _contactController.text.trim(),
+        address: _addressController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      if (result['success']) {
+        setState(() => _isEditing = false);
+
+        _showUpdateSuccess(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Failed to update')),
+        );
+      }
     } else {
-      setState(() {
-        _isEditing = true;
-      });
+      setState(() => _isEditing = true);
     }
+  }
+
+  // add this method
+  Future<void> _loadAttendance() async {
+    final result = await StaffService.getStaffByID(widget.staff['user_id']);
+    if (!mounted) return;
+    setState(() {
+      _attendance = result['attendance'] ?? [];
+      _loadingAttendance = false;
+    });
   }
 
   void _showUpdateSuccess(BuildContext context) {
@@ -62,13 +93,19 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF2D936C), size: 60),
+                const Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: Color(0xFF2D936C),
+                  size: 60,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   "Update Successful",
@@ -87,12 +124,20 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF35524A),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    child: const Text("Close", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      "Close",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -101,10 +146,19 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
     );
   }
 
+  bool _parseOnDuty() {
+    final val = widget.staff['is_on_duty'];
+    if (val == null) return false;
+    if (val is bool) return val;
+    if (val is int) return val == 1;
+    if (val is String) return val == '1' || val.toLowerCase() == 'true';
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bool onDuty = widget.staff['onDuty'] as bool? ?? false;
-    final List shifts = widget.staff["shifts"] as List? ?? [];
+    final bool onDuty = _parseOnDuty();
+    final List shifts = _attendance;
 
     return Scaffold(
       backgroundColor: Colors.white, // Extend white background to bottom
@@ -123,7 +177,13 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
               Container(
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: const CircleAvatar(
                   radius: 22,
@@ -136,20 +196,22 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Hello,',
+                  Text(
+                    'Hello,',
                     style: GoogleFonts.poppins(
-                      fontSize: 13, 
-                      color: Colors.white, 
-                      fontWeight: FontWeight.w400
-                    )
-                  ),
-                  Text('Russel Marie!', // Logged-in admin name
-                    style: GoogleFonts.poppins(
-                      fontSize: 15, 
-                      fontWeight: FontWeight.bold, 
-                      color: Colors.white
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w400,
                     ),
-                  )
+                  ),
+                  Text(
+                    'Russel Marie!', // Logged-in admin name
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ],
               ),
               const Spacer(),
@@ -168,8 +230,11 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                         color: Colors.white.withOpacity(0.15),
                         border: Border.all(color: Colors.white24),
                       ),
-                      child: const Icon(Icons.notifications_none_rounded,
-                          color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.notifications_none_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                     Positioned(
                       top: 8,
@@ -178,8 +243,9 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                         width: 7,
                         height: 7,
                         decoration: const BoxDecoration(
-                          color: Colors.red, 
-                          shape: BoxShape.circle),
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
                   ],
@@ -207,7 +273,10 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                 children: [
                   // Back button and duty status row
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -285,7 +354,11 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.add, color: Colors.white, size: 30),
+                              const Icon(
+                                Icons.add,
+                                color: Colors.white,
+                                size: 30,
+                              ),
                               Text(
                                 'Profile Photo',
                                 style: GoogleFonts.poppins(
@@ -299,11 +372,14 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
+
                   if (_isEditing)
                     Container(
                       width: 250,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(15),
@@ -341,10 +417,10 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  
+
                   const SizedBox(height: 4),
                   Text(
-                    widget.staff['role'].toString(),
+                    widget.staff['role_name'] ?? ''.toString(),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Color.fromARGB(153, 236, 233, 233),
@@ -380,9 +456,9 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _toggleEdit,
                           icon: Icon(
-                            _isEditing ? Icons.check : Icons.edit, 
-                            size: 14, 
-                            color: Colors.white
+                            _isEditing ? Icons.check : Icons.edit,
+                            size: 14,
+                            color: Colors.white,
                           ),
                           label: Text(
                             _isEditing ? 'Confirm' : 'Edit Account',
@@ -410,7 +486,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                     _buildEditableField(_contactController)
                   else
                     _SectionValue(value: _contactController.text),
-                  
+
                   const SizedBox(height: 18),
 
                   const _SectionLabel(label: 'Full Address:'),
@@ -419,7 +495,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                     _buildEditableField(_addressController)
                   else
                     _SectionValue(value: _addressController.text),
-                  
+
                   const SizedBox(height: 32),
 
                   // -- Tracked Attendance Section --
@@ -444,29 +520,31 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                         ),
                         const SizedBox(height: 16),
                         shifts.isEmpty
-                          ? const Center(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(vertical: 20),
-                                child: Text(
-                                  'No attendance records yet.',
-                                  style: TextStyle(
-                                    fontFamily: AppFonts.avenir,
-                                    color: Colors.white54,
-                                    fontSize: 13,
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 20),
+                                  child: Text(
+                                    'No attendance records yet.',
+                                    style: TextStyle(
+                                      fontFamily: AppFonts.avenir,
+                                      color: Colors.white54,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
+                              )
+                            : ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: shifts.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 10),
+                                itemBuilder: (context, index) {
+                                  final shift =
+                                      shifts[index] as Map<String, dynamic>;
+                                  return _AttendanceRow(shift: shift);
+                                },
                               ),
-                            )
-                          : ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: shifts.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 10),
-                              itemBuilder: (context, index) {
-                                final shift = shifts[index] as Map<String, dynamic>;
-                                return _AttendanceRow(shift: shift);
-                              },
-                            ),
                       ],
                     ),
                   ),
@@ -490,10 +568,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
       ),
       child: TextField(
         controller: controller,
-        style: GoogleFonts.poppins(
-          fontSize: 14,
-          color: Colors.black87,
-        ),
+        style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
         decoration: const InputDecoration(
           border: InputBorder.none,
           isDense: true,
@@ -548,11 +623,45 @@ class _AttendanceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLogOut = shift['type'].toString().toLowerCase() == 'log out';
+    // parse clock_in and clock_out from backend
+    final clockIn = shift['clock_in_timestamp'];
+    final clockOut = shift['clock_out_timestamp'];
 
-    final Color timeColor = isLogOut 
-        ? const Color.fromARGB(255, 229, 57, 53) 
-        : const Color.fromARGB(255, 80, 193, 84);
+    // format timestamps
+    String formatTime(String? ts) {
+      if (ts == null) return 'N/A';
+      final dt = DateTime.tryParse(ts);
+      if (dt == null) return 'N/A';
+      final hour = dt.hour > 12
+          ? dt.hour - 12
+          : dt.hour == 0
+          ? 12
+          : dt.hour;
+      final min = dt.minute.toString().padLeft(2, '0');
+      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+      return '$hour:$min $ampm';
+    }
+
+    String formatDate(String? ts) {
+      if (ts == null) return 'N/A';
+      final dt = DateTime.tryParse(ts);
+      if (dt == null) return 'N/A';
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -560,36 +669,84 @@ class _AttendanceRow extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            shift['type'].toString(),
-            style: const TextStyle(
-              fontFamily: AppFonts.figtree,
-              fontSize: 14,
-              color: Colors.black87,
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          // Clock In row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                shift['time'].toString(),
+              const Text(
+                'Clock In',
                 style: TextStyle(
                   fontFamily: AppFonts.figtree,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: timeColor,
+                  fontSize: 13,
+                  color: Colors.black87,
                 ),
               ),
-              Text(
-                shift['date'].toString(),
-                style: const TextStyle(
-                  fontFamily: AppFonts.poppins,
-                  fontSize: 11,
-                  color: Colors.black45,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    formatTime(clockIn?.toString()),
+                    style: const TextStyle(
+                      fontFamily: AppFonts.figtree,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 80, 193, 84),
+                    ),
+                  ),
+                  Text(
+                    formatDate(clockIn?.toString()),
+                    style: const TextStyle(
+                      fontFamily: AppFonts.poppins,
+                      fontSize: 10,
+                      color: Colors.black45,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Clock Out row
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Clock Out',
+                style: TextStyle(
+                  fontFamily: AppFonts.figtree,
+                  fontSize: 13,
+                  color: Colors.black87,
                 ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    clockOut != null
+                        ? formatTime(clockOut.toString())
+                        : 'Still on duty',
+                    style: TextStyle(
+                      fontFamily: AppFonts.figtree,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: clockOut != null
+                          ? const Color.fromARGB(255, 229, 57, 53)
+                          : Colors.orange,
+                    ),
+                  ),
+                  if (clockOut != null)
+                    Text(
+                      formatDate(clockOut.toString()),
+                      style: const TextStyle(
+                        fontFamily: AppFonts.poppins,
+                        fontSize: 10,
+                        color: Colors.black45,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),

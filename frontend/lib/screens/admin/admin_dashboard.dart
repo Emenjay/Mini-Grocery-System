@@ -7,6 +7,8 @@ import 'package:frontend/theme/text_styles.dart';
 import 'admin_inventory.dart';
 import 'staff_list_screen.dart';
 import 'admin_profile_screen.dart';
+import '../../services/session_service.dart';
+import '../../utils/app_state.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STAFF DATA MODEL
@@ -26,10 +28,30 @@ class _StaffData {
 }
 
 const List<_StaffData> _sampleStaff = [
-  _StaffData(role: 'Cashier',   name: 'Michael John Ramos',     time: 'Active since 2 mins ago', isActive: true),
-  _StaffData(role: 'Inventory', name: 'Lyra Bellah Buenavista', time: 'Active since 8 mins ago', isActive: true),
-  _StaffData(role: 'Cashier',   name: 'Gwen Tricia Lingling',   time: 'Active since 5 hrs ago',  isActive: false),
-  _StaffData(role: 'Cashier',   name: 'Gwen Tricia Aman',       time: 'Off Duty',                isActive: false),
+  _StaffData(
+    role: 'Cashier',
+    name: 'Michael John Ramos',
+    time: 'Active since 2 mins ago',
+    isActive: true,
+  ),
+  _StaffData(
+    role: 'Inventory',
+    name: 'Lyra Bellah Buenavista',
+    time: 'Active since 8 mins ago',
+    isActive: true,
+  ),
+  _StaffData(
+    role: 'Cashier',
+    name: 'Gwen Tricia Lingling',
+    time: 'Active since 5 hrs ago',
+    isActive: false,
+  ),
+  _StaffData(
+    role: 'Cashier',
+    name: 'Gwen Tricia Aman',
+    time: 'Off Duty',
+    isActive: false,
+  ),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,15 +68,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _selectedIndex = -1;
 
   void _onItemTapped(int index) {
-    if (index == 4) { 
+    if (index == 4) {
       _showLogoutConfirmation(context);
-      return; 
+      return;
     }
     setState(() {
-      if      (index == 0) _selectedIndex = 0;
-      else if (index == 1) _selectedIndex = 1;
-      else if (index == 2) _selectedIndex = -1;
-      else if (index == 3) _selectedIndex = 2;
+      if (index == 0)
+        _selectedIndex = 0;
+      else if (index == 1)
+        _selectedIndex = 1;
+      else if (index == 2)
+        _selectedIndex = -1;
+      else if (index == 3)
+        _selectedIndex = 2;
     });
   }
 
@@ -65,13 +91,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.help_outline_rounded, color: Color(0xFF35524A), size: 60),
+                const Icon(
+                  Icons.help_outline_rounded,
+                  color: Color(0xFF35524A),
+                  size: 60,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   "Logout Session",
@@ -91,10 +123,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.black12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                       ),
-                      child: const Text("Cancel", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        "Cancel",
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                     ElevatedButton(
                       onPressed: () {
@@ -103,10 +146,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF35524A),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                       ),
-                      child: const Text("Logout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        "Logout",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -125,13 +179,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF2D936C), size: 60),
+                const Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: Color(0xFF2D936C),
+                  size: 60,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   "Logged Out",
@@ -147,14 +207,33 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false),
+                    onPressed: () async {
+                      // clear session first
+                      await SessionService.clearSession();
+                      AppState.clearSession();
+                      if (context.mounted) {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/',
+                          (route) => false,
+                        );
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF35524A),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
-                    child: const Text("Close", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      "Close",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -174,7 +253,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         backgroundColor: Colors.white,
         body: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
-          transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+          transitionBuilder: (child, anim) =>
+              FadeTransition(opacity: anim, child: child),
           child: _buildBody(),
         ),
         bottomNavigationBar: _MovingCircleNavBar(
@@ -187,9 +267,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildBody() {
     switch (_selectedIndex) {
-      case 0: return const AdminInventoryScreen(key: ValueKey('Inventory'), isSubPage: true);
-      case 1: return const StaffListScreen(key: ValueKey('StaffList'), isSubPage: true);
-      case 2: return const AdminProfileScreen(key: ValueKey('Profile'), isSubPage: true);
+      case 0:
+        return const AdminInventoryScreen(
+          key: ValueKey('Inventory'),
+          isSubPage: true,
+        );
+      case 1:
+        return const StaffListScreen(
+          key: ValueKey('StaffList'),
+          isSubPage: true,
+        );
+      case 2:
+        return const AdminProfileScreen(
+          key: ValueKey('Profile'),
+          isSubPage: true,
+        );
       default:
         return _DashboardContent(
           key: const ValueKey('Dashboard'),
@@ -270,55 +362,98 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(children: [
-        Container(
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-          ),
-          child: const CircleAvatar(
-            radius: 22,
-            backgroundColor: Colors.white,
-            backgroundImage: AssetImage('assets/images/logo.png'),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Hello,', style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF2E4F4F), fontWeight: FontWeight.w400)),
-              Text('Russel Marie!',
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF2E4F4F)),
-                maxLines: 1,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        Container(width: 1, height: 25, color: Colors.grey.shade300),
-        const SizedBox(width: 6),
-        GestureDetector(
-          onTap: () => Navigator.pushNamed(context, '/notifications'),
-          child: Stack(clipBehavior: Clip.none, children: [
-            Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(
-                color: Colors.white, shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 2))],
-              ),
-              child: const Icon(Icons.notifications_none_rounded, color: Colors.black87, size: 20),
+      child: Row(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
-            Positioned(top: 8, right: 10,
-              child: Container(width: 7, height: 7,
-                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
+            child: const CircleAvatar(
+              radius: 22,
+              backgroundColor: Colors.white,
+              backgroundImage: AssetImage('assets/images/logo.png'),
             ),
-          ]),
-        ),
-      ]),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Hello,',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: const Color(0xFF2E4F4F),
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                Text(
+                  'Russel Marie!',
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF2E4F4F),
+                  ),
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(width: 1, height: 25, color: Colors.grey.shade300),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/notifications'),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 5,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Colors.black87,
+                    size: 20,
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 10,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -350,38 +485,63 @@ class _SalesCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Stack(fit: StackFit.expand, children: [
-          CustomPaint(painter: isMonthly ? _BarPainter() : _RingPainter()),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Column(
-              crossAxisAlignment: isMonthly ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(title,
-                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 2),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: isMonthly ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Text(amount,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CustomPaint(painter: isMonthly ? _BarPainter() : _RingPainter()),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Column(
+                crossAxisAlignment: isMonthly
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
                     style: GoogleFonts.poppins(
-                      fontSize: 30, fontWeight: FontWeight.w600,
-                      color: Colors.white, letterSpacing: 1.5, height: 1.1,
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                ),
-                const SizedBox(height: 1),
-                Text(subtitle, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 9)),
-              ],
+                  const SizedBox(height: 2),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: isMonthly
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: Text(
+                      amount,
+                      style: GoogleFonts.poppins(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: 1.5,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.poppins(
+                      color: Colors.white70,
+                      fontSize: 9,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -399,24 +559,40 @@ class _RingPainter extends CustomPainter {
     canvas.drawCircle(Offset(cx, cy), size.height * 0.40, paint);
     canvas.drawCircle(Offset(cx, cy), size.height * 0.70, paint);
   }
-  @override bool shouldRepaint(_) => false;
+
+  @override
+  bool shouldRepaint(_) => false;
 }
 
 class _BarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withAlpha(30)..style = PaintingStyle.fill;
+    final paint = Paint()
+      ..color = Colors.white.withAlpha(30)
+      ..style = PaintingStyle.fill;
     const heights = [0.5, 0.8, 0.4, 0.9, 0.6];
-    const barW = 14.0; const gapW = 6.0; const startX = 15.0;
+    const barW = 14.0;
+    const gapW = 6.0;
+    const startX = 15.0;
     for (int i = 0; i < heights.length; i++) {
       final barH = size.height * heights[i];
-      canvas.drawRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(startX + i * (barW + gapW), size.height - barH, barW, barH),
-        const Radius.circular(4),
-      ), paint);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            startX + i * (barW + gapW),
+            size.height - barH,
+            barW,
+            barH,
+          ),
+          const Radius.circular(4),
+        ),
+        paint,
+      );
     }
   }
-  @override bool shouldRepaint(_) => false;
+
+  @override
+  bool shouldRepaint(_) => false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -435,13 +611,15 @@ class _CalendarCard extends StatelessWidget {
         color: const Color(0xFF35524A),
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
         ],
       ),
       child: SfCalendarTheme(
-        data: SfCalendarThemeData(
-          backgroundColor: Colors.transparent,
-        ),
+        data: SfCalendarThemeData(backgroundColor: Colors.transparent),
         child: SfCalendar(
           view: CalendarView.month,
           showNavigationArrow: true,
@@ -477,7 +655,7 @@ class _CalendarCard extends StatelessWidget {
               ),
               todayTextStyle: TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.bold
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
@@ -512,26 +690,50 @@ class _ActiveStaffCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         gradient: const LinearGradient(
           colors: [Color(0xFF2F4F4F), Color(0xFF3FAF9F)],
-          begin: Alignment.bottomLeft, end: Alignment.topRight,
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
         ),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Active Staff',
-                style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-            GestureDetector(
-              onTap: onViewMore,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                child: Text('View More',
-                    style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w400, color: Colors.black87)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Active Staff',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ]),
+              GestureDetector(
+                onTap: onViewMore,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'View More',
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Expanded(
             child: ListView.separated(
@@ -553,46 +755,74 @@ class _StaffItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Container(
-        width: 100,
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(6)),
-        child: Center(child: Text(data.role,
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 10))),
-      ),
-      const SizedBox(width: 8),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(data.name,
-                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 11),
-                overflow: TextOverflow.ellipsis, maxLines: 1),
-            Text(data.time, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 9)),
-          ],
-        ),
-      ),
-      const SizedBox(width: 8),
-      Stack(children: [
+    return Row(
+      children: [
         Container(
-          width: 30, height: 30,
-          decoration: BoxDecoration(color: const Color(0xFF324A4A), borderRadius: BorderRadius.circular(5)),
-          child: const Icon(Icons.person, color: Colors.white38, size: 18),
-        ),
-        Positioned(top: 2, right: 2,
-          child: Container(
-            width: 8, height: 8,
-            decoration: BoxDecoration(
-              color: data.isActive ? Colors.greenAccent : Colors.grey,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 1),
+          width: 100,
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.black26,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Center(
+            child: Text(
+              data.role,
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 10),
             ),
           ),
         ),
-      ]),
-    ]);
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                data.name,
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              Text(
+                data.time,
+                style: GoogleFonts.poppins(color: Colors.white70, fontSize: 9),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Stack(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: const Color(0xFF324A4A),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: const Icon(Icons.person, color: Colors.white38, size: 18),
+            ),
+            Positioned(
+              top: 2,
+              right: 2,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: data.isActive ? Colors.greenAccent : Colors.grey,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 
@@ -603,73 +833,119 @@ class _MovingCircleNavBar extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onItemSelected;
 
-  const _MovingCircleNavBar({required this.selectedIndex, required this.onItemSelected});
+  const _MovingCircleNavBar({
+    required this.selectedIndex,
+    required this.onItemSelected,
+  });
 
   int get activeIndex {
-    if (selectedIndex == 0)  return 0;
-    if (selectedIndex == 1)  return 1;
+    if (selectedIndex == 0) return 0;
+    if (selectedIndex == 1) return 1;
     if (selectedIndex == -1) return 2;
-    if (selectedIndex == 2)  return 3;
+    if (selectedIndex == 2) return 3;
     return 2;
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 95, color: Colors.transparent,
-      child: LayoutBuilder(builder: (context, constraints) {
-        final double itemWidth = constraints.maxWidth / 5;
-        final double targetX   = (activeIndex * itemWidth) + (itemWidth / 2);
+      height: 95,
+      color: Colors.transparent,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double itemWidth = constraints.maxWidth / 5;
+          final double targetX = (activeIndex * itemWidth) + (itemWidth / 2);
 
-        return TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: targetX),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOutCubic,
-          builder: (context, x, _) => Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(bottom: 0, left: 0, right: 0, height: 65,
-                  child: CustomPaint(painter: _NavPainter(x))),
-              Positioned(left: x - 30, bottom: 28,
-                child: Container(
-                  width: 60, height: 60,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2E4F4F), shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4),
-                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(50), blurRadius: 10, offset: const Offset(0, 5))],
-                  ),
-                  child: Center(child: Icon(_iconFor(activeIndex), color: Colors.white, size: 28)),
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(end: targetX),
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOutCubic,
+            builder: (context, x, _) => Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 65,
+                  child: CustomPaint(painter: _NavPainter(x)),
                 ),
-              ),
-              Positioned(bottom: 0, left: 0, right: 0, height: 65,
-                child: Row(
-                  children: List.generate(5, (i) => Expanded(
-                    child: GestureDetector(
-                      onTap: () => onItemSelected(i),
-                      behavior: HitTestBehavior.opaque,
-                      child: Center(child: Opacity(
-                        opacity: activeIndex == i ? 0 : 0.6,
-                        child: Icon(_iconFor(i), color: Colors.white, size: 24),
-                      )),
+                Positioned(
+                  left: x - 30,
+                  bottom: 28,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2E4F4F),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(50),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
-                  )),
+                    child: Center(
+                      child: Icon(
+                        _iconFor(activeIndex),
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
-      }),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 65,
+                  child: Row(
+                    children: List.generate(
+                      5,
+                      (i) => Expanded(
+                        child: GestureDetector(
+                          onTap: () => onItemSelected(i),
+                          behavior: HitTestBehavior.opaque,
+                          child: Center(
+                            child: Opacity(
+                              opacity: activeIndex == i ? 0 : 0.6,
+                              child: Icon(
+                                _iconFor(i),
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
   IconData _iconFor(int i) {
     switch (i) {
-      case 0: return Icons.inventory_2_outlined;
-      case 1: return Icons.group_outlined;
-      case 2: return Icons.grid_view_rounded;
-      case 3: return Icons.person_pin_outlined;
-      case 4: return Icons.logout_rounded;
-      default: return Icons.grid_view_rounded;
+      case 0:
+        return Icons.inventory_2_outlined;
+      case 1:
+        return Icons.group_outlined;
+      case 2:
+        return Icons.grid_view_rounded;
+      case 3:
+        return Icons.person_pin_outlined;
+      case 4:
+        return Icons.logout_rounded;
+      default:
+        return Icons.grid_view_rounded;
     }
   }
 }
@@ -680,14 +956,23 @@ class _NavPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF2E8B7F)..style = PaintingStyle.fill;
+    final paint = Paint()
+      ..color = const Color(0xFF2E8B7F)
+      ..style = PaintingStyle.fill;
     final path = Path()
       ..moveTo(0, 0)
       ..lineTo(centerX - 50, 0)
       ..quadraticBezierTo(centerX - 40, 0, centerX - 36, 12)
-      ..arcToPoint(Offset(centerX + 36, 12), radius: const Radius.circular(38), clockwise: false)
+      ..arcToPoint(
+        Offset(centerX + 36, 12),
+        radius: const Radius.circular(38),
+        clockwise: false,
+      )
       ..quadraticBezierTo(centerX + 40, 0, centerX + 50, 0)
-      ..lineTo(size.width, 0)..lineTo(size.width, size.height)..lineTo(0, size.height)..close();
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
     canvas.drawPath(path, paint);
   }
 
@@ -705,13 +990,22 @@ class PlaceholderPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     color: Colors.white,
-    child: Center(child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.construction, size: 64, color: Color(0xFF2E8B7F)),
-        const SizedBox(height: 16),
-        Text(title, style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF2E4F4F))),
-      ],
-    )),
+    child: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.construction, size: 64, color: Color(0xFF2E8B7F)),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF2E4F4F),
+            ),
+          ),
+        ],
+      ),
+    ),
   );
 }

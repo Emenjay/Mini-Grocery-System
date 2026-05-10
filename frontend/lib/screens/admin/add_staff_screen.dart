@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import 'dart:math';
+import '../../services/staff_service.dart';
 
 class AddStaffScreen extends StatefulWidget {
   final void Function(Map<String, dynamic> newStaff)? onStaffAdded;
@@ -12,7 +13,6 @@ class AddStaffScreen extends StatefulWidget {
 }
 
 class _AddStaffScreenState extends State<AddStaffScreen> {
-
   // state variables
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
@@ -20,8 +20,8 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
   static const List<String> _roles = ['Inventory Staff', 'Cashier'];
   final TextEditingController _contactController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
-  String? _generatedUsername; 
-  String? _generatedPassword;  
+  String? _generatedUsername;
+  String? _generatedPassword;
   bool _credentialsGenerated = false;
 
   /* Generate credentials based on full name and selected role
@@ -33,7 +33,9 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the employee\'s full name first.')),
+        const SnackBar(
+          content: Text('Please enter the employee\'s full name first.'),
+        ),
       );
       return;
     }
@@ -53,45 +55,83 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
       final int pinLength = 4 + Random().nextInt(3);
       final int pinMin = pow(10, pinLength - 1).toInt();
       final int pinMax = pow(10, pinLength).toInt();
-      _generatedPassword = (pinMin + Random().nextInt(pinMax - pinMin)).toString();
+      _generatedPassword = (pinMin + Random().nextInt(pinMax - pinMin))
+          .toString();
       _credentialsGenerated = true;
     });
   }
 
   // form validation
-  void _submitForm() {
-  if (!(_formKey.currentState?.validate() ?? false)) return;
-  if (!_credentialsGenerated) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please generate login credentials before saving.')),
+  void _submitForm() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!_credentialsGenerated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please generate login credentials before saving.'),
+        ),
+      );
+      return;
+    }
+
+    int roleID;
+    if (_selectedRole == 'Inventory Staff') {
+      roleID = 6;
+    } else if (_selectedRole == 'Cashier') {
+      roleID = 5;
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a role.')));
+      return;
+    }
+
+    final result = await StaffService.addStaff(
+      roleID: roleID,
+      username: _generatedUsername!,
+      password: _generatedPassword!,
+      fullName: _nameController.text.trim(),
+      contactNumber: '+639${_contactController.text.trim()}',
+      address: _addressController.text.trim(),
     );
-    return;
+
+    if (!mounted) return;
+
+    if (result['success']) {
+      widget.onStaffAdded?.call(result['user'] ?? {});
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Staff member added successfully!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Failed to add staff')),
+      );
+    }
+
+    final newStaff = <String, dynamic>{
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'name': _nameController.text.trim(),
+      'role': _selectedRole,
+      'onDuty': false,
+      'photo': 'assets/images/logo.png',
+      'contactNumber': '+639${_contactController.text.trim()}',
+      'address': _addressController.text.trim(),
+      'username': _generatedUsername,
+      'shifts': <Map<String, dynamic>>[],
+    };
+    widget.onStaffAdded?.call(newStaff);
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Staff member added successfully! :)')),
+    );
   }
-  final newStaff = <String, dynamic>{
-    'id': DateTime.now().millisecondsSinceEpoch,
-    'name': _nameController.text.trim(),
-    'role': _selectedRole,
-    'onDuty': false,
-    'photo': 'assets/images/logo.png',
-    'contactNumber': '+639${_contactController.text.trim()}',
-    'address': _addressController.text.trim(),
-    'username': _generatedUsername,
-    'shifts': <Map<String, dynamic>>[],
-  };
-  widget.onStaffAdded?.call(newStaff);
-  Navigator.pop(context);
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Staff member added successfully! :)')),
-  );
-}
 
-
- // dispose of controllers to prevent memory leaks when the widget is destroyed
+  // dispose of controllers to prevent memory leaks when the widget is destroyed
   @override
   void dispose() {
     _nameController.dispose();
-    _contactController.dispose();   
-    _addressController.dispose(); 
+    _contactController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -108,7 +148,8 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
         toolbarHeight: 89,
         title: Row(
           children: [
-            Image.asset('assets/images/logo.png',
+            Image.asset(
+              'assets/images/logo.png',
               height: 56,
               errorBuilder: (_, __, ___) => const CircleAvatar(
                 backgroundColor: AppColors.white,
@@ -118,27 +159,29 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
             ),
 
             const SizedBox(width: 12),
-            
+
             // TODO: replace with logged-in user's name from auth state
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Hello,',
+                Text(
+                  'Hello,',
                   style: TextStyle(
                     color: AppColors.white,
                     fontFamily: AppFonts.avenir,
                     fontSize: 14,
                     fontWeight: FontWeight.w100,
-                  )
+                  ),
                 ),
-                Text('Russel Marie!',
+                Text(
+                  'Russel Marie!',
                   style: TextStyle(
                     color: AppColors.white,
                     fontFamily: AppFonts.avenir,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                  )
+                  ),
                 ),
               ],
             ),
@@ -146,7 +189,8 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
             const Spacer(),
 
             Container(
-              width: 1, height: 40,
+              width: 1,
+              height: 40,
               color: Colors.white38,
               margin: const EdgeInsets.only(right: 16),
             ),
@@ -155,20 +199,28 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  width: 44, height: 44,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha:0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                   ),
-                  child: const Icon(Icons.notifications_outlined,
-                      color: Colors.white, size: 24),
+                  child: const Icon(
+                    Icons.notifications_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
                 Positioned(
-                  top: 4, right: 4,
+                  top: 4,
+                  right: 4,
                   child: Container(
-                    width: 8, height: 8,
+                    width: 8,
+                    height: 8,
                     decoration: const BoxDecoration(
-                        color: Colors.red, shape: BoxShape.circle),
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
               ],
@@ -200,36 +252,42 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                               GestureDetector(
                                 onTap: () => Navigator.pop(context),
                                 child: Container(
-                                  width: 40, height: 40,
+                                  width: 40,
+                                  height: 40,
                                   decoration: const BoxDecoration(
                                     color: Colors.white,
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.arrow_back,
-                                      color: AppColors.primaryDarkTeal, size: 20),
+                                  child: const Icon(
+                                    Icons.arrow_back,
+                                    color: AppColors.primaryDarkTeal,
+                                    size: 20,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        
+
                         const SizedBox(height: 12),
 
                         // screen title
-                        const Text('Add New Employee',
+                        const Text(
+                          'Add New Employee',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
                             fontFamily: AppFonts.poppins,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                          )),
-                        
+                          ),
+                        ),
+
                         // photo picker (just a placeholder atm)
                         const SizedBox(height: 20),
                         const _ProfilePhotoPicker(),
                         const SizedBox(height: 24),
-              
+
                         // name field
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -277,19 +335,22 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                             children: [
                               _FieldLabel(label: 'Contact Number:'),
                               const SizedBox(height: 8),
-                              _ContactNumberField(controller: _contactController),
+                              _ContactNumberField(
+                                controller: _contactController,
+                              ),
                               const SizedBox(height: 20),
                               _FieldLabel(label: 'Full Address:'),
                               const SizedBox(height: 8),
                               _WhiteFormField(
                                 controller: _addressController,
                                 hintText: 'Enter Full Address',
-                                validator: (v) => (v == null || v.trim().isEmpty)
-                                  ? 'Address is required'
-                                  : null,
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                    ? 'Address is required'
+                                    : null,
                               ),
                               const SizedBox(height: 28),
-                              
+
                               // --- Generate button
                               Center(
                                 child: ElevatedButton(
@@ -297,19 +358,23 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.mutedGreen,
                                     elevation: 0,
-                                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 28,
+                                      vertical: 14,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(24),
                                     ),
                                   ),
-                                  
-                                  child: const Text('Generate Login Account',
+
+                                  child: const Text(
+                                    'Generate Login Account',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontFamily: AppFonts.poppins,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                    )
+                                    ),
                                   ),
                                 ),
                               ),
@@ -332,28 +397,28 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.primaryDarkTeal,
                                     elevation: 0,
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(14),
                                     ),
                                   ),
-                                  
-                                  child: const Text('Add Employee',
+
+                                  child: const Text(
+                                    'Add Employee',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontFamily: AppFonts.poppins,
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
-                                    )),
+                                    ),
+                                  ),
                                 ),
                               ),
-
-                              
                             ],
                           ),
                         ),
-                        
-
                       ],
                     ),
                   ),
@@ -380,10 +445,11 @@ class _ProfilePhotoPicker extends StatelessWidget {
         const SnackBar(content: Text('Photo picker coming soon...')),
       ),
       child: Container(
-        width: 120, height: 120,
+        width: 120,
+        height: 120,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha:0.20),
+          color: Colors.white.withValues(alpha: 0.20),
           border: Border.all(color: Colors.white38, width: 2),
         ),
         child: const Column(
@@ -393,12 +459,13 @@ class _ProfilePhotoPicker extends StatelessWidget {
 
             SizedBox(height: 4),
 
-            Text('Profile Photo',
+            Text(
+              'Profile Photo',
               style: TextStyle(
                 color: Colors.white70,
                 fontFamily: AppFonts.avenir,
                 fontSize: 11,
-              )
+              ),
             ),
           ],
         ),
@@ -433,7 +500,7 @@ class _TextField extends StatelessWidget {
 
       decoration: InputDecoration(
         filled: true,
-        fillColor: Colors.white.withValues(alpha:0.88),
+        fillColor: Colors.white.withValues(alpha: 0.88),
         hintText: hintText,
         hintStyle: const TextStyle(
           color: Colors.black38,
@@ -441,7 +508,10 @@ class _TextField extends StatelessWidget {
           fontSize: 14,
         ),
 
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -475,7 +545,7 @@ class _RoleDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha:0.88),
+        color: Colors.white.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(10),
       ),
 
@@ -485,30 +555,31 @@ class _RoleDropdown extends StatelessWidget {
         child: DropdownButton<String>(
           isExpanded: true,
           value: value,
-          hint: const Text('Choose Role',
+          hint: const Text(
+            'Choose Role',
             style: TextStyle(
               color: Colors.black38,
               fontFamily: AppFonts.avenir,
               fontSize: 14,
-            )
+            ),
           ),
-          
-          icon: const Icon(Icons.arrow_drop_down,
-              color: AppColors.primaryDarkTeal),
+
+          icon: const Icon(
+            Icons.arrow_drop_down,
+            color: AppColors.primaryDarkTeal,
+          ),
           dropdownColor: Colors.white,
           style: const TextStyle(
-            
             color: Colors.black87,
             fontFamily: AppFonts.poppins,
             fontSize: 14,
           ),
 
           items: roles
-          .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-          .toList(),
+              .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+              .toList(),
           onChanged: onChanged,
         ),
-        
       ),
     );
   }
@@ -522,13 +593,14 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(label,
+    return Text(
+      label,
       style: const TextStyle(
         fontFamily: AppFonts.poppins,
         fontWeight: FontWeight.bold,
         fontSize: 13,
         color: AppColors.primaryDarkTeal,
-      )
+      ),
     );
   }
 }
@@ -543,7 +615,6 @@ class _ContactNumberField extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        
         // "+639" prefix pill
         Container(
           height: 48,
@@ -553,15 +624,17 @@ class _ContactNumberField extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
           ),
           alignment: Alignment.center,
-          child: const Text('+ 639',
+          child: const Text(
+            '+ 639',
             style: TextStyle(
               color: Colors.white,
               fontFamily: AppFonts.poppins,
               fontWeight: FontWeight.w600,
               fontSize: 14,
-            )),
+            ),
+          ),
         ),
-        
+
         const SizedBox(width: 10),
 
         // validator
@@ -572,7 +645,8 @@ class _ContactNumberField extends StatelessWidget {
             // remaining 9 digits
             maxLength: 9,
             validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Contact number is required';
+              if (v == null || v.trim().isEmpty)
+                return 'Contact number is required';
               if (v.trim().length < 9) return 'Enter 9 digits after +639';
               return null;
             },
@@ -594,8 +668,10 @@ class _ContactNumberField extends StatelessWidget {
                 fontSize: 13,
               ),
 
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
@@ -605,7 +681,6 @@ class _ContactNumberField extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: Colors.redAccent),
               ),
-
             ),
           ),
         ),
@@ -645,7 +720,10 @@ class _WhiteFormField extends StatelessWidget {
           fontFamily: AppFonts.avenir,
           fontSize: 13,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -668,10 +746,7 @@ class _SystemLoginCard extends StatelessWidget {
   final String username;
   final String password;
 
-  const _SystemLoginCard({
-    required this.username,
-    required this.password,
-  });
+  const _SystemLoginCard({required this.username, required this.password});
 
   @override
   Widget build(BuildContext context) {
@@ -686,34 +761,39 @@ class _SystemLoginCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Center(
-
-            child: Text('System Login Account',
+            child: Text(
+              'System Login Account',
               style: TextStyle(
                 color: Colors.white,
                 fontFamily: AppFonts.poppins,
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
-              )),
+              ),
+            ),
           ),
 
           const SizedBox(height: 16),
-          const Text('Username:',
+          const Text(
+            'Username:',
             style: TextStyle(
               color: Colors.white70,
               fontFamily: AppFonts.avenir,
               fontSize: 12,
-            )),
+            ),
+          ),
           const SizedBox(height: 6),
           _CredentialDisplay(value: username), // reusable credential row
 
           const SizedBox(height: 14),
 
-          const Text('PIN:',
+          const Text(
+            'PIN:',
             style: TextStyle(
               color: Colors.white70,
               fontFamily: AppFonts.avenir,
               fontSize: 12,
-            )),
+            ),
+          ),
           const SizedBox(height: 6),
           _CredentialDisplay(value: password),
         ],
@@ -737,12 +817,13 @@ class _CredentialDisplay extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
 
-      child: Text(value,
+      child: Text(
+        value,
         style: const TextStyle(
           color: Colors.black87,
           fontFamily: AppFonts.poppins,
           fontSize: 14,
-        )
+        ),
       ),
     );
   }

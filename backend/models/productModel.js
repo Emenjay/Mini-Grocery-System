@@ -28,30 +28,60 @@ const Product = {
       query += ` AND p.is_approved = TRUE`;
     }
 
-  // if recentlyAdded, skip all other filters and just sort by last_updated DESC
-    if (recentlyAdded) {
-      query += ` ORDER BY i.last_updated DESC`;
+ // if recentlyAdded, sort by last_updated DESC but still apply other filters
+if (recentlyAdded) {
+  // apply stockStatus filter even in recentlyAdded mode
+  if (stockStatus) { query += ` AND i.stock_status = ?`; params.push(stockStatus); }
 
-      if (!all) {
-        query += ` LIMIT ? OFFSET ?`;
-        params.push(limit, offset);
-      }
+  // apply expiration filter even in recentlyAdded mode
+  if (expirationFilter === 'Expired') {
+    query += ` AND i.spoilage_date < CURDATE()`;
+  } else if (expirationFilter === 'Expiring Soon') {
+    query += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
+  }
 
-      const [rows] = await db.query(query, params);
-      // count query for pagination
-      const countQuery = `
-        SELECT COUNT(*) AS total
-        FROM product p
-        JOIN category c ON p.category_id = c.category_id
-        LEFT JOIN inventory i ON p.product_id = i.product_id
-        WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
-        ${isApprovedOnly ? 'AND p.is_approved = TRUE' : ''}
-      `;
-      const [[{ total }]] = await db.query(countQuery, [keyword, keyword]);
-      return { 
-        products: rows, 
-        pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } };
-    }
+   // if price sort is active, use that instead of last_updated
+  if (sortPrice === 'asc') {
+    query += ` ORDER BY CEIL(p.base_price * (1 + p.markup_price / 100)) ASC`;
+  } else if (sortPrice === 'desc') {
+    query += ` ORDER BY CEIL(p.base_price * (1 + p.markup_price / 100)) DESC`;
+  } else if (sortName === 'A-Z') {
+    query += ` ORDER BY p.product_name ASC`;
+  } else if (sortName === 'Z-A') {
+    query += ` ORDER BY p.product_name DESC`;
+  } else {
+    query += ` ORDER BY i.last_updated DESC`; // default
+  }
+
+  if (!all) {
+    query += ` LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+  }
+
+  // console.log('Final Query:', query);
+  const [rows] = await db.query(query, params);
+
+  const countQuery = `
+    SELECT COUNT(*) AS total
+    FROM product p
+    JOIN category c ON p.category_id = c.category_id
+    LEFT JOIN inventory i ON p.product_id = i.product_id
+    WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
+    ${isApprovedOnly ? 'AND p.is_approved = TRUE' : ''}
+    ${stockStatus ? 'AND i.stock_status = ?' : ''}
+    ${expirationFilter === 'Expired' ? 'AND i.spoilage_date < CURDATE()' : ''}
+    ${expirationFilter === 'Expiring Soon' ? 'AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)' : ''}
+  `;
+
+  const countParams = [keyword, keyword];
+  if (stockStatus) countParams.push(stockStatus);
+
+  const [[{ total }]] = await db.query(countQuery, countParams);
+  return {
+    products: rows,
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
+  };
+}
 
     // filter by category name
     if (category) { query += ` AND c.category_name = ?`; params.push(category); }
@@ -72,10 +102,10 @@ const Product = {
     const orderClauses = [];
     if (sortName === 'A-Z') orderClauses.push('p.product_name ASC');
     if (sortName === 'Z-A') orderClauses.push('p.product_name DESC');
-    if (sortPrice === 'asc') orderClauses.push('retail_price ASC');
-    if (sortPrice === 'desc') orderClauses.push('retail_price DESC');
+    if (sortPrice === 'asc') orderClauses.push('CEIL(p.base_price * (1 + p.markup_price / 100)) ASC');
+    if (sortPrice === 'desc') orderClauses.push('CEIL(p.base_price * (1 + p.markup_price / 100)) DESC');
     if (orderClauses.length > 0) query += ` ORDER BY ${orderClauses.join(', ')}`;
-
+    
     // pagination
     // if all is true, skip pagination
     if (!all) {

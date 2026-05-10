@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../services/admin_service.dart';
 
 class AdminProductDetailScreen extends StatefulWidget {
   final List<Map<String, dynamic>> productList;
   final int initialIndex;
 
+  // This screen allows admins to view detailed information about a specific product and edit its markup percentage, which directly affects the retail price.
   const AdminProductDetailScreen({
-    super.key, 
-    required this.productList, 
-    required this.initialIndex
+    super.key,
+    required this.productList,
+    required this.initialIndex,
   });
 
   @override
-  State<AdminProductDetailScreen> createState() => _AdminProductDetailScreenState();
+  State<AdminProductDetailScreen> createState() =>
+      _AdminProductDetailScreenState();
 }
 
 class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
   late int _currentIndex;
   bool _isMarkupEditing = false;
-  
+
   // PERCENTAGE DROPDOWN VALUES
   final List<int> _markupPercentages = [10, 12, 15, 20, 25, 30];
   int? _selectedPercentage;
@@ -31,14 +34,29 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
   }
 
   void _loadProductData() {
-    // casual check for markup percentage in your data map
-    // BACKEND: FETCH SAVED PERCENTAGE OR DEFAULT TO 10
-    _selectedPercentage = widget.productList[_currentIndex]['markupPercentage'] ?? 10;
+    final p = widget.productList[_currentIndex];
+    final raw = p['markup_price'];
+
+    // safely parse whether it comes as String, int, or double
+    double parsed = 0;
+    if (raw != null) {
+      parsed = double.tryParse(raw.toString()) ?? 0;
+    }
+
+    // snap to nearest available percentage option, default 10
+    if (parsed <= 0) {
+      _selectedPercentage = 10;
+    } else {
+      // find closest match in _markupPercentages list
+      _selectedPercentage = _markupPercentages.reduce(
+        (a, b) => (a - parsed).abs() < (b - parsed).abs() ? a : b,
+      );
+    }
   }
 
   void _navigate(int direction) {
     setState(() {
-      _isMarkupEditing = false; 
+      _isMarkupEditing = false;
       _currentIndex = (_currentIndex + direction) % widget.productList.length;
       if (_currentIndex < 0) _currentIndex = widget.productList.length - 1;
       _loadProductData();
@@ -49,15 +67,16 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
   // ROUNDED UP TO THE NEAREST WHOLE NUMBER
   double get _calculatedMarkup {
     final p = widget.productList[_currentIndex];
-    double base = (p['basePrice'] ?? p['price'] ?? 0.0).toDouble();
-    double percentage = (_selectedPercentage ?? 0) / 100;
-    return (base * percentage).ceilToDouble(); // ROUND UP TO WHOLE NUMBER
+    double base = double.tryParse(p['base_price']?.toString() ?? '0') ?? 0;
+    double markupPercent = (_selectedPercentage ?? 0) / 100;
+    return (base * (1 + markupPercent)).ceilToDouble() - base;
   }
 
   double get _retailPrice {
     final p = widget.productList[_currentIndex];
-    double base = (p['basePrice'] ?? p['price'] ?? 0.0).toDouble();
-    return base + _calculatedMarkup;
+    double base = double.tryParse(p['base_price']?.toString() ?? '0') ?? 0;
+    double markupPercent = (_selectedPercentage ?? 0) / 100;
+    return (base * (1 + markupPercent)).ceilToDouble();
   }
 
   @override
@@ -79,30 +98,61 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _circleBtn(Icons.keyboard_return, () => Navigator.pop(context)),
+                    _circleBtn(
+                      Icons.keyboard_return,
+                      () => Navigator.pop(context),
+                    ),
                     Row(
                       children: [
                         _circleBtn(Icons.arrow_back, () => _navigate(-1)),
                         const SizedBox(width: 10),
                         _circleBtn(Icons.arrow_forward, () => _navigate(1)),
                       ],
-                    )
+                    ),
                   ],
                 ),
                 const SizedBox(height: 35),
-                Text(currentProduct['name'], style: GoogleFonts.poppins(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+                Text(
+                  currentProduct['product_name'] ?? 'Unknown Product',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Container(height: 1, width: 200, color: Colors.white38),
                 const SizedBox(height: 8),
-                Text(currentProduct['category'], style: GoogleFonts.poppins(color: Colors.white70, fontSize: 16, fontStyle: FontStyle.italic)),
+                Text(
+                  currentProduct['category_name'] ?? '',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white70,
+                    fontSize: 16,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
                 const SizedBox(height: 20),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text("Retail Price", style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14, fontStyle: FontStyle.italic)),
-                      Text("₱ ${_retailPrice.toStringAsFixed(2)}", style: GoogleFonts.poppins(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                      Text(
+                        "Retail Price",
+                        style: GoogleFonts.poppins(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      Text(
+                        "₱ ${_retailPrice.toStringAsFixed(2)}",
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -119,70 +169,180 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                   _sectionTitle("Description"),
                   const Divider(thickness: 1, height: 10),
                   const SizedBox(height: 8),
-                  Text(currentProduct['description'] ?? "no description available.", style: GoogleFonts.poppins(color: Colors.black87, fontSize: 14, height: 1.4)),
+                  Text(
+                    currentProduct['description'] ??
+                        "no description available.",
+                    style: GoogleFonts.poppins(
+                      color: Colors.black87,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
                   const SizedBox(height: 25),
-                  _readOnlyTile(Icons.badge_outlined, "Product Number / ID", currentProduct['id'].toString()),
-                  _readOnlyTile(Icons.sell_outlined, "Base Price", "₱ ${(currentProduct['basePrice'] ?? currentProduct['price'] ?? 0.0).toStringAsFixed(2)}"),
-                  _readOnlyTile(Icons.inventory_2_outlined, "Available Stocks", (currentProduct['stocks'] ?? 0).toString()),
-                  _readOnlyTile(Icons.calendar_month_outlined, "Expiration Date", currentProduct['expiry'] ?? "n/a"),
+                  _readOnlyTile(
+                    Icons.badge_outlined,
+                    "Product Number / ID",
+                    currentProduct['product_id']?.toString() ?? 'N/A',
+                  ),
+                  _readOnlyTile(
+                    Icons.sell_outlined,
+                    "Base Price",
+                    "₱ ${double.tryParse(currentProduct['base_price']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00'}",
+                  ),
+                  _readOnlyTile(
+                    Icons.inventory_2_outlined,
+                    "Available Stocks",
+                    (currentProduct['stock_quantity'] ?? 0).toString(),
+                  ),
+                  _readOnlyTile(
+                    Icons.calendar_month_outlined,
+                    "Expiration Date",
+                    currentProduct['spoilage_date'] != null
+                        ? currentProduct['spoilage_date'].toString().split(
+                            'T',
+                          )[0]
+                        : 'N/A',
+                  ),
                   const SizedBox(height: 10),
-                  
+
                   // UPDATED: MARKUP PERCENTAGE DROPDOWN CARD
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 15,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _isMarkupEditing ? const Color(0xFF3E5C51) : Colors.black12, width: _isMarkupEditing ? 2 : 1),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
+                      border: Border.all(
+                        color: _isMarkupEditing
+                            ? const Color(0xFF3E5C51)
+                            : Colors.black12,
+                        width: _isMarkupEditing ? 2 : 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Markup:", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51))),
+                        Text(
+                          "Markup:",
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF3E5C51),
+                          ),
+                        ),
                         Row(
                           children: [
-                            _isMarkupEditing 
-                            ? Container(
-                                height: 35,
-                                padding: const EdgeInsets.symmetric(horizontal: 10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F1F1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<int>(
-                                    value: _selectedPercentage,
-                                    items: _markupPercentages.map((int value) {
-                                      return DropdownMenuItem<int>(
-                                        value: value,
-                                        child: Text("$value%", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51))),
-                                      );
-                                    }).toList(),
-                                    onChanged: (newValue) {
-                                      setState(() {
-                                        _selectedPercentage = newValue;
-                                      });
-                                    },
+                            _isMarkupEditing
+                                ? Container(
+                                    height: 35,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F1F1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<int>(
+                                        value: _selectedPercentage,
+                                        items: _markupPercentages.map((
+                                          int value,
+                                        ) {
+                                          return DropdownMenuItem<int>(
+                                            value: value,
+                                            child: Text(
+                                              "$value%",
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: FontWeight.bold,
+                                                color: const Color(0xFF3E5C51),
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                        onChanged: (newValue) {
+                                          setState(() {
+                                            _selectedPercentage = newValue;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    "$_selectedPercentage% (₱ ${_calculatedMarkup.toStringAsFixed(0)})",
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
                                   ),
-                                ),
-                              )
-                            : Text("$_selectedPercentage% (₱ ${_calculatedMarkup.toStringAsFixed(0)})", 
-                                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
-                            
+
                             const SizedBox(width: 10),
                             GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _isMarkupEditing = !_isMarkupEditing;
-                                  if (!_isMarkupEditing) {
-                                    // BACKEND: UPDATE PRODUCT_MARKUP_PERCENTAGE IN DATABASE
-                                    widget.productList[_currentIndex]['markupPercentage'] = _selectedPercentage;
+                              // ✅ NEW
+                              onTap: () async {
+                                if (_isMarkupEditing) {
+                                  // save to backend
+                                  final product =
+                                      widget.productList[_currentIndex];
+                                  final productId = product['product_id'];
+                                  final result =
+                                      await AdminService.updateMarkup(
+                                        productId: productId,
+                                        markupPercent:
+                                            (_selectedPercentage ?? 0)
+                                                .toDouble(),
+                                      );
+
+                                  if (!mounted) return;
+
+                                  if (result['success']) {
+                                    setState(() {
+                                      _isMarkupEditing = false;
+                                      widget.productList[_currentIndex]['markup_price'] =
+                                          _selectedPercentage;
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Markup updated successfully',
+                                        ),
+                                        backgroundColor: Color(0xFF2D936C),
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          result['message'] ??
+                                              'Failed to update markup',
+                                        ),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
                                   }
-                                });
+                                } else {
+                                  setState(() => _isMarkupEditing = true);
+                                }
                               },
-                              child: Icon(_isMarkupEditing ? Icons.check_circle : Icons.edit, size: 22, color: _isMarkupEditing ? const Color(0xFF2D936C) : Colors.black38),
+                              child: Icon(
+                                _isMarkupEditing
+                                    ? Icons.check_circle
+                                    : Icons.edit,
+                                size: 22,
+                                color: _isMarkupEditing
+                                    ? const Color(0xFF2D936C)
+                                    : Colors.black38,
+                              ),
                             ),
                           ],
                         ),
@@ -205,20 +365,53 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [Icon(icon, size: 20, color: const Color(0xFF3E5C51)), const SizedBox(width: 8), Text(label, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51)))]),
+          Row(
+            children: [
+              Icon(icon, size: 20, color: const Color(0xFF3E5C51)),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF3E5C51),
+                ),
+              ),
+            ],
+          ),
           const Divider(thickness: 1, height: 12),
-          Padding(padding: const EdgeInsets.only(left: 4, top: 2), child: Text(value, style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54))),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 2),
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String title) => Text(title, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51)));
+  Widget _sectionTitle(String title) => Text(
+    title,
+    style: GoogleFonts.poppins(
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      color: const Color(0xFF3E5C51),
+    ),
+  );
 
   Widget _circleBtn(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(padding: const EdgeInsets.all(6), decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: Icon(icon, color: const Color(0xFF3E5C51), size: 20)),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: const Color(0xFF3E5C51), size: 20),
+      ),
     );
   }
 }
