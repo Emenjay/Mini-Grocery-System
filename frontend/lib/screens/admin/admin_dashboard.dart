@@ -4,33 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import 'package:syncfusion_flutter_core/theme.dart';
 import 'package:frontend/theme/text_styles.dart';
+import '../../services/auth_service.dart';
+import '../../services/session_service.dart';
+import '../../services/dashboard_service.dart';
+import '../../utils/app_state.dart';
 import 'admin_inventory.dart';
 import 'staff_list_screen.dart';
 import 'admin_profile_screen.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// STAFF DATA MODEL
-// ─────────────────────────────────────────────────────────────────────────────
-class _StaffData {
-  final String role;
-  final String name;
-  final String time;
-  final bool isActive;
-
-  const _StaffData({
-    required this.role,
-    required this.name,
-    required this.time,
-    required this.isActive,
-  });
-}
-
-const List<_StaffData> _sampleStaff = [
-  _StaffData(role: 'Cashier',   name: 'Michael John Ramos',     time: 'Active since 2 mins ago', isActive: true),
-  _StaffData(role: 'Inventory', name: 'Lyra Bellah Buenavista', time: 'Active since 8 mins ago', isActive: true),
-  _StaffData(role: 'Cashier',   name: 'Gwen Tricia Lingling',   time: 'Active since 5 hrs ago',  isActive: false),
-  _StaffData(role: 'Cashier',   name: 'Gwen Tricia Aman',       time: 'Off Duty',                isActive: false),
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN DASHBOARD
@@ -46,9 +26,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _selectedIndex = -1;
 
   void _onItemTapped(int index) {
-    if (index == 4) { 
+    if (index == 4) {
       _showLogoutConfirmation(context);
-      return; 
+      return;
     }
     setState(() {
       if      (index == 0) _selectedIndex = 0;
@@ -58,7 +38,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
     });
   }
 
-  // --- ʟᴏɢᴏᴜᴛ ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ ᴅɪᴀʟᴏɢ ---
+  // calls backend logout then clears session and navigates to login
+  Future<void> _performLogout() async {
+    await AuthService.logout(AppState.token!);
+    await SessionService.clearSession();
+    AppState.clearSession();
+
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+  }
+
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
@@ -73,10 +62,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 const Icon(Icons.help_outline_rounded, color: Color(0xFF35524A), size: 60),
                 const SizedBox(height: 16),
-                const Text(
-                  "Logout Session",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                const Text("Logout Session", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 const Text(
                   "Are you sure you want to log out of your account?",
@@ -98,8 +84,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ),
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(context); // Close confirm
-                        _showLogoutSuccess(context);
+                        Navigator.pop(context); // close confirm dialog
+                        _performLogout();       // call backend then navigate
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF35524A),
@@ -110,51 +96,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // --- ʟᴏɢᴏᴜᴛ ꜱᴜᴄᴄᴇꜱꜱ ᴍᴏᴅᴀʟ ---
-  void _showLogoutSuccess(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF2D936C), size: 60),
-                const SizedBox(height: 16),
-                const Text(
-                  "Logged Out",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "You have been successfully logged out.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF35524A),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: const Text("Close", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                )
               ],
             ),
           ),
@@ -200,12 +141,59 @@ class _AdminDashboardState extends State<AdminDashboard> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DASHBOARD CONTENT
+// DASHBOARD CONTENT - fetches real sales and active shift data from backend
 // ─────────────────────────────────────────────────────────────────────────────
-class _DashboardContent extends StatelessWidget {
+class _DashboardContent extends StatefulWidget {
   final VoidCallback onViewStaff;
-
   const _DashboardContent({super.key, required this.onViewStaff});
+
+  @override
+  State<_DashboardContent> createState() => _DashboardContentState();
+}
+
+class _DashboardContentState extends State<_DashboardContent> {
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  // dashboard data from backend
+  double _dailySales = 0;
+  double _monthlySales = 0;
+  List<Map<String, dynamic>> _activeShifts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboard();
+  }
+
+  // fetch daily sales, monthly sales, and active shifts from GET /api/dashboard/admin
+  Future<void> _fetchDashboard() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final result = await DashboardService.getAdminDashboard();
+
+    if (!mounted) return;
+
+    if (result['success']) {
+      final data = result['data'];
+      setState(() {
+        _dailySales   = double.tryParse(data['dailySales'].toString())   ?? 0;
+        _monthlySales = double.tryParse(data['monthlySales'].toString()) ?? 0;
+        _activeShifts = (data['activeShifts'] as List)
+            .map((s) => Map<String, dynamic>.from(s))
+            .toList();
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = result['message'];
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -216,43 +204,58 @@ class _DashboardContent extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 20.0),
-            const _Header(),
+            _Header(onRefresh: _fetchDashboard),
             const SizedBox(height: 12.0),
 
-            const SizedBox(
-              height: 90.0,
-              child: _SalesCard(
-                title: 'Daily Sales Report',
-                amount: '₱ 10,352',
-                subtitle: 'as of March 11, 2026',
-                isMonthly: false,
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)),
+              )
+            else ...[
+              // daily sales card with real backend value
+              SizedBox(
+                height: 90.0,
+                child: _SalesCard(
+                  title: 'Daily Sales Report',
+                  amount: '₱ ${_dailySales.toStringAsFixed(2)}',
+                  subtitle: 'as of today',
+                  isMonthly: false,
+                ),
               ),
-            ),
-            const SizedBox(height: 8.0),
+              const SizedBox(height: 8.0),
 
-            const SizedBox(
-              height: 90.0,
-              child: _SalesCard(
-                title: 'Monthly Sales Report',
-                amount: '₱ 37,124',
-                subtitle: 'for the month of March',
-                isMonthly: true,
+              // monthly sales card with real backend value
+              SizedBox(
+                height: 90.0,
+                child: _SalesCard(
+                  title: 'Monthly Sales Report',
+                  amount: '₱ ${_monthlySales.toStringAsFixed(2)}',
+                  subtitle: 'for this month',
+                  isMonthly: true,
+                ),
               ),
-            ),
-            const SizedBox(height: 8.0),
+              const SizedBox(height: 8.0),
 
-            const _CalendarCard(),
-            const SizedBox(height: 12.0),
+              const _CalendarCard(),
+              const SizedBox(height: 12.0),
 
-            SizedBox(
-              height: 160.0,
-              child: _ActiveStaffCard(
-                staffList: _sampleStaff,
-                onViewMore: onViewStaff,
+              // active shifts from backend - shows users currently clocked in
+              SizedBox(
+                height: 160.0,
+                child: _ActiveStaffCard(
+                  activeShifts: _activeShifts,
+                  onViewMore: widget.onViewStaff,
+                ),
               ),
-            ),
+            ],
 
-            const SizedBox(height: 100.0), // navClear
+            const SizedBox(height: 100.0), // nav clear
           ],
         ),
       ),
@@ -261,10 +264,11 @@ class _DashboardContent extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HEADER
+// HEADER - uses AppState.userName instead of hardcoded name
 // ─────────────────────────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
-  const _Header();
+  final VoidCallback onRefresh;
+  const _Header({required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +293,9 @@ class _Header extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Hello,', style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF2E4F4F), fontWeight: FontWeight.w400)),
-              Text('Russel Marie!',
+              // display logged-in admin's name from AppState
+              Text(
+                '${AppState.userName}!',
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF2E4F4F)),
                 maxLines: 1,
@@ -324,7 +330,7 @@ class _Header extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SALES CARD
+// SALES CARD - unchanged styling, receives real data from _DashboardContent
 // ─────────────────────────────────────────────────────────────────────────────
 class _SalesCard extends StatelessWidget {
   final String title;
@@ -363,8 +369,7 @@ class _SalesCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title,
-                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
+                Text(title, style: GoogleFonts.poppins(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 2),
                 FittedBox(
                   fit: BoxFit.scaleDown,
@@ -420,7 +425,7 @@ class _BarPainter extends CustomPainter {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CALENDAR CARD
+// CALENDAR CARD - unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 class _CalendarCard extends StatelessWidget {
   const _CalendarCard();
@@ -434,14 +439,10 @@ class _CalendarCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF35524A),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))],
       ),
       child: SfCalendarTheme(
-        data: SfCalendarThemeData(
-          backgroundColor: Colors.transparent,
-        ),
+        data: SfCalendarThemeData(backgroundColor: Colors.transparent),
         child: SfCalendar(
           view: CalendarView.month,
           showNavigationArrow: true,
@@ -470,15 +471,8 @@ class _CalendarCard extends StatelessWidget {
             showTrailingAndLeadingDates: false,
             monthCellStyle: MonthCellStyle(
               backgroundColor: Colors.transparent,
-              textStyle: TextStyle(
-                fontFamily: AppFonts.figtree,
-                color: Colors.white,
-                fontSize: 13,
-              ),
-              todayTextStyle: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold
-              ),
+              textStyle: TextStyle(fontFamily: AppFonts.figtree, color: Colors.white, fontSize: 13),
+              todayTextStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
           todayHighlightColor: const Color(0xFF76BA99),
@@ -495,13 +489,14 @@ class _CalendarCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ACTIVE STAFF CARD
+// ACTIVE STAFF CARD - now receives real active shift data from backend
+// backend returns: user_id, full_name, profile_picture, role_name, clock_in_timestamp
 // ─────────────────────────────────────────────────────────────────────────────
 class _ActiveStaffCard extends StatelessWidget {
-  final List<_StaffData> staffList;
+  final List<Map<String, dynamic>> activeShifts;
   final VoidCallback onViewMore;
 
-  const _ActiveStaffCard({required this.staffList, required this.onViewMore});
+  const _ActiveStaffCard({required this.activeShifts, required this.onViewMore});
 
   @override
   Widget build(BuildContext context) {
@@ -534,12 +529,19 @@ class _ActiveStaffCard extends StatelessWidget {
           ]),
           const SizedBox(height: 8),
           Expanded(
-            child: ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: staffList.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 6),
-              itemBuilder: (_, i) => _StaffItem(data: staffList[i]),
-            ),
+            child: activeShifts.isEmpty
+              ? Center(
+                  child: Text(
+                    'No staff currently on duty',
+                    style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
+                  ),
+                )
+              : ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: activeShifts.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  itemBuilder: (_, i) => _ActiveShiftItem(shift: activeShifts[i]),
+                ),
           ),
         ],
       ),
@@ -547,19 +549,28 @@ class _ActiveStaffCard extends StatelessWidget {
   }
 }
 
-class _StaffItem extends StatelessWidget {
-  final _StaffData data;
-  const _StaffItem({required this.data});
+// displays a single active shift row using backend data fields
+class _ActiveShiftItem extends StatelessWidget {
+  final Map<String, dynamic> shift;
+  const _ActiveShiftItem({required this.shift});
 
   @override
   Widget build(BuildContext context) {
+    // backend returns clock_in_timestamp as a DateTime string
+    final clockIn = shift['clock_in_timestamp']?.toString() ?? '';
+    final timeStr = clockIn.isNotEmpty
+        ? 'Active since ${clockIn.substring(11, 16)}' // extract HH:mm from timestamp
+        : 'Active';
+
     return Row(children: [
       Container(
         width: 100,
         padding: const EdgeInsets.symmetric(vertical: 5),
         decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(6)),
-        child: Center(child: Text(data.role,
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 10))),
+        child: Center(child: Text(
+          shift['role_name']?.toString() ?? '',
+          style: GoogleFonts.poppins(color: Colors.white, fontSize: 10),
+        )),
       ),
       const SizedBox(width: 8),
       Expanded(
@@ -567,14 +578,17 @@ class _StaffItem extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(data.name,
-                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 11),
-                overflow: TextOverflow.ellipsis, maxLines: 1),
-            Text(data.time, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 9)),
+            Text(
+              shift['full_name']?.toString() ?? '',
+              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 11),
+              overflow: TextOverflow.ellipsis, maxLines: 1,
+            ),
+            Text(timeStr, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 9)),
           ],
         ),
       ),
       const SizedBox(width: 8),
+      // active dot indicator - all shifts here are active (clocked in, no clock out)
       Stack(children: [
         Container(
           width: 30, height: 30,
@@ -585,7 +599,7 @@ class _StaffItem extends StatelessWidget {
           child: Container(
             width: 8, height: 8,
             decoration: BoxDecoration(
-              color: data.isActive ? Colors.greenAccent : Colors.grey,
+              color: Colors.greenAccent,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 1),
             ),
@@ -597,7 +611,7 @@ class _StaffItem extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOVING CIRCLE NAV BAR
+// MOVING CIRCLE NAV BAR - unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 class _MovingCircleNavBar extends StatelessWidget {
   final int selectedIndex;
@@ -695,9 +709,6 @@ class _NavPainter extends CustomPainter {
   bool shouldRepaint(covariant _NavPainter old) => old.centerX != centerX;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PLACEHOLDER PAGE
-// ─────────────────────────────────────────────────────────────────────────────
 class PlaceholderPage extends StatelessWidget {
   final String title;
   const PlaceholderPage({super.key, required this.title});
