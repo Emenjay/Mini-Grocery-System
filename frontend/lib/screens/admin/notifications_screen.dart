@@ -1,37 +1,13 @@
-// ════════════════════════════════════════════════════════════════════════════
-//  notifications_screen.dart
-//
-//  REQUIRES in pubspec.yaml:
-//    dependencies:
-//      google_fonts: ^6.1.0
-// ════════════════════════════════════════════════════════════════════════════
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../services/notification_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DATA MODEL
-// ─────────────────────────────────────────────────────────────────────────────
-class _NotifItem {
-  final String title;
-  final String body;
-  final String time;
-  bool isRead;
-
-  _NotifItem({
-    required this.title,
-    required this.body,
-    required this.time,
-    this.isRead = false,
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COLOURS
+// COLOURS - unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 const Color _pageBg       = Color(0xFF2F514C);
 const Color _sectionLabel = Color(0xFF8DE3A9);
-const Color _readCard     = Color(0xFFCCCBCB); // both "previous" and read-recent
+const Color _readCard     = Color(0xFFCCCBCB);
 const Color _unreadCard   = Colors.white;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -45,31 +21,90 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final List<_NotifItem> _recent = [
-    _NotifItem(title: 'Restock Alert: Malunggay Cream', body: 'Recently added Malunggay Pandesal on August 20, 2025 has been all sold out. Kindly follow up supplier to deliver new stocks.', time: '7:10 PM'),
-    _NotifItem(title: 'Restock Alert: Malunggay Cream', body: 'Recently added Malunggay Pandesal on August 20, 2025 has been all sold out. Kindly follow up supplier to deliver new stocks.', time: '7:10 PM'),
-    _NotifItem(title: 'Restock Alert: Malunggay Cream', body: 'Recently added Malunggay Pandesal on August 20, 2025 has been all sold out. Kindly follow up supplier to deliver new stocks.', time: '7:10 PM'),
-    _NotifItem(title: 'Restock Alert: Malunggay Cream', body: 'Recently added Malunggay Pandesal on August 20, 2025 has been all sold out. Kindly follow up supplier to deliver new stocks.', time: '7:10 PM'),
-  ];
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  final List<_NotifItem> _previous = [
-    _NotifItem(title: 'Restock Alert: Malunggay Cream', body: 'Recently added Malunggay Pandesal on August 20, 2025 has been all sold out. Kindly follow up supplier to deliver new stocks.', time: '7:10 PM', isRead: true),
-    _NotifItem(title: 'Restock Alert: Malunggay Cream', body: 'Recently added Malunggay Pandesal on August 20, 2025 has been all sold out. Kindly follow up supplier to deliver new stocks.', time: '7:10 PM', isRead: true),
-    _NotifItem(title: 'Restock Alert: Malunggay Cream', body: 'Recently added Malunggay Pandesal on August 20, 2025 has been all sold out. Kindly follow up supplier to deliver new stocks.', time: '7:10 PM', isRead: true),
-    _NotifItem(title: 'Restock Alert: Malunggay Cream', body: 'Recently added Malunggay Pandesal on August 20, 2025 has been all sold out. Kindly follow up supplier to deliver new stocks.', time: '7:10 PM', isRead: true),
-    _NotifItem(title: 'Restock Alert: Malunggay Cream', body: 'Recently added Malunggay Pandesal on August 20, 2025 has been all sold out. Kindly follow up supplier to deliver new stocks.', time: '7:10 PM', isRead: true),
-    _NotifItem(title: 'Restock Alert: Malunggay Cream', body: 'Recently added Malunggay Pandesal on August 20, 2025 has been all sold out. Kindly follow up supplier to deliver new stocks.', time: '7:10 PM', isRead: true),
-  ];
+  // backend splits notifications by created_at date; we split into recent (today) and previous
+  List<Map<String, dynamic>> _recent   = [];
+  List<Map<String, dynamic>> _previous = [];
 
-  void _markSingleRead(_NotifItem item) {
-    setState(() => item.isRead = true);
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
   }
 
-  void _markAllRead() {
+  // fetch all notifications from backend and split into recent (today) and previous
+  Future<void> _fetchNotifications() async {
     setState(() {
-      for (final n in _recent)   n.isRead = true;
-      for (final n in _previous) n.isRead = true;
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    final result = await NotificationService.getAll();
+
+    if (!mounted) return;
+
+    if (result['success']) {
+      final List<Map<String, dynamic>> all = (result['notifications'] as List)
+          .map((n) => Map<String, dynamic>.from(n))
+          .toList();
+
+      // split by today vs previous using created_at field from backend
+      final today = DateTime.now();
+      setState(() {
+        _recent   = all.where((n) {
+          final created = DateTime.tryParse(n['created_at']?.toString() ?? '');
+          return created != null &&
+              created.year == today.year &&
+              created.month == today.month &&
+              created.day == today.day;
+        }).toList();
+        _previous = all.where((n) {
+          final created = DateTime.tryParse(n['created_at']?.toString() ?? '');
+          return created == null || !(
+              created.year == today.year &&
+              created.month == today.month &&
+              created.day == today.day);
+        }).toList();
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = result['message'];
+        _isLoading = false;
+      });
+    }
+  }
+
+  // mark a single notification as read — calls backend then updates local state
+  Future<void> _markSingleRead(Map<String, dynamic> notification) async {
+    if (notification['is_read'] == true || notification['is_read'] == 1) return;
+    final success = await NotificationService.markOneRead(notification['notification_id']);
+    if (success && mounted) {
+      setState(() => notification['is_read'] = true);
+    }
+  }
+
+  // mark all notifications as read — calls backend then updates all local states
+  Future<void> _markAllRead() async {
+    await NotificationService.markAllRead();
+    if (!mounted) return;
+    setState(() {
+      for (final n in _recent)   n['is_read'] = true;
+      for (final n in _previous) n['is_read'] = true;
+    });
+  }
+
+  // format created_at timestamp to display time string e.g. "7:10 PM"
+  String _formatTime(String? createdAt) {
+    if (createdAt == null) return '';
+    final dt = DateTime.tryParse(createdAt);
+    if (dt == null) return '';
+    final hour   = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
   }
 
   @override
@@ -78,76 +113,92 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       backgroundColor: _pageBg,
       body: Column(
         children: [
-          // HEADER
+          // HEADER — unchanged
           _NotifHeader(onBack: () => Navigator.pop(context)),
 
           // BODY
           Expanded(
-            child: Scrollbar(
-              thumbVisibility: true,
-              thickness: 4,
-              radius: const Radius.circular(4),
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 22),
-
-                    // ── RECENT label + Mark All Read ──────────────────────
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
+            child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: Colors.white))
+              : _errorMessage != null
+                ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)))
+                : Scrollbar(
+                    thumbVisibility: true,
+                    thickness: 4,
+                    radius: const Radius.circular(4),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Recent',
-                            style: GoogleFonts.poppins(
-                              color: _sectionLabel,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
+                          const SizedBox(height: 22),
+
+                          // ── RECENT label + Mark All Read ─────────────
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text('Recent',
+                                  style: GoogleFonts.poppins(color: _sectionLabel, fontSize: 15, fontWeight: FontWeight.w500),
+                                ),
+                                _MarkAllReadButton(onTap: _markAllRead),
+                              ],
                             ),
                           ),
-                          _MarkAllReadButton(onTap: _markAllRead),
+
+                          const SizedBox(height: 10),
+
+                          if (_recent.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              child: Text('No recent notifications',
+                                style: GoogleFonts.poppins(color: Colors.white38, fontSize: 13),
+                              ),
+                            )
+                          else
+                            ..._recent.map((n) => _NotifCard(
+                              title: n['title']?.toString() ?? '',
+                              body: n['message']?.toString() ?? '',
+                              time: _formatTime(n['created_at']?.toString()),
+                              isRead: n['is_read'] == true || n['is_read'] == 1,
+                              onTap: () => _markSingleRead(n),
+                            )),
+
+                          const SizedBox(height: 22),
+
+                          // ── PREVIOUS label ────────────────────────────
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Text('Previous',
+                              style: GoogleFonts.poppins(color: _sectionLabel, fontSize: 15, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          if (_previous.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              child: Text('No previous notifications',
+                                style: GoogleFonts.poppins(color: Colors.white38, fontSize: 13),
+                              ),
+                            )
+                          else
+                            ..._previous.map((n) => _NotifCard(
+                              title: n['title']?.toString() ?? '',
+                              body: n['message']?.toString() ?? '',
+                              time: _formatTime(n['created_at']?.toString()),
+                              isRead: n['is_read'] == true || n['is_read'] == 1,
+                              onTap: () => _markSingleRead(n),
+                            )),
+
+                          const SizedBox(height: 28),
                         ],
                       ),
                     ),
-
-                    const SizedBox(height: 10),
-
-                    // ── RECENT cards — each is its own card with a gap ────
-                    ..._recent.map((item) => _NotifCard(
-                      item: item,
-                      onTap: () => _markSingleRead(item),
-                    )),
-
-                    const SizedBox(height: 22),
-
-                    // ── PREVIOUS label ────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Text('Previous',
-                        style: GoogleFonts.poppins(
-                          color: _sectionLabel,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // ── PREVIOUS cards ────────────────────────────────────
-                    ..._previous.map((item) => _NotifCard(
-                      item: item,
-                      onTap: () => _markSingleRead(item),
-                    )),
-
-                    const SizedBox(height: 28),
-                  ],
-                ),
-              ),
-            ),
+                  ),
           ),
         ],
       ),
@@ -156,7 +207,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HEADER — gradient + bottom shadow
+// HEADER — unchanged from original
 // ─────────────────────────────────────────────────────────────────────────────
 class _NotifHeader extends StatelessWidget {
   final VoidCallback onBack;
@@ -169,21 +220,10 @@ class _NotifHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
-          colors: [
-            Color(0xFF2E4E49),
-            Color(0xFF2E7C71),
-            Color(0xFF48857B),
-          ],
+          colors: [Color(0xFF2E4E49), Color(0xFF2E7C71), Color(0xFF48857B)],
           stops: [0.0, 0.55, 1.0],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x41000000),
-            blurRadius: 18,
-            spreadRadius: 2,
-            offset: Offset(0, 6),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Color(0x41000000), blurRadius: 18, spreadRadius: 2, offset: Offset(0, 6))],
       ),
       child: SafeArea(
         bottom: false,
@@ -194,38 +234,19 @@ class _NotifHeader extends StatelessWidget {
             children: [
               Expanded(
                 child: Text('Notifications',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.2,
-                  ),
+                  style: GoogleFonts.poppins(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w500, letterSpacing: 0.2),
                 ),
               ),
-              Container(
-                width: 1.5,
-                height: 42,
-                color: Colors.white38,
-                margin: const EdgeInsets.only(right: 20),
-              ),
+              Container(width: 1.5, height: 42, color: Colors.white38, margin: const EdgeInsets.only(right: 20)),
               GestureDetector(
                 onTap: onBack,
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: 40, height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.18),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
+                    color: Colors.white, shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 8, offset: const Offset(0, 3))],
                   ),
-                  child: const Icon(Icons.arrow_back_rounded,
-                      color: Colors.black87, size: 22),
+                  child: const Icon(Icons.arrow_back_rounded, color: Colors.black87, size: 22),
                 ),
               ),
             ],
@@ -237,7 +258,7 @@ class _NotifHeader extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK ALL READ BUTTON — scale + opacity press animation
+// MARK ALL READ BUTTON — unchanged from original
 // ─────────────────────────────────────────────────────────────────────────────
 class _MarkAllReadButton extends StatefulWidget {
   final VoidCallback onTap;
@@ -261,10 +282,8 @@ class _MarkAllReadButtonState extends State<_MarkAllReadButton>
       duration: const Duration(milliseconds: 120),
       reverseDuration: const Duration(milliseconds: 200),
     );
-    _scale   = Tween<double>(begin: 1.0, end: 0.92).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
-    _opacity = Tween<double>(begin: 1.0, end: 0.65).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _scale   = Tween<double>(begin: 1.0, end: 0.92).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _opacity = Tween<double>(begin: 1.0, end: 0.65).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
@@ -292,20 +311,10 @@ class _MarkAllReadButtonState extends State<_MarkAllReadButton>
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.grey.shade300),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 2))],
           ),
           child: Text('Mark as All Read',
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF3A5F58),
-            ),
+            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF3A5F58)),
           ),
         ),
       ),
@@ -314,77 +323,60 @@ class _MarkAllReadButtonState extends State<_MarkAllReadButton>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NOTIFICATION CARD
-//  • Each card is its own rounded container with a small bottom margin (gap)
-//  • Tapping an unread card marks it as read with an animated colour fade
-//  • Read cards  → _readCard  (light grey)
-//  • Unread cards→ _unreadCard (white)
+// NOTIFICATION CARD — refactored to accept plain fields instead of _NotifItem
+// styling is identical to original
 // ─────────────────────────────────────────────────────────────────────────────
 class _NotifCard extends StatelessWidget {
-  final _NotifItem   item;
+  final String title;
+  final String body;
+  final String time;
+  final bool isRead;
   final VoidCallback onTap;
 
-  const _NotifCard({required this.item, required this.onTap});
+  const _NotifCard({
+    required this.title,
+    required this.body,
+    required this.time,
+    required this.isRead,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: item.isRead ? null : onTap, // only tap-able when unread
+      onTap: isRead ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeInOut,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 6), // gap between cards
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
         decoration: BoxDecoration(
-          // Smoothly animates between white (unread) and grey (read)
-          color: item.isRead ? _readCard : _unreadCard,
-          boxShadow: item.isRead
-              ? [] // read cards have no shadow — blend into bg
-              : [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.07),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: isRead ? _readCard : _unreadCard,
+          boxShadow: isRead
+              ? []
+              : [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 4, offset: const Offset(0, 2))],
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title + time row
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(item.title,
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                        height: 1.3,
-                      ),
+                    child: Text(title,
+                      style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87, height: 1.3),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(item.time,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w400,
-                    ),
+                  Text(time,
+                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.black54, fontWeight: FontWeight.w400),
                   ),
                 ],
               ),
               const SizedBox(height: 5),
-              // Body
-              Text(item.body,
-                style: GoogleFonts.poppins(
-                  fontSize: 11.5,
-                  color: Colors.black54,
-                  height: 1.45,
-                  fontWeight: FontWeight.w400,
-                ),
+              Text(body,
+                style: GoogleFonts.poppins(fontSize: 11.5, color: Colors.black54, height: 1.45, fontWeight: FontWeight.w400),
               ),
             ],
           ),
