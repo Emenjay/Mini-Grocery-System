@@ -6,6 +6,8 @@ class AdminProductDetailScreen extends StatefulWidget {
   final List<Map<String, dynamic>> productList;
   final int initialIndex;
 
+  // This screen allows admins to view detailed information about a specific product
+  // and edit its markup percentage, which directly affects the retail price.
   const AdminProductDetailScreen({
     super.key,
     required this.productList,
@@ -13,7 +15,8 @@ class AdminProductDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<AdminProductDetailScreen> createState() => _AdminProductDetailScreenState();
+  State<AdminProductDetailScreen> createState() =>
+      _AdminProductDetailScreenState();
 }
 
 class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
@@ -50,7 +53,7 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
     });
   }
 
-  // retail price = base_price * (1 + markup_percentage / 100), rounded up
+  // markup amount = base_price * markup_percentage / 100, rounded up
   double get _calculatedMarkup {
     final p = widget.productList[_currentIndex];
     double base = double.tryParse(p['base_price']?.toString() ?? '0') ?? 0;
@@ -152,7 +155,7 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
               ],
             ),
           ),
-          // product body — unchanged layout
+          // product body
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
@@ -188,7 +191,14 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Markup:", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51))),
+                        Text(
+                          "Markup:",
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF3E5C51),
+                          ),
+                        ),
                         Row(
                           children: [
                             _isMarkupEditing

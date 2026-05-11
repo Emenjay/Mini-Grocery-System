@@ -31,10 +31,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
       return;
     }
     setState(() {
-      if      (index == 0) _selectedIndex = 0;
-      else if (index == 1) _selectedIndex = 1;
-      else if (index == 2) _selectedIndex = -1;
-      else if (index == 3) _selectedIndex = 2;
+      if (index == 0)
+        _selectedIndex = 0;
+      else if (index == 1)
+        _selectedIndex = 1;
+      else if (index == 2)
+        _selectedIndex = -1;
+      else if (index == 3)
+        _selectedIndex = 2;
     });
   }
 
@@ -128,9 +132,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildBody() {
     switch (_selectedIndex) {
-      case 0: return const AdminInventoryScreen(key: ValueKey('Inventory'), isSubPage: true);
-      case 1: return const StaffListScreen(key: ValueKey('StaffList'), isSubPage: true);
-      case 2: return const AdminProfileScreen(key: ValueKey('Profile'), isSubPage: true);
+      case 0:
+        return const AdminInventoryScreen(key: ValueKey('Inventory'), isSubPage: true);
+      case 1:
+        return const StaffListScreen(key: ValueKey('StaffList'), isSubPage: true);
+      case 2:
+        return const AdminProfileScreen(key: ValueKey('Profile'), isSubPage: true);
       default:
         return _DashboardContent(
           key: const ValueKey('Dashboard'),
@@ -155,7 +162,6 @@ class _DashboardContentState extends State<_DashboardContent> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  // dashboard data from backend
   double _dailySales = 0;
   double _monthlySales = 0;
   List<Map<String, dynamic>> _activeShifts = [];
@@ -166,7 +172,6 @@ class _DashboardContentState extends State<_DashboardContent> {
     _fetchDashboard();
   }
 
-  // fetch daily sales, monthly sales, and active shifts from GET /api/dashboard/admin
   Future<void> _fetchDashboard() async {
     setState(() {
       _isLoading = true;
@@ -218,7 +223,6 @@ class _DashboardContentState extends State<_DashboardContent> {
                 child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)),
               )
             else ...[
-              // daily sales card with real backend value
               SizedBox(
                 height: 90.0,
                 child: _SalesCard(
@@ -229,8 +233,6 @@ class _DashboardContentState extends State<_DashboardContent> {
                 ),
               ),
               const SizedBox(height: 8.0),
-
-              // monthly sales card with real backend value
               SizedBox(
                 height: 90.0,
                 child: _SalesCard(
@@ -241,11 +243,8 @@ class _DashboardContentState extends State<_DashboardContent> {
                 ),
               ),
               const SizedBox(height: 8.0),
-
               const _CalendarCard(),
               const SizedBox(height: 12.0),
-
-              // active shifts from backend - shows users currently clocked in
               SizedBox(
                 height: 160.0,
                 child: _ActiveStaffCard(
@@ -254,8 +253,7 @@ class _DashboardContentState extends State<_DashboardContent> {
                 ),
               ),
             ],
-
-            const SizedBox(height: 100.0), // nav clear
+            const SizedBox(height: 100.0),
           ],
         ),
       ),
@@ -264,7 +262,7 @@ class _DashboardContentState extends State<_DashboardContent> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HEADER - uses AppState.userName instead of hardcoded name
+// HEADER - uses AppState.userName from logged‑in admin
 // ─────────────────────────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
   final VoidCallback onRefresh;
@@ -274,63 +272,67 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(children: [
-        Container(
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-          ),
-          child: const CircleAvatar(
-            radius: 22,
-            backgroundColor: Colors.white,
-            backgroundImage: AssetImage('assets/images/logo.png'),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Hello,', style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF2E4F4F), fontWeight: FontWeight.w400)),
-              // display logged-in admin's name from AppState
-              Text(
-                '${AppState.userName}!',
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF2E4F4F)),
-                maxLines: 1,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        Container(width: 1, height: 25, color: Colors.grey.shade300),
-        const SizedBox(width: 6),
-        GestureDetector(
-          onTap: () => Navigator.pushNamed(context, '/notifications'),
-          child: Stack(clipBehavior: Clip.none, children: [
-            Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(
-                color: Colors.white, shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 2))],
-              ),
-              child: const Icon(Icons.notifications_none_rounded, color: Colors.black87, size: 20),
+      child: Row(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
             ),
-            Positioned(top: 8, right: 10,
-              child: Container(width: 7, height: 7,
-                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
+            child: const CircleAvatar(
+              radius: 22,
+              backgroundColor: Colors.white,
+              backgroundImage: AssetImage('assets/images/logo.png'),
             ),
-          ]),
-        ),
-      ]),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Hello,', style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF2E4F4F), fontWeight: FontWeight.w400)),
+                Text(
+                  '${AppState.userName}!',
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF2E4F4F)),
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(width: 1, height: 25, color: Colors.grey.shade300),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/notifications'),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white, shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 2))],
+                  ),
+                  child: const Icon(Icons.notifications_none_rounded, color: Colors.black87, size: 20),
+                ),
+                Positioned(
+                  top: 8, right: 10,
+                  child: Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SALES CARD - unchanged styling, receives real data from _DashboardContent
+// SALES CARD
 // ─────────────────────────────────────────────────────────────────────────────
 class _SalesCard extends StatelessWidget {
   final String title;
@@ -360,33 +362,31 @@ class _SalesCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Stack(fit: StackFit.expand, children: [
-          CustomPaint(painter: isMonthly ? _BarPainter() : _RingPainter()),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Column(
-              crossAxisAlignment: isMonthly ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(title, style: GoogleFonts.poppins(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 2),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: isMonthly ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Text(amount,
-                    style: GoogleFonts.poppins(
-                      fontSize: 30, fontWeight: FontWeight.w600,
-                      color: Colors.white, letterSpacing: 1.5, height: 1.1,
-                    ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CustomPaint(painter: isMonthly ? _BarPainter() : _RingPainter()),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Column(
+                crossAxisAlignment: isMonthly ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title, style: GoogleFonts.poppins(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 2),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: isMonthly ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Text(amount, style: GoogleFonts.poppins(fontSize: 30, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 1.5, height: 1.1)),
                   ),
-                ),
-                const SizedBox(height: 1),
-                Text(subtitle, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 9)),
-              ],
+                  const SizedBox(height: 1),
+                  Text(subtitle, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 9)),
+                ],
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -395,10 +395,7 @@ class _SalesCard extends StatelessWidget {
 class _RingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withAlpha(30)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 14;
+    final paint = Paint()..color = Colors.white.withAlpha(30)..style = PaintingStyle.stroke..strokeWidth = 14;
     final cx = size.width * 0.85;
     final cy = size.height * 0.50;
     canvas.drawCircle(Offset(cx, cy), size.height * 0.40, paint);
@@ -412,20 +409,23 @@ class _BarPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.white.withAlpha(30)..style = PaintingStyle.fill;
     const heights = [0.5, 0.8, 0.4, 0.9, 0.6];
-    const barW = 14.0; const gapW = 6.0; const startX = 15.0;
+    const barW = 14.0, gapW = 6.0, startX = 15.0;
     for (int i = 0; i < heights.length; i++) {
       final barH = size.height * heights[i];
-      canvas.drawRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(startX + i * (barW + gapW), size.height - barH, barW, barH),
-        const Radius.circular(4),
-      ), paint);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(startX + i * (barW + gapW), size.height - barH, barW, barH),
+          const Radius.circular(4),
+        ),
+        paint,
+      );
     }
   }
   @override bool shouldRepaint(_) => false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CALENDAR CARD - unchanged
+// CALENDAR CARD
 // ─────────────────────────────────────────────────────────────────────────────
 class _CalendarCard extends StatelessWidget {
   const _CalendarCard();
@@ -451,21 +451,11 @@ class _CalendarCard extends StatelessWidget {
           headerStyle: const CalendarHeaderStyle(
             textAlign: TextAlign.left,
             backgroundColor: Colors.transparent,
-            textStyle: TextStyle(
-              fontFamily: AppFonts.poppins,
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            textStyle: TextStyle(fontFamily: AppFonts.poppins, color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
           ),
           viewHeaderStyle: const ViewHeaderStyle(
             backgroundColor: Colors.transparent,
-            dayTextStyle: TextStyle(
-              fontFamily: AppFonts.avenir,
-              color: Color(0xFF76BA99),
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
+            dayTextStyle: TextStyle(fontFamily: AppFonts.avenir, color: Color(0xFF76BA99), fontWeight: FontWeight.bold, fontSize: 13),
           ),
           monthViewSettings: const MonthViewSettings(
             showTrailingAndLeadingDates: false,
@@ -489,8 +479,7 @@ class _CalendarCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ACTIVE STAFF CARD - now receives real active shift data from backend
-// backend returns: user_id, full_name, profile_picture, role_name, clock_in_timestamp
+// ACTIVE STAFF CARD – uses real backend data (role_name, full_name, clock_in_timestamp)
 // ─────────────────────────────────────────────────────────────────────────────
 class _ActiveStaffCard extends StatelessWidget {
   final List<Map<String, dynamic>> activeShifts;
@@ -507,35 +496,32 @@ class _ActiveStaffCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         gradient: const LinearGradient(
           colors: [Color(0xFF2F4F4F), Color(0xFF3FAF9F)],
-          begin: Alignment.bottomLeft, end: Alignment.topRight,
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
         ),
         boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Active Staff',
-                style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-            GestureDetector(
-              onTap: onViewMore,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                child: Text('View More',
-                    style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w400, color: Colors.black87)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Active Staff', style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+              GestureDetector(
+                onTap: onViewMore,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                  child: Text('View More', style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w400, color: Colors.black87)),
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
           const SizedBox(height: 8),
           Expanded(
             child: activeShifts.isEmpty
-              ? Center(
-                  child: Text(
-                    'No staff currently on duty',
-                    style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
-                  ),
-                )
+              ? Center(child: Text('No staff currently on duty', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)))
               : ListView.separated(
                   physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: activeShifts.length,
@@ -549,69 +535,67 @@ class _ActiveStaffCard extends StatelessWidget {
   }
 }
 
-// displays a single active shift row using backend data fields
 class _ActiveShiftItem extends StatelessWidget {
   final Map<String, dynamic> shift;
   const _ActiveShiftItem({required this.shift});
 
   @override
   Widget build(BuildContext context) {
-    // backend returns clock_in_timestamp as a DateTime string
     final clockIn = shift['clock_in_timestamp']?.toString() ?? '';
     final timeStr = clockIn.isNotEmpty
-        ? 'Active since ${clockIn.substring(11, 16)}' // extract HH:mm from timestamp
+        ? 'Active since ${clockIn.substring(11, 16)}' // extract HH:mm
         : 'Active';
 
-    return Row(children: [
-      Container(
-        width: 100,
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(6)),
-        child: Center(child: Text(
-          shift['role_name']?.toString() ?? '',
-          style: GoogleFonts.poppins(color: Colors.white, fontSize: 10),
-        )),
-      ),
-      const SizedBox(width: 8),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              shift['full_name']?.toString() ?? '',
-              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 11),
-              overflow: TextOverflow.ellipsis, maxLines: 1,
-            ),
-            Text(timeStr, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 9)),
-          ],
-        ),
-      ),
-      const SizedBox(width: 8),
-      // active dot indicator - all shifts here are active (clocked in, no clock out)
-      Stack(children: [
+    return Row(
+      children: [
         Container(
-          width: 30, height: 30,
-          decoration: BoxDecoration(color: const Color(0xFF324A4A), borderRadius: BorderRadius.circular(5)),
-          child: const Icon(Icons.person, color: Colors.white38, size: 18),
+          width: 100,
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(6)),
+          child: Center(child: Text(shift['role_name']?.toString() ?? '', style: GoogleFonts.poppins(color: Colors.white, fontSize: 10))),
         ),
-        Positioned(top: 2, right: 2,
-          child: Container(
-            width: 8, height: 8,
-            decoration: BoxDecoration(
-              color: Colors.greenAccent,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 1),
-            ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(shift['full_name']?.toString() ?? '', 
+                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 11),
+                overflow: TextOverflow.ellipsis, maxLines: 1,
+              ),
+              Text(timeStr, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 9)),
+            ],
           ),
         ),
-      ]),
-    ]);
+        const SizedBox(width: 8),
+        Stack(
+          children: [
+            Container(
+              width: 30, height: 30,
+              decoration: BoxDecoration(color: const Color(0xFF324A4A), borderRadius: BorderRadius.circular(5)),
+              child: const Icon(Icons.person, color: Colors.white38, size: 18),
+            ),
+            Positioned(
+              top: 2, right: 2,
+              child: Container(
+                width: 8, height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.greenAccent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOVING CIRCLE NAV BAR - unchanged
+// MOVING CIRCLE NAV BAR
 // ─────────────────────────────────────────────────────────────────────────────
 class _MovingCircleNavBar extends StatelessWidget {
   final int selectedIndex;
@@ -620,59 +604,68 @@ class _MovingCircleNavBar extends StatelessWidget {
   const _MovingCircleNavBar({required this.selectedIndex, required this.onItemSelected});
 
   int get activeIndex {
-    if (selectedIndex == 0)  return 0;
-    if (selectedIndex == 1)  return 1;
+    if (selectedIndex == 0) return 0;
+    if (selectedIndex == 1) return 1;
     if (selectedIndex == -1) return 2;
-    if (selectedIndex == 2)  return 3;
+    if (selectedIndex == 2) return 3;
     return 2;
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 95, color: Colors.transparent,
-      child: LayoutBuilder(builder: (context, constraints) {
-        final double itemWidth = constraints.maxWidth / 5;
-        final double targetX   = (activeIndex * itemWidth) + (itemWidth / 2);
-
-        return TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: targetX),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOutCubic,
-          builder: (context, x, _) => Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(bottom: 0, left: 0, right: 0, height: 65,
-                  child: CustomPaint(painter: _NavPainter(x))),
-              Positioned(left: x - 30, bottom: 28,
-                child: Container(
-                  width: 60, height: 60,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2E4F4F), shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4),
-                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(50), blurRadius: 10, offset: const Offset(0, 5))],
-                  ),
-                  child: Center(child: Icon(_iconFor(activeIndex), color: Colors.white, size: 28)),
+      height: 95,
+      color: Colors.transparent,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final itemWidth = constraints.maxWidth / 5;
+          final targetX = (activeIndex * itemWidth) + (itemWidth / 2);
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(end: targetX),
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOutCubic,
+            builder: (context, x, _) => Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  bottom: 0, left: 0, right: 0, height: 65,
+                  child: CustomPaint(painter: _NavPainter(x)),
                 ),
-              ),
-              Positioned(bottom: 0, left: 0, right: 0, height: 65,
-                child: Row(
-                  children: List.generate(5, (i) => Expanded(
-                    child: GestureDetector(
-                      onTap: () => onItemSelected(i),
-                      behavior: HitTestBehavior.opaque,
-                      child: Center(child: Opacity(
-                        opacity: activeIndex == i ? 0 : 0.6,
-                        child: Icon(_iconFor(i), color: Colors.white, size: 24),
-                      )),
+                Positioned(
+                  left: x - 30, bottom: 28,
+                  child: Container(
+                    width: 60, height: 60,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2E4F4F),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 4),
+                      boxShadow: [BoxShadow(color: Colors.black.withAlpha(50), blurRadius: 10, offset: const Offset(0, 5))],
                     ),
-                  )),
+                    child: Center(child: Icon(_iconFor(activeIndex), color: Colors.white, size: 28)),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
-      }),
+                Positioned(
+                  bottom: 0, left: 0, right: 0, height: 65,
+                  child: Row(
+                    children: List.generate(5, (i) => Expanded(
+                      child: GestureDetector(
+                        onTap: () => onItemSelected(i),
+                        behavior: HitTestBehavior.opaque,
+                        child: Center(
+                          child: Opacity(
+                            opacity: activeIndex == i ? 0 : 0.6,
+                            child: Icon(_iconFor(i), color: Colors.white, size: 24),
+                          ),
+                        ),
+                      ),
+                    )),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -691,9 +684,7 @@ class _MovingCircleNavBar extends StatelessWidget {
 class _NavPainter extends CustomPainter {
   final double centerX;
   _NavPainter(this.centerX);
-
-  @override
-  void paint(Canvas canvas, Size size) {
+  @override void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = const Color(0xFF2E8B7F)..style = PaintingStyle.fill;
     final path = Path()
       ..moveTo(0, 0)
@@ -701,28 +692,11 @@ class _NavPainter extends CustomPainter {
       ..quadraticBezierTo(centerX - 40, 0, centerX - 36, 12)
       ..arcToPoint(Offset(centerX + 36, 12), radius: const Radius.circular(38), clockwise: false)
       ..quadraticBezierTo(centerX + 40, 0, centerX + 50, 0)
-      ..lineTo(size.width, 0)..lineTo(size.width, size.height)..lineTo(0, size.height)..close();
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
     canvas.drawPath(path, paint);
   }
-
-  @override
-  bool shouldRepaint(covariant _NavPainter old) => old.centerX != centerX;
-}
-
-class PlaceholderPage extends StatelessWidget {
-  final String title;
-  const PlaceholderPage({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    color: Colors.white,
-    child: Center(child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.construction, size: 64, color: Color(0xFF2E8B7F)),
-        const SizedBox(height: 16),
-        Text(title, style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF2E4F4F))),
-      ],
-    )),
-  );
+  @override bool shouldRepaint(covariant _NavPainter old) => old.centerX != centerX;
 }

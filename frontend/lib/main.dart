@@ -13,16 +13,40 @@ import 'screens/cashier/transactions.dart';
 import 'screens/inventory/add_new_product.dart';
 import 'screens/inventory/staff_inventory.dart';
 import 'screens/inventory/inventory_dashboard.dart';
+import '../../services/session_service.dart';
+import '../../utils/app_state.dart';
 
-void main(){
-  runApp(const MyApp());
+// The main entry point of the application. It initializes the app, checks for existing user sessions, and determines the initial screen based on the user's role.
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // restore session if exists
+  final token = await SessionService.getToken();
+  final user = await SessionService.getUser();
+  if (token != null && user != null) {
+    AppState.setSession(token, user);
+  }
+
+  runApp(MyApp(initialRoute: _resolveInitialRoute(token, user)));
 }
 
-class MyApp extends StatelessWidget{
-  const MyApp({super.key});
+// decide where to start based on stored session
+String _resolveInitialRoute(String? token, Map<String, dynamic>? user) {
+  if (token == null || user == null) return '/login';
+
+  final role = user['role'] ?? '';
+  if (role == 'Inventory') return '/inventory-dashboard';
+  if (role == 'Admin') return '/admin-dashboard';
+  if (role == 'Cashier') return '/cash-in';
+  return '/login'; // unknown role → back to login
+}
+
+class MyApp extends StatelessWidget {
+  final String initialRoute;
+  const MyApp({super.key, required this.initialRoute});
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Mini-Grocery-System',
       debugShowCheckedModeBanner: false,
@@ -30,9 +54,9 @@ class MyApp extends StatelessWidget{
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3E5C51)),
         useMaterial3: true,
       ),
-      
+
       // starting point
-      initialRoute: '/',
+      initialRoute: initialRoute, // determined by session state
 
       routes: {
         '/': (context) => const LoginPage(),
@@ -40,7 +64,8 @@ class MyApp extends StatelessWidget{
         '/inventory-dashboard': (context) => const InventoryDashboard(),
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/admin-inventory': (context) => const AdminInventoryScreen(),
-        '/admin-product-detail': (context) => const AdminProductDetailScreen(productList: [], initialIndex: 0),
+        '/admin-product-detail': (context) =>
+            const AdminProductDetailScreen(productList: [], initialIndex: 0),
         '/staff-inventory': (context) => const InventoryStaffScreen(),
         '/cash-in': (context) => const CashInScreen(),
         '/pos-screen': (context) => const PosScreen(),
@@ -54,6 +79,7 @@ class MyApp extends StatelessWidget{
     );
   }
 }
+
 //place holder wla lng
 class PlaceholderScreen extends StatelessWidget {
   final String title;

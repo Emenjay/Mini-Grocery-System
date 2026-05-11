@@ -20,7 +20,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
   Set<String> selectedExpirationFilters = {};
   String? selectedSort;
 
-  // backend data state
   List<Map<String, dynamic>> _products = [];
   bool _isLoading = true;
   String? _errorMessage;
@@ -32,7 +31,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
   ];
 
   final List<String> expirationChoices = [
-    'Expired', 'Exipiring Soon', 'Not Expiring Soon',
+    'Expired', 'Expiring Soon', 'Not Expiring Soon',
   ];
 
   @override
@@ -41,7 +40,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     _fetchProducts();
   }
 
-  // fetch all products from backend — admin sees all products including unapproved
   Future<void> _fetchProducts() async {
     setState(() {
       _isLoading = true;
@@ -51,7 +49,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     final isRecentlyAdded = selectedCategories.contains('Recently Added');
     final categoryParam = isRecentlyAdded ? '' : selectedCategories.first;
 
-    // map sort state to backend sort params
     String sortName = '';
     String sortPrice = '';
     if (selectedSort == 'A-Z')        sortName = 'A-Z';
@@ -59,7 +56,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     if (selectedSort == 'Price-Asc')  sortPrice = 'asc';
     if (selectedSort == 'Price-Desc') sortPrice = 'desc';
 
-    // map stock status filter to backend expected value
     String stockStatus = '';
     if (selectedStockStatuses.isNotEmpty) {
       stockStatus = selectedStockStatuses.first;
@@ -92,7 +88,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     }
   }
 
-  // delete product via backend then remove from local list on success
   Future<void> _deleteProduct(int productId) async {
     final result = await InventoryService.deleteProduct(productId);
     if (!mounted) return;
@@ -118,8 +113,12 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 70, height: 70,
-                decoration: const BoxDecoration(color: Color(0xFF76BA1B), shape: BoxShape.circle),
+                width: 70,
+                height: 70,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF76BA1B),
+                  shape: BoxShape.circle,
+                ),
                 child: const Icon(Icons.check, color: Colors.white, size: 45),
               ),
               const SizedBox(height: 20),
@@ -129,7 +128,8 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
               ),
               const SizedBox(height: 25),
               SizedBox(
-                width: 120, height: 40,
+                width: 120,
+                height: 40,
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
@@ -146,7 +146,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     );
   }
 
-  // map backend stock_status to display label
   String _getStatusLabel(String? status) {
     switch (status) {
       case 'Out of Stock': return 'No Stock';
@@ -176,7 +175,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                   child: TextField(
                     onChanged: (v) {
                       setState(() => searchQuery = v);
-                      _fetchProducts(); // re-fetch with updated search
+                      _fetchProducts();
                     },
                     style: GoogleFonts.poppins(fontSize: 14),
                     decoration: const InputDecoration(
@@ -212,7 +211,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                 child: GestureDetector(
                   onTap: () {
                     setState(() => selectedCategories = {cat});
-                    _fetchProducts(); // re-fetch when category changes
+                    _fetchProducts();
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -248,7 +247,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                       final statusLabel = _getStatusLabel(product['stock_status']);
                       return GestureDetector(
                         onTap: () async {
-                          // navigate to detail screen and refresh on return in case markup was updated
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -258,7 +256,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                               ),
                             ),
                           );
-                          _fetchProducts(); // refresh after returning from detail
+                          _fetchProducts();
                         },
                         child: Dismissible(
                           key: Key(product['product_id'].toString()),
@@ -293,7 +291,6 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                                       Text(product['category_name'] ?? '',
                                         style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45, fontStyle: FontStyle.italic),
                                       ),
-                                      // show unapproved badge so admin knows which products need markup
                                       if (product['is_approved'] == false || product['is_approved'] == 0)
                                         Padding(
                                           padding: const EdgeInsets.only(top: 4),
@@ -380,7 +377,10 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.75,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(30), bottomLeft: Radius.circular(30)),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+          bottomLeft: Radius.circular(30),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -436,14 +436,20 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                 const Divider(height: 40, thickness: 1, indent: 15, endIndent: 15),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text("Alphabetical Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A))),
+                  child: Text(
+                    "Alphabetical Sort",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A)),
+                  ),
                 ),
                 _buildSortRadio("A - Z", "A-Z"),
                 _buildSortRadio("Z - A", "Z-A"),
                 const SizedBox(height: 15),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text("Price Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A))),
+                  child: Text(
+                    "Price Sort",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A)),
+                  ),
                 ),
                 _buildSortRadio("None", null),
                 _buildSortRadio("Ascending",  "Price-Asc"),
@@ -506,7 +512,10 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
-      child: Text(status, style: GoogleFonts.poppins(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+      child: Text(
+        status,
+        style: GoogleFonts.poppins(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }

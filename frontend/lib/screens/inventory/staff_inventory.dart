@@ -1,5 +1,4 @@
 // ignore_for_file: unused_element
-
 import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
 import '../../../services/inventory_service.dart';
@@ -48,6 +47,7 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
 
     // catch arguments from dashboard navigation and apply filters before first fetch
     if (!_hasInitialFilterApplied) {
+      _hasInitialFilterApplied = true;
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is String) {
         if (args == 'Low Stock') {
@@ -61,7 +61,6 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
           selectedCategory = 'Recently Added';
         }
       }
-      _hasInitialFilterApplied = true;
       _fetchProducts(); // fetch after filters are set
     }
   }
@@ -230,7 +229,9 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
       backgroundColor: Colors.white,
       endDrawer: Drawer(
         width: MediaQuery.of(context).size.width * 0.75,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.only(topLeft: Radius.circular(30), bottomLeft: Radius.circular(30))),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(topLeft: Radius.circular(30), bottomLeft: Radius.circular(30)),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
