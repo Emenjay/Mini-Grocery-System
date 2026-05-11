@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../services/admin_service.dart';
+import '../../services/inventory_service.dart';
 
 class AdminProductDetailScreen extends StatefulWidget {
   final List<Map<String, dynamic>> productList;
   final int initialIndex;
 
-  // This screen allows admins to view detailed information about a specific product and edit its markup percentage, which directly affects the retail price.
+  // This screen allows admins to view detailed information about a specific product
+  // and edit its markup percentage, which directly affects the retail price.
   const AdminProductDetailScreen({
     super.key,
     required this.productList,
@@ -21,8 +22,8 @@ class AdminProductDetailScreen extends StatefulWidget {
 class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
   late int _currentIndex;
   bool _isMarkupEditing = false;
+  bool _isSavingMarkup = false; // loading state while PUT /api/inventory/:id is in flight
 
-  // PERCENTAGE DROPDOWN VALUES
   final List<int> _markupPercentages = [10, 12, 15, 20, 25, 30];
   int? _selectedPercentage;
 
@@ -34,24 +35,13 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
   }
 
   void _loadProductData() {
-    final p = widget.productList[_currentIndex];
-    final raw = p['markup_price'];
-
-    // safely parse whether it comes as String, int, or double
-    double parsed = 0;
-    if (raw != null) {
-      parsed = double.tryParse(raw.toString()) ?? 0;
-    }
-
-    // snap to nearest available percentage option, default 10
-    if (parsed <= 0) {
-      _selectedPercentage = 10;
-    } else {
-      // find closest match in _markupPercentages list
-      _selectedPercentage = _markupPercentages.reduce(
-        (a, b) => (a - parsed).abs() < (b - parsed).abs() ? a : b,
-      );
-    }
+    final product = widget.productList[_currentIndex];
+    // load existing markup_price from backend data - stored as percentage value
+    final existingMarkup = double.tryParse(product['markup_price']?.toString() ?? '0') ?? 0;
+    // snap to nearest known percentage, default to 10 if not in list
+    _selectedPercentage = _markupPercentages.contains(existingMarkup.toInt())
+        ? existingMarkup.toInt()
+        : 10;
   }
 
   void _navigate(int direction) {
@@ -63,20 +53,49 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
     });
   }
 
-  // LOGIC: BASE PRICE + (BASE PRICE * PERCENTAGE)
-  // ROUNDED UP TO THE NEAREST WHOLE NUMBER
+  // markup amount = base_price * markup_percentage / 100, rounded up
   double get _calculatedMarkup {
     final p = widget.productList[_currentIndex];
     double base = double.tryParse(p['base_price']?.toString() ?? '0') ?? 0;
-    double markupPercent = (_selectedPercentage ?? 0) / 100;
-    return (base * (1 + markupPercent)).ceilToDouble() - base;
+    double percentage = (_selectedPercentage ?? 0) / 100;
+    return (base * percentage).ceilToDouble();
   }
 
   double get _retailPrice {
     final p = widget.productList[_currentIndex];
     double base = double.tryParse(p['base_price']?.toString() ?? '0') ?? 0;
-    double markupPercent = (_selectedPercentage ?? 0) / 100;
-    return (base * (1 + markupPercent)).ceilToDouble();
+    return base + _calculatedMarkup;
+  }
+
+  // save markup via PUT /api/inventory/:id — setting markup also approves the product
+  Future<void> _saveMarkup() async {
+    if (_selectedPercentage == null) return;
+
+    setState(() => _isSavingMarkup = true);
+
+    final product = widget.productList[_currentIndex];
+    final result = await InventoryService.updateProduct(
+      productId: product['product_id'],
+      markupPrice: _selectedPercentage!.toDouble(),
+    );
+
+    if (!mounted) return;
+    setState(() => _isSavingMarkup = false);
+
+    if (result['success']) {
+      // update local product data so retail price recalculates immediately
+      widget.productList[_currentIndex]['markup_price'] = _selectedPercentage;
+      widget.productList[_currentIndex]['is_approved']  = true;
+      setState(() => _isMarkupEditing = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Markup updated. Product approved.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Failed to update markup')),
+      );
+    }
   }
 
   @override
@@ -87,7 +106,7 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // dark teal header
+          // dark teal header — unchanged
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 50, 20, 30),
@@ -98,10 +117,7 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _circleBtn(
-                      Icons.keyboard_return,
-                      () => Navigator.pop(context),
-                    ),
+                    _circleBtn(Icons.keyboard_return, () => Navigator.pop(context)),
                     Row(
                       children: [
                         _circleBtn(Icons.arrow_back, () => _navigate(-1)),
@@ -112,24 +128,14 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 35),
-                Text(
-                  currentProduct['product_name'] ?? 'Unknown Product',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Text(currentProduct['product_name'] ?? '',
+                  style: GoogleFonts.poppins(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Container(height: 1, width: 200, color: Colors.white38),
                 const SizedBox(height: 8),
-                Text(
-                  currentProduct['category_name'] ?? '',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white70,
-                    fontSize: 16,
-                    fontStyle: FontStyle.italic,
-                  ),
+                Text(currentProduct['category_name'] ?? '',
+                  style: GoogleFonts.poppins(color: Colors.white70, fontSize: 16, fontStyle: FontStyle.italic),
                 ),
                 const SizedBox(height: 20),
                 Align(
@@ -137,21 +143,11 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        "Retail Price",
-                        style: GoogleFonts.poppins(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                        ),
+                      Text("Retail Price",
+                        style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14, fontStyle: FontStyle.italic),
                       ),
-                      Text(
-                        "₱ ${_retailPrice.toStringAsFixed(2)}",
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Text("₱ ${_retailPrice.toStringAsFixed(2)}",
+                        style: GoogleFonts.poppins(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -169,65 +165,28 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                   _sectionTitle("Description"),
                   const Divider(thickness: 1, height: 10),
                   const SizedBox(height: 8),
-                  Text(
-                    currentProduct['description'] ??
-                        "no description available.",
-                    style: GoogleFonts.poppins(
-                      color: Colors.black87,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
+                  Text(currentProduct['description'] ?? "No description available.",
+                    style: GoogleFonts.poppins(color: Colors.black87, fontSize: 14, height: 1.4),
                   ),
                   const SizedBox(height: 25),
-                  _readOnlyTile(
-                    Icons.badge_outlined,
-                    "Product Number / ID",
-                    currentProduct['product_id']?.toString() ?? 'N/A',
-                  ),
-                  _readOnlyTile(
-                    Icons.sell_outlined,
-                    "Base Price",
-                    "₱ ${double.tryParse(currentProduct['base_price']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00'}",
-                  ),
-                  _readOnlyTile(
-                    Icons.inventory_2_outlined,
-                    "Available Stocks",
-                    (currentProduct['stock_quantity'] ?? 0).toString(),
-                  ),
-                  _readOnlyTile(
-                    Icons.calendar_month_outlined,
-                    "Expiration Date",
-                    currentProduct['spoilage_date'] != null
-                        ? currentProduct['spoilage_date'].toString().split(
-                            'T',
-                          )[0]
-                        : 'N/A',
-                  ),
+                  _readOnlyTile(Icons.badge_outlined,     "Product ID",        currentProduct['product_id'].toString()),
+                  _readOnlyTile(Icons.sell_outlined,      "Base Price",        "₱ ${double.tryParse(currentProduct['base_price']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00'}"),
+                  _readOnlyTile(Icons.inventory_2_outlined,"Available Stocks", (currentProduct['stock_quantity'] ?? 0).toString()),
+                  _readOnlyTile(Icons.calendar_month_outlined, "Expiration Date", currentProduct['spoilage_date']?.toString() ?? "n/a"),
                   const SizedBox(height: 10),
 
-                  // UPDATED: MARKUP PERCENTAGE DROPDOWN CARD
+                  // markup dropdown card — calls backend on confirm
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 15,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: _isMarkupEditing
-                            ? const Color(0xFF3E5C51)
-                            : Colors.black12,
+                        color: _isMarkupEditing ? const Color(0xFF3E5C51) : Colors.black12,
                         width: _isMarkupEditing ? 2 : 1,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -243,107 +202,49 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                         Row(
                           children: [
                             _isMarkupEditing
-                                ? Container(
-                                    height: 35,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F1F1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<int>(
-                                        value: _selectedPercentage,
-                                        items: _markupPercentages.map((
-                                          int value,
-                                        ) {
-                                          return DropdownMenuItem<int>(
-                                            value: value,
-                                            child: Text(
-                                              "$value%",
-                                              style: GoogleFonts.poppins(
-                                                fontWeight: FontWeight.bold,
-                                                color: const Color(0xFF3E5C51),
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
-                                        onChanged: (newValue) {
-                                          setState(() {
-                                            _selectedPercentage = newValue;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  )
-                                : Text(
-                                    "$_selectedPercentage% (₱ ${_calculatedMarkup.toStringAsFixed(0)})",
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
+                              ? Container(
+                                  height: 35,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                  decoration: BoxDecoration(color: const Color(0xFFF1F1F1), borderRadius: BorderRadius.circular(8)),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<int>(
+                                      value: _selectedPercentage,
+                                      items: _markupPercentages.map((int value) {
+                                        return DropdownMenuItem<int>(
+                                          value: value,
+                                          child: Text("$value%", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51))),
+                                        );
+                                      }).toList(),
+                                      onChanged: (newValue) => setState(() => _selectedPercentage = newValue),
                                     ),
                                   ),
-
+                                )
+                              : Text(
+                                  "$_selectedPercentage% (₱ ${_calculatedMarkup.toStringAsFixed(0)})",
+                                  style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                                ),
                             const SizedBox(width: 10),
-                            GestureDetector(
-                              // ✅ NEW
-                              onTap: () async {
-                                if (_isMarkupEditing) {
-                                  // save to backend
-                                  final product =
-                                      widget.productList[_currentIndex];
-                                  final productId = product['product_id'];
-                                  final result =
-                                      await AdminService.updateMarkup(
-                                        productId: productId,
-                                        markupPercent:
-                                            (_selectedPercentage ?? 0)
-                                                .toDouble(),
-                                      );
-
-                                  if (!mounted) return;
-
-                                  if (result['success']) {
-                                    setState(() {
-                                      _isMarkupEditing = false;
-                                      widget.productList[_currentIndex]['markup_price'] =
-                                          _selectedPercentage;
-                                    });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Markup updated successfully',
-                                        ),
-                                        backgroundColor: Color(0xFF2D936C),
-                                      ),
-                                    );
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          result['message'] ??
-                                              'Failed to update markup',
-                                        ),
-                                        backgroundColor: Colors.redAccent,
-                                      ),
-                                    );
-                                  }
-                                } else {
-                                  setState(() => _isMarkupEditing = true);
-                                }
-                              },
-                              child: Icon(
-                                _isMarkupEditing
-                                    ? Icons.check_circle
-                                    : Icons.edit,
-                                size: 22,
-                                color: _isMarkupEditing
-                                    ? const Color(0xFF2D936C)
-                                    : Colors.black38,
-                              ),
-                            ),
+                            // edit/confirm button — confirm calls backend
+                            _isSavingMarkup
+                              ? const SizedBox(
+                                  width: 22, height: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF3E5C51)),
+                                )
+                              : GestureDetector(
+                                  onTap: () {
+                                    if (_isMarkupEditing) {
+                                      // confirm: save markup to backend
+                                      _saveMarkup();
+                                    } else {
+                                      setState(() => _isMarkupEditing = true);
+                                    }
+                                  },
+                                  child: Icon(
+                                    _isMarkupEditing ? Icons.check_circle : Icons.edit,
+                                    size: 22,
+                                    color: _isMarkupEditing ? const Color(0xFF2D936C) : Colors.black38,
+                                  ),
+                                ),
                           ],
                         ),
                       ],
@@ -365,51 +266,30 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: const Color(0xFF3E5C51)),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF3E5C51),
-                ),
-              ),
-            ],
-          ),
+          Row(children: [
+            Icon(icon, size: 20, color: const Color(0xFF3E5C51)),
+            const SizedBox(width: 8),
+            Text(label, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51))),
+          ]),
           const Divider(thickness: 1, height: 12),
           Padding(
             padding: const EdgeInsets.only(left: 4, top: 2),
-            child: Text(
-              value,
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54),
-            ),
+            child: Text(value, style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54)),
           ),
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String title) => Text(
-    title,
-    style: GoogleFonts.poppins(
-      fontSize: 18,
-      fontWeight: FontWeight.bold,
-      color: const Color(0xFF3E5C51),
-    ),
-  );
+  Widget _sectionTitle(String title) =>
+      Text(title, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF3E5C51)));
 
   Widget _circleBtn(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(6),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
+        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
         child: Icon(icon, color: const Color(0xFF3E5C51), size: 20),
       ),
     );

@@ -59,9 +59,9 @@ class MyApp extends StatelessWidget {
       initialRoute: initialRoute, // determined by session state
 
       routes: {
-        '/inventory-dashboard': (context) => const InventoryDashboard(),
         '/': (context) => const LoginPage(),
         '/login': (context) => const LoginPage(),
+        '/inventory-dashboard': (context) => const InventoryDashboard(),
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/admin-inventory': (context) => const AdminInventoryScreen(),
         '/admin-product-detail': (context) =>

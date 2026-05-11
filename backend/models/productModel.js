@@ -4,141 +4,103 @@ const Config = require('./configModel');
 const Product = {
 
   getAllProducts: async (search = '', category = '', stockStatus = '', expirationFilter = '', sortName = '', sortPrice = '', page = 1, limit = 20, all = false, recentlyAdded = false, isApprovedOnly = false) => {
-    const keyword = `%${search}%`;
-    const offset = (page - 1) * limit;
+  const keyword = `%${search}%`;
+  const offset = (page - 1) * limit;
 
-    let query = `
-      SELECT p.product_id, p.product_name, c.category_name, c.category_id,
-             p.description, p.base_price, p.markup_price, p.isfastmoving,
-             p.is_approved, p.received_date,
-             -- percentage-based retail price, rounded up (no cents)
-             CEIL(p.base_price * (1 + p.markup_price / 100)) AS retail_price,
-             p.unit_measurement,
-             i.stock_quantity, i.spoilage_date, i.stock_status, i.last_updated
-      FROM product p
-      JOIN category c ON p.category_id = c.category_id
-      LEFT JOIN inventory i ON p.product_id = i.product_id
-      WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
-    `;
+  let query = `
+    SELECT p.product_id, p.product_name, c.category_name, c.category_id,
+          p.description, p.base_price, p.markup_price, p.isfastmoving,
+          p.is_approved, p.received_date,
+          CEIL(p.base_price * (1 + p.markup_price / 100)) AS retail_price,
+          p.unit_measurement,
+          i.stock_quantity, i.spoilage_date, i.stock_status, i.last_updated
+    FROM product p
+    JOIN category c ON p.category_id = c.category_id
+    LEFT JOIN inventory i ON p.product_id = i.product_id
+    WHERE p.product_name LIKE ?
+  `;
 
-    const params = [keyword, keyword];
+  const params = [keyword];
 
-    // cashier POS only sees approved products
-    if (isApprovedOnly) {
-      query += ` AND p.is_approved = TRUE`;
-    }
+  // approved only filter for cashier
+  if (isApprovedOnly) {
+    query += ` AND p.is_approved = TRUE`;
+  }
 
- // if recentlyAdded, sort by last_updated DESC but still apply other filters
-if (recentlyAdded) {
-  // apply stockStatus filter even in recentlyAdded mode
-  if (stockStatus) { query += ` AND i.stock_status = ?`; params.push(stockStatus); }
+  // category filter
+  if (category) {
+    query += ` AND c.category_name = ?`;
+    params.push(category);
+  }
 
-  // apply expiration filter even in recentlyAdded mode
+  // stock status filter
+  if (stockStatus) {
+    query += ` AND i.stock_status = ?`;
+    params.push(stockStatus);
+  }
+
+  // expiry filter
   if (expirationFilter === 'Expired') {
     query += ` AND i.spoilage_date < CURDATE()`;
   } else if (expirationFilter === 'Expiring Soon') {
     query += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
+  } else if (expirationFilter === 'Not Expiring Soon') {
+    query += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
   }
 
-   // if price sort is active, use that instead of last_updated
-  if (sortPrice === 'asc') {
-    query += ` ORDER BY CEIL(p.base_price * (1 + p.markup_price / 100)) ASC`;
-  } else if (sortPrice === 'desc') {
-    query += ` ORDER BY CEIL(p.base_price * (1 + p.markup_price / 100)) DESC`;
-  } else if (sortName === 'A-Z') {
-    query += ` ORDER BY p.product_name ASC`;
-  } else if (sortName === 'Z-A') {
-    query += ` ORDER BY p.product_name DESC`;
-  } else {
-    query += ` ORDER BY i.last_updated DESC`; // default
+  // sorting
+  const orderClauses = [];
+
+  // if recentlyAdded is requested and no explicit sort is given, use last_updated
+  if (recentlyAdded && sortName === '' && sortPrice === '') {
+    orderClauses.push('i.last_updated DESC');
   }
 
+  if (sortName === 'A-Z') orderClauses.push('p.product_name ASC');
+  if (sortName === 'Z-A') orderClauses.push('p.product_name DESC');
+  if (sortPrice === 'asc') orderClauses.push('retail_price ASC');
+  if (sortPrice === 'desc') orderClauses.push('retail_price DESC');
+
+  if (orderClauses.length > 0) {
+    query += ` ORDER BY ${orderClauses.join(', ')}`;
+  }
+
+  // pagination
   if (!all) {
     query += ` LIMIT ? OFFSET ?`;
     params.push(limit, offset);
   }
 
-  // console.log('Final Query:', query);
   const [rows] = await db.query(query, params);
 
-  const countQuery = `
+  // count query – same filters, no pagination
+  let countQuery = `
     SELECT COUNT(*) AS total
     FROM product p
     JOIN category c ON p.category_id = c.category_id
     LEFT JOIN inventory i ON p.product_id = i.product_id
-    WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
-    ${isApprovedOnly ? 'AND p.is_approved = TRUE' : ''}
-    ${stockStatus ? 'AND i.stock_status = ?' : ''}
-    ${expirationFilter === 'Expired' ? 'AND i.spoilage_date < CURDATE()' : ''}
-    ${expirationFilter === 'Expiring Soon' ? 'AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)' : ''}
+    WHERE p.product_name LIKE ?
   `;
+  const countParams = [keyword];
 
-  const countParams = [keyword, keyword];
-  if (stockStatus) countParams.push(stockStatus);
+  if (isApprovedOnly) countQuery += ` AND p.is_approved = TRUE`;
+  if (category) { countQuery += ` AND c.category_name = ?`; countParams.push(category); }
+  if (stockStatus) { countQuery += ` AND i.stock_status = ?`; countParams.push(stockStatus); }
+  if (expirationFilter === 'Expired') {
+    countQuery += ` AND i.spoilage_date < CURDATE()`;
+  } else if (expirationFilter === 'Expiring Soon') {
+    countQuery += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
+  } else if (expirationFilter === 'Not Expiring Soon') {
+    countQuery += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
+  }
 
   const [[{ total }]] = await db.query(countQuery, countParams);
+
   return {
     products: rows,
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
   };
-}
-
-    // filter by category name
-    if (category) { query += ` AND c.category_name = ?`; params.push(category); }
-
-    // filter by stock status
-    if (stockStatus) { query += ` AND i.stock_status = ?`; params.push(stockStatus); }
-
-    // filter by expiration date
-    if (expirationFilter === 'Expired') {
-      query += ` AND i.spoilage_date < CURDATE()`;
-    } else if (expirationFilter === 'Expiring Soon') {
-      query += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
-    } else if (expirationFilter === 'Not Expiring Soon') {
-      query += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
-    }
-
-    // sorting
-    const orderClauses = [];
-    if (sortName === 'A-Z') orderClauses.push('p.product_name ASC');
-    if (sortName === 'Z-A') orderClauses.push('p.product_name DESC');
-    if (sortPrice === 'asc') orderClauses.push('CEIL(p.base_price * (1 + p.markup_price / 100)) ASC');
-    if (sortPrice === 'desc') orderClauses.push('CEIL(p.base_price * (1 + p.markup_price / 100)) DESC');
-    if (orderClauses.length > 0) query += ` ORDER BY ${orderClauses.join(', ')}`;
-    
-    // pagination
-    // if all is true, skip pagination
-    if (!all) {
-      query += ` LIMIT ? OFFSET ?`;
-      params.push(limit, offset);
-    }
-
-    const [rows] = await db.query(query, params);
-
-    let countQuery = `
-      SELECT COUNT(*) AS total
-      FROM product p
-      JOIN category c ON p.category_id = c.category_id
-      LEFT JOIN inventory i ON p.product_id = i.product_id
-      WHERE (p.product_name LIKE ? OR c.category_name LIKE ?)
-      ${isApprovedOnly ? 'AND p.is_approved = TRUE' : ''}
-    `;
-
-    const countParams = [keyword, keyword];
-
-    if (category) { countQuery += ` AND c.category_name = ?`; countParams.push(category); }
-    if (stockStatus) { countQuery += ` AND i.stock_status = ?`; countParams.push(stockStatus); }
-    if (expirationFilter === 'Expired') {
-      countQuery += ` AND i.spoilage_date < CURDATE()`;
-    } else if (expirationFilter === 'Expiring Soon') {
-      countQuery += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
-    } else if (expirationFilter === 'Not Expiring Soon') {
-      countQuery += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
-    }
-
-    const [[{ total }]] = await db.query(countQuery, countParams);
-    return { products: rows, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } };
-  },
+},
 
   findProductByID: async (productID) => {
     const [rows] = await db.query(

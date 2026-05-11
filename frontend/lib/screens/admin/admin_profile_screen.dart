@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/colors.dart';
 import '../../theme/text_styles.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class AdminProfileScreen extends StatefulWidget {
   final bool isSubPage;
@@ -17,6 +19,9 @@ class AdminProfileScreen extends StatefulWidget {
 
 class _AdminProfileScreenState extends State<AdminProfileScreen> {
   bool _isEditing = false;
+
+  // photo picker state variable
+  File? _pickedPhoto;
   
   // Controllers for easy database integration
   late TextEditingController _nameController;
@@ -58,6 +63,57 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
         _isEditing = true;
       });
     }
+  }
+
+  // Photo picker method: gallery/camera options
+  Future<void> _pickPhoto() async {
+    if (!_isEditing) return;
+    final picker = ImagePicker();
+
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined,
+                  color: Color(0xFF2E8B7F)),
+              title: const Text('Choose from Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final picked = await picker.pickImage(
+                  source: ImageSource.gallery,
+                  imageQuality: 80,
+                );
+                if (picked != null) {
+                  setState(() => _pickedPhoto = File(picked.path));
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined,
+                  color: Color(0xFF2E8B7F)),
+              title: const Text('Take a Photo'),
+              onTap: () async {
+                Navigator.pop(context);
+                final picked = await picker.pickImage(
+                  source: ImageSource.camera,
+                  imageQuality: 80,
+                );
+                if (picked != null) {
+                  setState(() => _pickedPhoto = File(picked.path));
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   // --- ᴜᴘᴅᴀᴛᴇ ꜱᴜᴄᴄᴇꜱꜱ ᴍᴏᴅᴀʟ ---
@@ -220,38 +276,48 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                     ),
                   ],
                   const SizedBox(height: 15),
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      const CircleAvatar(
-                        radius: 65,
-                        backgroundImage: AssetImage('assets/images/logo.png'),
-                        backgroundColor: Colors.white24,
-                      ),
-                      if (_isEditing)
-                        Container(
-                          width: 130,
-                          height: 130,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.add, color: Colors.white, size: 30),
-                              Text(
-                                'Profile Photo',
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
+                  
+                  GestureDetector(
+                    onTap: _isEditing ? _pickPhoto : null,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircleAvatar(
+                          radius: 65,
+                          backgroundColor: Colors.white24,
+                          backgroundImage: _pickedPhoto != null
+                            ? FileImage(_pickedPhoto!) as ImageProvider :  const AssetImage('assets/images/logo.png'),
                         ),
-                    ],
+
+                        if (_isEditing)
+                          Container(
+                            width: 130,
+                            height: 130,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              shape: BoxShape.circle,
+                            ),
+
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.add, color: Colors.white, size: 30),
+                                Text(
+                                  _pickedPhoto != null ? 'Change Photo' : 'Profile Photo',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontFamily: AppFonts.poppins,
+                                    fontSize: 11,
+                                  )
+                                     
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
+
                   const SizedBox(height: 16),
                   
                   if (_isEditing)

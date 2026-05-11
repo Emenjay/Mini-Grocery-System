@@ -10,17 +10,14 @@ const Transaction = {
 		return rows[0].count;
 	},
 
-	// generate unique timestamp-based cart number e.g. #260429143022 (YYMMDDHHmmss)
+	// generate unique timestamp-based cart number e.g. # 143022 (HHmmss)
   generateCartNo: async () => {
-    const now = new Date();
-    const timestamp = now.getFullYear().toString().slice(-2)
-      + String(now.getMonth() + 1).padStart(2, '0')
-      + String(now.getDate()).padStart(2, '0')
-      + String(now.getHours()).padStart(2, '0')
-      + String(now.getMinutes()).padStart(2, '0')
-      + String(now.getSeconds()).padStart(2, '0');
-    return `#${timestamp}`;
-  },
+  const now = new Date();
+  const timestamp = String(now.getHours()).padStart(2, '0')
+    + String(now.getMinutes()).padStart(2, '0')
+    + String(now.getSeconds()).padStart(2, '0');
+  return `#${timestamp}`;
+},
 
 
 	// create payment detail

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import 'dart:math';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../../services/staff_service.dart';
 
 class AddStaffScreen extends StatefulWidget {
@@ -23,6 +25,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
   String? _generatedUsername;
   String? _generatedPassword;
   bool _credentialsGenerated = false;
+  File? _pickedPhoto;
 
   /* Generate credentials based on full name and selected role
      - Username: DinglePM_<LastName>
@@ -61,7 +64,56 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
     });
   }
 
-  // form validation
+  // Photo picker
+  Future<void> _pickPhoto() async {
+    final picker = ImagePicker();
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined,
+                  color: AppColors.primaryDarkTeal),
+              title: const Text('Choose from Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final picked = await picker.pickImage(
+                  source: ImageSource.gallery,
+                  imageQuality: 80,
+                );
+                if (picked != null) {
+                  setState(() => _pickedPhoto = File(picked.path));
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined,
+                  color: AppColors.primaryDarkTeal),
+              title: const Text('Take a Photo'),
+              onTap: () async {
+                Navigator.pop(context);
+                final picked = await picker.pickImage(
+                  source: ImageSource.camera,
+                  imageQuality: 80,
+                );
+                if (picked != null) {
+                  setState(() => _pickedPhoto = File(picked.path));
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // form submission – calls backend API
   void _submitForm() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (!_credentialsGenerated) {
@@ -85,6 +137,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
       return;
     }
 
+    // TODO: upload photo if needed – backend currently doesn't accept photo
     final result = await StaffService.addStaff(
       roleID: roleID,
       username: _generatedUsername!,
@@ -97,6 +150,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
     if (!mounted) return;
 
     if (result['success']) {
+      // Notify parent widget (staff list refresh)
       widget.onStaffAdded?.call(result['user'] ?? {});
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -107,26 +161,8 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
         SnackBar(content: Text(result['message'] ?? 'Failed to add staff')),
       );
     }
-
-    final newStaff = <String, dynamic>{
-      'id': DateTime.now().millisecondsSinceEpoch,
-      'name': _nameController.text.trim(),
-      'role': _selectedRole,
-      'onDuty': false,
-      'photo': 'assets/images/logo.png',
-      'contactNumber': '+639${_contactController.text.trim()}',
-      'address': _addressController.text.trim(),
-      'username': _generatedUsername,
-      'shifts': <Map<String, dynamic>>[],
-    };
-    widget.onStaffAdded?.call(newStaff);
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Staff member added successfully! :)')),
-    );
   }
 
-  // dispose of controllers to prevent memory leaks when the widget is destroyed
   @override
   void dispose() {
     _nameController.dispose();
@@ -157,10 +193,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                 child: Icon(Icons.store, color: AppColors.mutedGreen),
               ),
             ),
-
             const SizedBox(width: 12),
-
-            // TODO: replace with logged-in user's name from auth state
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -185,16 +218,13 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                 ),
               ],
             ),
-
             const Spacer(),
-
             Container(
               width: 1,
               height: 40,
               color: Colors.white38,
               margin: const EdgeInsets.only(right: 16),
             ),
-
             Stack(
               clipBehavior: Clip.none,
               children: [
@@ -268,10 +298,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 12),
-
-                        // screen title
                         const Text(
                           'Add New Employee',
                           textAlign: TextAlign.center,
@@ -282,10 +309,11 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-
-                        // photo picker (just a placeholder atm)
                         const SizedBox(height: 20),
-                        const _ProfilePhotoPicker(),
+                        _ProfilePhotoPicker(
+                          photo: _pickedPhoto,
+                          onTap: _pickPhoto,
+                        ),
                         const SizedBox(height: 24),
 
                         // name field
@@ -331,7 +359,6 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                           padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-
                             children: [
                               _FieldLabel(label: 'Contact Number:'),
                               const SizedBox(height: 8),
@@ -366,7 +393,6 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                                       borderRadius: BorderRadius.circular(24),
                                     ),
                                   ),
-
                                   child: const Text(
                                     'Generate Login Account',
                                     style: TextStyle(
@@ -404,7 +430,6 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                                       borderRadius: BorderRadius.circular(14),
                                     ),
                                   ),
-
                                   child: const Text(
                                     'Add Employee',
                                     style: TextStyle(
@@ -433,42 +458,66 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
 }
 
 // -- Helper widgets --
-// --- Profile photo picker placeholder
+
 class _ProfilePhotoPicker extends StatelessWidget {
-  const _ProfilePhotoPicker();
+  final File? photo;
+  final VoidCallback onTap;
+
+  const _ProfilePhotoPicker({required this.onTap, this.photo});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // TODO: wire up image_picker when ready
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Photo picker coming soon...')),
-      ),
-      child: Container(
-        width: 120,
-        height: 120,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.20),
-          border: Border.all(color: Colors.white38, width: 2),
-        ),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add, color: Colors.white, size: 32),
-
-            SizedBox(height: 4),
-
-            Text(
-              'Profile Photo',
-              style: TextStyle(
-                color: Colors.white70,
-                fontFamily: AppFonts.avenir,
-                fontSize: 11,
+      onTap: onTap,
+      child: Stack(
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.20),
+              border: Border.all(color: Colors.white38, width: 2),
+              image: photo != null
+                  ? DecorationImage(
+                      image: FileImage(photo!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: photo == null
+                ? const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add, color: Colors.white, size: 32),
+                      SizedBox(height: 4),
+                      Text(
+                        'Profile Photo',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontFamily: AppFonts.avenir,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  )
+                : null,
+          ),
+          if (photo != null)
+            Positioned(
+              bottom: 4,
+              right: 4,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(
+                  color: AppColors.mutedGreen,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.edit, color: Colors.white, size: 14),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -491,13 +540,11 @@ class _TextField extends StatelessWidget {
     return TextFormField(
       controller: controller,
       validator: validator,
-
       style: const TextStyle(
         color: Colors.black87,
         fontFamily: AppFonts.poppins,
         fontSize: 14,
       ),
-
       decoration: InputDecoration(
         filled: true,
         fillColor: Colors.white.withValues(alpha: 0.88),
@@ -507,7 +554,6 @@ class _TextField extends StatelessWidget {
           fontFamily: AppFonts.avenir,
           fontSize: 14,
         ),
-
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 14,
@@ -548,9 +594,7 @@ class _RoleDropdown extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(10),
       ),
-
       padding: const EdgeInsets.symmetric(horizontal: 18),
-
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           isExpanded: true,
@@ -563,7 +607,6 @@ class _RoleDropdown extends StatelessWidget {
               fontSize: 14,
             ),
           ),
-
           icon: const Icon(
             Icons.arrow_drop_down,
             color: AppColors.primaryDarkTeal,
@@ -574,7 +617,6 @@ class _RoleDropdown extends StatelessWidget {
             fontFamily: AppFonts.poppins,
             fontSize: 14,
           ),
-
           items: roles
               .map((r) => DropdownMenuItem(value: r, child: Text(r)))
               .toList(),
@@ -585,7 +627,6 @@ class _RoleDropdown extends StatelessWidget {
   }
 }
 
-// --- Contact number & Full address
 // _FieldLabel – bold label with underline ... for later
 class _FieldLabel extends StatelessWidget {
   final String label;
@@ -634,15 +675,12 @@ class _ContactNumberField extends StatelessWidget {
             ),
           ),
         ),
-
         const SizedBox(width: 10),
-
         // validator
         Expanded(
           child: TextFormField(
             controller: controller,
             keyboardType: TextInputType.number,
-            // remaining 9 digits
             maxLength: 9,
             validator: (v) {
               if (v == null || v.trim().isEmpty)
@@ -650,13 +688,11 @@ class _ContactNumberField extends StatelessWidget {
               if (v.trim().length < 9) return 'Enter 9 digits after +639';
               return null;
             },
-
             style: const TextStyle(
               color: Colors.black87,
               fontFamily: AppFonts.poppins,
               fontSize: 14,
             ),
-
             decoration: InputDecoration(
               counterText: '',
               filled: true,
@@ -667,7 +703,6 @@ class _ContactNumberField extends StatelessWidget {
                 fontFamily: AppFonts.avenir,
                 fontSize: 13,
               ),
-
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 14,
@@ -676,7 +711,6 @@ class _ContactNumberField extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
               ),
-
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: Colors.redAccent),
@@ -771,7 +805,6 @@ class _SystemLoginCard extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
           const Text(
             'Username:',
@@ -782,10 +815,8 @@ class _SystemLoginCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          _CredentialDisplay(value: username), // reusable credential row
-
+          _CredentialDisplay(value: username),
           const SizedBox(height: 14),
-
           const Text(
             'PIN:',
             style: TextStyle(
@@ -802,7 +833,6 @@ class _SystemLoginCard extends StatelessWidget {
   }
 }
 
-// u da real credential display
 class _CredentialDisplay extends StatelessWidget {
   final String value;
   const _CredentialDisplay({required this.value});
@@ -816,7 +846,6 @@ class _CredentialDisplay extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
       ),
-
       child: Text(
         value,
         style: const TextStyle(
@@ -828,8 +857,3 @@ class _CredentialDisplay extends StatelessWidget {
     );
   }
 }
-
-/* 
-_CredentialDisplay shows login credentials (username/password) that the 
-system generated for the new staff member.
-*/

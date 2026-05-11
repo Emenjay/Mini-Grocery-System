@@ -1,7 +1,7 @@
 // ignore_for_file: unused_element
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../services/product_service.dart';
+import '../../../services/inventory_service.dart';
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
@@ -10,55 +10,25 @@ class AddProductScreen extends StatefulWidget {
   State<AddProductScreen> createState() => _AddProductScreenState();
 }
 
-// This screen allows admins to add a new product to the inventory with detailed information and validation.
 class _AddProductScreenState extends State<AddProductScreen> {
-  // --- state variables ---
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _measureController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
-  final TextEditingController _stockController =
-      TextEditingController(); // added for stock logic
+  final TextEditingController _stockController = TextEditingController();
 
   String? selectedType;
-  Map<String, dynamic>? selectedCategory;
-  String? selectedStatus;
+  String? selectedCategoryName;
+  int? selectedCategoryID;
   DateTime? expirationDate;
   DateTime? dateReceived;
-  double? selectedMarkupPercent;
-  String generatedId = "SELECT CATEGORY";
-  int currentProductCount = 124;
 
-  List<Map<String, dynamic>> _categories = [];
-
-  // new velocity state
   bool isFastMoving = false;
   bool _submittedOnce = false;
   bool _isLoading = false;
 
-  final Map<String, String> categoryCodes = {
-    'Beverages': 'BEV',
-    'Liquor & Tobacco': 'LIQ',
-    'Snacks & Sweets': 'SNA',
-    'Fresh & Prepared': 'FRE',
-    'Pantry Staples': 'PAN',
-    'Frozen Goods': 'FRO',
-    'Personal Care': 'PER',
-    'Household Care': 'HOU',
-    'Miscellaneous': 'MIS',
-  };
-
-  final List<String> categories = [
-    'Beverages',
-    'Liquor & Tobacco',
-    'Snacks & Sweets',
-    'Fresh & Prepared',
-    'Pantry Staples',
-    'Frozen Goods',
-    'Personal Care',
-    'Household Care',
-    'Miscellaneous',
-  ];
+  List<Map<String, dynamic>> _categories = [];
+  bool _categoriesLoading = true;
 
   @override
   void initState() {
@@ -72,22 +42,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   void _rebuild() => setState(() {});
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _priceController.dispose();
-    _measureController.dispose();
-    _descController.dispose();
-    _stockController.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadCategories() async {
-    final result = await ProductService.getCategories();
-    if (result['success'] && mounted) {
+    final result = await InventoryService.getCategories();
+    if (!mounted) return;
+    if (result['success']) {
       setState(() {
         _categories = List<Map<String, dynamic>>.from(result['categories']);
+        _categoriesLoading = false;
       });
+    } else {
+      setState(() => _categoriesLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Failed to load categories')),
+      );
     }
   }
 
@@ -96,49 +63,26 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return expirationDate!.isBefore(dateReceived!);
   }
 
-  // computed retail price preview (no cents)
-  String get _retailPreview {
-    final base = double.tryParse(_priceController.text) ?? 0;
-    if (selectedMarkupPercent == null) return base.toStringAsFixed(0);
-    return (base + (base * selectedMarkupPercent! / 100))
-        .roundToDouble()
-        .toStringAsFixed(0);
-  }
-
   bool get _canSubmit {
     return _nameController.text.isNotEmpty &&
         _priceController.text.isNotEmpty &&
         _measureController.text.isNotEmpty &&
-        _stockController.text.isNotEmpty && // required for threshold check
+        _stockController.text.isNotEmpty &&
         selectedType != null &&
-        selectedCategory != null &&
-        selectedStatus != null &&
+        selectedCategoryID != null &&
         expirationDate != null &&
         dateReceived != null &&
         !_isExpiredError;
   }
 
-  void _updateId(String? categoryName) {
-    if (categoryName == null) return;
-    final match = _categories.firstWhere(
-      (c) => c['category_name'] == categoryName,
-      orElse: () => {},
-    );
-    String prefix = categoryCodes[categoryName] ?? 'GEN';
-    String datePart = DateFormat('yyyyMM').format(DateTime.now());
-    String rankString = (currentProductCount + 1).toString().padLeft(4, '0');
+  void _updateCategory(String? categoryName, int? categoryId) {
     setState(() {
-      selectedCategory = match.isNotEmpty
-          ? match
-          : {'category_name': categoryName};
-      generatedId = "$prefix-$datePart-$rankString";
+      selectedCategoryName = categoryName;
+      selectedCategoryID = categoryId;
     });
   }
 
-  void _confirmAddProduct() {
-    // backend integration note: calculate threshold here
-    // int threshold = isFastMoving ? 50 : 15;
-
+  Future<void> _confirmAddProduct() async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -149,41 +93,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.add_task_rounded,
-                color: Color(0xFF2D936C),
-                size: 64,
-              ),
+              const Icon(Icons.add_task_rounded, color: Color(0xFF2D936C), size: 64),
               const SizedBox(height: 16),
-              const Text(
-                "Confirm Product",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
+              const Text("Confirm Product",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
-              const Text(
-                "Add this item to the database with ID:",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.black54),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F7F4),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  generatedId,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF3E5C51),
-                    fontSize: 16,
-                  ),
-                ),
-              ),
+              const Text("Add this item to the database?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.black54)),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -191,34 +108,26 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.black12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        "Cancel",
-                        style: TextStyle(color: Colors.black54),
-                      ),
+                          side: const BorderSide(color: Colors.black12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12))),
+                      child: const Text("Cancel",
+                          style: TextStyle(color: Colors.black54)),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(context);
-                        _submitProduct();
+                        await _submitProduct();
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2D936C),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        "Confirm",
-                        style: TextStyle(color: Colors.white),
-                      ),
+                          backgroundColor: const Color(0xFF2D936C),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12))),
+                      child: const Text("Confirm",
+                          style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ],
@@ -228,6 +137,34 @@ class _AddProductScreenState extends State<AddProductScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _submitProduct() async {
+    setState(() => _isLoading = true);
+
+    final result = await InventoryService.addProduct(
+      categoryID: selectedCategoryID!,
+      productName: _nameController.text.trim(),
+      basePrice: double.tryParse(_priceController.text) ?? 0.0,
+      description: _descController.text.trim(),
+      unitMeasurement:
+          '${_measureController.text.trim()} ${selectedType == 'Liquid' ? 'mL/L' : 'g/kg'}',
+      stockQuantity: int.tryParse(_stockController.text) ?? 0,
+      spoilageDate: expirationDate,
+      isFastMoving: isFastMoving,
+      receivedDate: dateReceived,
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result['success']) {
+      _showSuccessModal();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Failed to add product')),
+      );
+    }
   }
 
   void _showSuccessModal() {
@@ -241,21 +178,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.check_circle_outline,
-                color: Color(0xFF2D936C),
-                size: 64,
-              ),
+              const Icon(Icons.check_circle_outline,
+                  color: Color(0xFF2D936C), size: 64),
               const SizedBox(height: 16),
-              const Text(
-                "Product Added",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
+              const Text("Product Added",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text(
-                "Product $generatedId has been saved successfully.",
+              const Text(
+                "Product has been saved successfully.\nPending admin approval.",
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Colors.black54),
+                style: TextStyle(fontSize: 14, color: Colors.black54),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -263,22 +195,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pop(
-                      context,
-                      true,
-                    ); // return true → parent refreshes
+                    Navigator.pop(context); // close success modal
+                    Navigator.pop(context); // go back to staff inventory
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3E5C51),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    "Done",
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
+                      backgroundColor: const Color(0xFF3E5C51),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12))),
+                  child: const Text("Done",
+                      style: TextStyle(color: Colors.white, fontSize: 16)),
                 ),
               ),
             ],
@@ -296,53 +221,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
       lastDate: DateTime(2100),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF3E5C51)),
-        ),
+            colorScheme:
+                const ColorScheme.light(primary: Color(0xFF3E5C51))),
         child: child!,
       ),
     );
     if (picked != null) {
       setState(() {
-        if (isExpiration)
+        if (isExpiration) {
           expirationDate = picked;
-        else
+        } else {
           dateReceived = picked;
+        }
       });
-    }
-  }
-
-  // --- API call to submit new product ---
-  Future<void> _submitProduct() async {
-    setState(() => _isLoading = true);
-
-    final unitMeasurement =
-        '${_measureController.text.trim()} ${selectedType == "Liquid" ? "(mL/L)" : "(g/kg)"}';
-
-    final result = await ProductService.addProduct(
-      categoryID: selectedCategory!['category_id'],
-      productName: _nameController.text.trim(),
-      basePrice: double.parse(_priceController.text.trim()),
-      description: _descController.text.trim(),
-      unitMeasurement: unitMeasurement,
-      stockQuantity: int.tryParse(_stockController.text.trim()) ?? 0,
-      spoilageDate: expirationDate != null
-          ? DateFormat('yyyy-MM-dd').format(expirationDate!)
-          : null,
-      receivedDate: dateReceived != null
-          ? DateFormat('yyyy-MM-dd').format(dateReceived!)
-          : null,
-      isFastMoving: isFastMoving,
-    );
-
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    if (result['success']) {
-      _showSuccessModal();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Failed to add product')),
-      );
     }
   }
 
@@ -353,16 +244,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // --- header ---
+            // header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
               decoration: const BoxDecoration(
                 color: Color(0xFF3E5C51),
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
+                    bottomLeft: Radius.circular(30),
+                    bottomRight: Radius.circular(30)),
               ),
               child: Column(
                 children: [
@@ -373,76 +263,57 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.keyboard_return,
-                            color: Color(0xFF3E5C51),
-                            size: 18,
-                          ),
+                              color: Colors.white, shape: BoxShape.circle),
+                          child: const Icon(Icons.keyboard_return,
+                              color: Color(0xFF3E5C51), size: 18),
                         ),
                       ),
                       const Expanded(
-                        child: Text(
-                          "Add New Product",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: Text("Add New Product",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 40),
                     ],
                   ),
                   const SizedBox(height: 35),
-                  _buildTopField(
-                    "Product Name",
-                    "e.g. Ligo Sardines",
-                    _nameController,
-                    showError: _nameController.text.isEmpty,
-                  ),
+                  _buildTopField("Product Name", "e.g. Ligo Sardines",
+                      _nameController,
+                      showError: _nameController.text.isEmpty),
                   const SizedBox(height: 20),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: _buildTopDropdown(
-                          "Type",
-                          selectedType ?? "Select",
-                          ["Solid", "Liquid"],
-                          (val) => setState(() => selectedType = val),
-                          showError: selectedType == null,
-                        ),
-                      ),
+                          child: _buildTopDropdown(
+                              "Type",
+                              selectedType ?? "Select",
+                              ["Solid", "Liquid"],
+                              (val) => setState(() => selectedType = val),
+                              showError: selectedType == null)),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildTopField(
-                          "Measurement",
-                          selectedType == "Liquid" ? "mL / L" : "g / kg",
-                          _measureController,
-                          showError: _measureController.text.isEmpty,
-                        ),
-                      ),
+                          child: _buildTopField(
+                              "Measurement",
+                              selectedType == "Liquid" ? "mL / L" : "g / kg",
+                              _measureController,
+                              showError: _measureController.text.isEmpty)),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildTopField(
-                          "Price",
-                          "0.00",
-                          _priceController,
-                          isPrice: true,
-                          showError: _priceController.text.isEmpty,
-                        ),
-                      ),
+                          child: _buildTopField(
+                              "Price", "0.00", _priceController,
+                              isPrice: true,
+                              showError: _priceController.text.isEmpty)),
                     ],
                   ),
                 ],
               ),
             ),
 
-            // --- form ---
+            // form body
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -452,138 +323,89 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: _buildBottomDropdown(
-                            "Category",
-                            selectedCategory != null
-                                ? (selectedCategory!['category_name'] ??
-                                          selectedCategory!['name'] ??
-                                          "Select Category")
-                                      .toString()
-                                : "Select Category",
-                            categories,
-                            (val) => _updateId(val),
-                            showError: selectedCategory == null,
-                          ),
+                          child: _categoriesLoading
+                              ? const Center(
+                                  child: CircularProgressIndicator())
+                              : _buildCategoryDropdown(),
                         ),
                         const SizedBox(width: 15),
                         Expanded(
                           child: _buildDisplayField(
-                            "Generated ID",
-                            generatedId,
+                            "Pending Approval",
+                            "Admin must set markup before product is visible to cashier",
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
 
-                    // --- inventory velocity selector ---
-                    const Text(
-                      "Inventory Velocity",
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    // inventory velocity selector
+                    const Text("Inventory Velocity",
+                        style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
-                          child: _buildVelocityToggle(
-                            "Normal (15 Threshold)",
-                            !isFastMoving,
-                            () => setState(() => isFastMoving = false),
-                          ),
-                        ),
+                            child: _buildVelocityToggle(
+                                "Normal (15 Threshold)",
+                                !isFastMoving,
+                                () => setState(() => isFastMoving = false))),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _buildVelocityToggle(
-                            "Fast (50 Threshold)",
-                            isFastMoving,
-                            () => setState(() => isFastMoving = true),
-                          ),
-                        ),
+                            child: _buildVelocityToggle(
+                                "Fast (50 Threshold)",
+                                isFastMoving,
+                                () => setState(() => isFastMoving = true))),
                       ],
                     ),
+                    const SizedBox(height: 20),
+
+                    // initial stock field only
+                    _buildTopField("Initial Stock", "0", _stockController,
+                        isPrice: true,
+                        showError: _stockController.text.isEmpty,
+                        isStock: true),
                     const SizedBox(height: 20),
 
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: _buildBottomDropdown(
-                            "Stock Status",
-                            selectedStatus ?? "Status",
-                            ["In Stock", "Low Stock", "No Stock"],
-                            (val) => setState(() => selectedStatus = val),
-                            showError: selectedStatus == null,
-                          ),
-                        ),
+                            child: _buildDateTile(
+                                "Expiration Date", expirationDate,
+                                () => _pickDate(context, true),
+                                showError: expirationDate == null)),
                         const SizedBox(width: 15),
                         Expanded(
-                          child: _buildTopField(
-                            "Initial Stock",
-                            "0",
-                            _stockController,
-                            isPrice: true,
-                            showError: _stockController.text.isEmpty,
-                            isStock: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _buildDateTile(
-                            "Expiration Date",
-                            expirationDate,
-                            () => _pickDate(context, true),
-                            showError: expirationDate == null,
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: _buildDateTile(
-                            "Date Received",
-                            dateReceived,
-                            () => _pickDate(context, false),
-                            showError: dateReceived == null,
-                          ),
-                        ),
+                            child: _buildDateTile(
+                                "Date Received", dateReceived,
+                                () => _pickDate(context, false),
+                                showError: dateReceived == null)),
                       ],
                     ),
                     if (_isExpiredError)
                       Container(
                         margin: const EdgeInsets.only(top: 10),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
+                            horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.red[50],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                            color: Colors.red[50],
+                            borderRadius: BorderRadius.circular(8)),
                         child: const Row(
                           children: [
-                            Icon(
-                              Icons.error_outline,
-                              color: Colors.redAccent,
-                              size: 16,
-                            ),
+                            Icon(Icons.error_outline,
+                                color: Colors.redAccent, size: 16),
                             SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                "Product cannot be added because it is expired",
-                                style: TextStyle(
-                                  color: Colors.redAccent,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
+                                child: Text(
+                                    "Product cannot be added because it is expired",
+                                    style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold))),
                           ],
                         ),
                       ),
@@ -591,24 +413,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   const SizedBox(height: 20),
                   _buildSectionCard([
                     _buildBottomField(
-                      "Description (Optional)",
-                      "Add details...",
-                      _descController,
-                      maxLines: 3,
-                    ),
+                        "Description (Optional)", "Add details...",
+                        _descController,
+                        maxLines: 3),
                   ]),
 
                   if (!_canSubmit && _submittedOnce)
                     const Padding(
                       padding: EdgeInsets.only(top: 15),
-                      child: Text(
-                        "Please fill in all required fields.",
-                        style: TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: Text("Please fill in all required fields.",
+                          style: TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold)),
                     ),
 
                   const SizedBox(height: 35),
@@ -618,42 +435,41 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       Expanded(
                         child: TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            "Discard",
-                            style: TextStyle(
-                              color: Colors.black45,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
+                          child: const Text("Discard",
+                              style: TextStyle(
+                                  color: Colors.black45,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16)),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() => _submittedOnce = true);
-                            if (_canSubmit) _confirmAddProduct();
-                          },
-                          icon: const Icon(
-                            Icons.add_circle_outline,
-                            color: Colors.white,
-                          ),
-                          label: const Text(
-                            "Save Product",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                                  setState(() => _submittedOnce = true);
+                                  if (_canSubmit) _confirmAddProduct();
+                                },
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  height: 16,
+                                  width: 16,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2))
+                              : const Icon(Icons.add_circle_outline,
+                                  color: Colors.white),
+                          label: const Text("Save Product",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _canSubmit
                                 ? const Color(0xFF2D936C)
                                 : Colors.grey[600],
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
+                                borderRadius: BorderRadius.circular(15)),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                         ),
@@ -669,34 +485,73 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // --- helpers ---
+  Widget _buildCategoryDropdown() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text("Category",
+          style: TextStyle(
+              color: Colors.black87,
+              fontSize: 13,
+              fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: (_submittedOnce && selectedCategoryID == null)
+                    ? Colors.redAccent
+                    : Colors.black12)),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<int>(
+            isExpanded: true,
+            value: selectedCategoryID,
+            hint: const Text("Select Category",
+                style: TextStyle(fontSize: 13, color: Colors.black45)),
+            items: _categories
+                .map((cat) => DropdownMenuItem<int>(
+                      value: cat['category_id'] as int,
+                      child: Text(cat['category_name'].toString(),
+                          style: const TextStyle(fontSize: 13)),
+                    ))
+                .toList(),
+            onChanged: (val) {
+              if (val == null) return;
+              final cat =
+                  _categories.firstWhere((c) => c['category_id'] == val);
+              _updateCategory(cat['category_name'].toString(), val);
+            },
+          ),
+        ),
+      ),
+      if (_submittedOnce && selectedCategoryID == null)
+        const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text("Required",
+                style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold))),
+    ]);
+  }
+
   Widget _buildSectionCard(List<Widget> children) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 5))
+          ]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
     );
   }
 
-  // velocity toggle helper
-  Widget _buildVelocityToggle(
-    String label,
-    bool isSelected,
-    VoidCallback onTap,
-  ) {
+  Widget _buildVelocityToggle(String label, bool isSelected, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -706,340 +561,206 @@ class _AddProductScreenState extends State<AddProductScreen> {
           color: isSelected ? const Color(0xFF3E5C51) : const Color(0xFFF8F9FA),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFF3E5C51) : Colors.black12,
-          ),
+              color: isSelected ? const Color(0xFF3E5C51) : Colors.black12),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black54,
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
+        child: Text(label,
+            style: TextStyle(
+                color: isSelected ? Colors.white : Colors.black54,
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
       ),
     );
   }
 
   Widget _buildTopField(
-    String label,
-    String hint,
-    TextEditingController controller, {
-    bool isPrice = false,
-    bool showError = false,
-    bool isStock = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
+      String label, String hint, TextEditingController controller,
+      {bool isPrice = false,
+      bool showError = false,
+      bool isStock = false}) {
+    final keyboardType =
+        (isPrice || isStock) ? TextInputType.number : TextInputType.text;
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
           style: TextStyle(
-            color: isStock ? Colors.black87 : Colors.white70,
-            fontSize: isStock ? 13 : 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          height: 48,
-          decoration: BoxDecoration(
+              color: isStock ? Colors.black87 : Colors.white70,
+              fontSize: isStock ? 13 : 12,
+              fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      Container(
+        height: 48,
+        decoration: BoxDecoration(
             color: isStock
                 ? const Color(0xFFF8F9FA)
                 : Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: (showError && _submittedOnce)
-                  ? Colors.redAccent
-                  : (isStock ? Colors.black12 : Colors.white.withOpacity(0.1)),
-            ),
-          ),
-          child: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            style: TextStyle(
-              color: isStock ? Colors.black87 : Colors.white,
-              fontSize: 15,
-            ),
-            decoration: InputDecoration(
-              prefixText: (isPrice && !isStock) ? "₱ " : null,
-              prefixStyle: const TextStyle(color: Colors.white),
-              hintText: hint,
-              hintStyle: TextStyle(
+                color: (showError && _submittedOnce)
+                    ? Colors.redAccent
+                    : (isStock
+                        ? Colors.black12
+                        : Colors.white.withOpacity(0.1)))),
+        child: TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          style: TextStyle(
+              color: isStock ? Colors.black87 : Colors.white, fontSize: 15),
+          decoration: InputDecoration(
+            prefixText: (isPrice && !isStock) ? "₱ " : null,
+            prefixStyle: const TextStyle(color: Colors.white),
+            hintText: hint,
+            hintStyle: TextStyle(
                 fontSize: 14,
-                color: isStock ? Colors.black26 : Colors.white38,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 15,
-                vertical: 12,
-              ),
-            ),
+                color: isStock ? Colors.black26 : Colors.white38),
+            border: InputBorder.none,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
           ),
         ),
-        if (showError && _submittedOnce)
-          const Padding(
+      ),
+      if (showError && _submittedOnce)
+        const Padding(
             padding: EdgeInsets.only(top: 4),
-            child: Text(
-              "Required",
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-      ],
-    );
+            child: Text("Required",
+                style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold))),
+    ]);
   }
 
-  Widget _buildTopDropdown(
-    String label,
-    String selected,
-    List<String> items,
-    Function(String?) onChanged, {
-    bool showError = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
+  Widget _buildTopDropdown(String label, String selected, List<String> items,
+      Function(String?) onChanged,
+      {bool showError = false}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
           style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: (showError && _submittedOnce)
-                  ? Colors.redAccent
-                  : Colors.white.withOpacity(0.1),
-            ),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              dropdownColor: const Color(0xFF3E5C51),
-              value: items.contains(selected) ? selected : null,
-              hint: Text(
-                selected,
-                style: const TextStyle(fontSize: 14, color: Colors.white38),
-              ),
-              icon: const Icon(Icons.expand_more, color: Colors.white70),
-              items: items
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(
-                        e,
+                color: (showError && _submittedOnce)
+                    ? Colors.redAccent
+                    : Colors.white.withOpacity(0.1))),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            isExpanded: true,
+            dropdownColor: const Color(0xFF3E5C51),
+            value: items.contains(selected) ? selected : null,
+            hint: Text(selected,
+                style:
+                    const TextStyle(fontSize: 14, color: Colors.white38)),
+            icon: const Icon(Icons.expand_more, color: Colors.white70),
+            items: items
+                .map((e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(e,
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: onChanged,
-            ),
+                            color: Colors.white, fontSize: 14))))
+                .toList(),
+            onChanged: onChanged,
           ),
         ),
-        if (showError && _submittedOnce)
-          const Padding(
+      ),
+      if (showError && _submittedOnce)
+        const Padding(
             padding: EdgeInsets.only(top: 4),
-            child: Text(
-              "Required",
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-      ],
-    );
+            child: Text("Required",
+                style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold))),
+    ]);
   }
 
-  Widget _buildBottomDropdown(
-    String label,
-    String selected,
-    List<String> items,
-    Function(String?) onChanged, {
-    bool showError = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
+  Widget _buildDateTile(String label, DateTime? date, VoidCallback onTap,
+      {bool showError = false}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
           style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
+              color: Colors.black87,
+              fontSize: 13,
+              fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: (showError && _submittedOnce)
-                  ? Colors.redAccent
-                  : Colors.black12,
-            ),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: items.contains(selected) ? selected : null,
-              hint: Text(
-                selected,
-                style: const TextStyle(fontSize: 13, color: Colors.black45),
-              ),
-              items: items
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(e, style: const TextStyle(fontSize: 13)),
-                    ),
-                  )
-                  .toList(),
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDateTile(
-    String label,
-    DateTime? date,
-    VoidCallback onTap, {
-    bool showError = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
               color: const Color(0xFFF8F9FA),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: (showError && _submittedOnce)
-                    ? Colors.redAccent
-                    : Colors.black12,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
+                  color: (showError && _submittedOnce)
+                      ? Colors.redAccent
+                      : Colors.black12)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
                   date == null
                       ? "MM/DD/YYYY"
                       : DateFormat('MMM dd, yyyy').format(date),
                   style: TextStyle(
-                    fontSize: 11,
-                    color: date == null ? Colors.black26 : Colors.black87,
-                  ),
-                ),
-                const Icon(
-                  Icons.calendar_today_outlined,
-                  size: 16,
-                  color: Colors.black26,
-                ),
-              ],
-            ),
+                      fontSize: 11,
+                      color:
+                          date == null ? Colors.black26 : Colors.black87)),
+              const Icon(Icons.calendar_today_outlined,
+                  size: 16, color: Colors.black26),
+            ],
           ),
         ),
-      ],
-    );
+      ),
+    ]);
   }
 
   Widget _buildDisplayField(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
           style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          value,
+              color: Colors.black87,
+              fontSize: 13,
+              fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      Text(value,
           style: const TextStyle(
-            color: Color(0xFF3E5C51),
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
+              color: Color(0xFF3E5C51),
+              fontSize: 11,
+              fontStyle: FontStyle.italic)),
+    ]);
   }
 
   Widget _buildBottomField(
-    String label,
-    String hint,
-    TextEditingController controller, {
-    int maxLines = 1,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
+      String label, String hint, TextEditingController controller,
+      {int maxLines = 1}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
           style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
+              color: Colors.black87,
+              fontSize: 13,
+              fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      Container(
+        decoration: BoxDecoration(
             color: const Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: TextField(
+            border: Border.all(color: Colors.black12)),
+        child: TextField(
             controller: controller,
             maxLines: maxLines,
             style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(
-              hintText: hint,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(12),
-            ),
-          ),
-        ),
-      ],
-    );
+                hintText: hint,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(12))),
+      ),
+    ]);
   }
 }

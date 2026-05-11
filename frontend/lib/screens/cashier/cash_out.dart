@@ -1,6 +1,10 @@
 // ignore_for_file: unused_element
 
 import 'package:flutter/material.dart';
+import '../../services/attendance_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/session_service.dart';
+import '../../utils/app_state.dart';
 
 class CashOutScreen extends StatefulWidget {
   final double startingCash;
@@ -13,6 +17,8 @@ class CashOutScreen extends StatefulWidget {
 class _CashOutScreenState extends State<CashOutScreen> {
   final _amountController = TextEditingController();
   bool _isValid = false;
+  // tracks loading state while end-shift + logout API calls are in progress
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -24,14 +30,45 @@ class _CashOutScreenState extends State<CashOutScreen> {
   void _checkAmount() {
     String text = _amountController.text.trim();
     double? entered = double.tryParse(text);
-    
+
     setState(() {
       // button is clickable as long as input is not empty and is a valid number
       _isValid = text.isNotEmpty && entered != null;
     });
   }
 
-  void _showLogoutPopup() {
+  // ends the shift via backend, logs out, clears session, then shows success popup
+  Future<void> _showLogoutPopup() async {
+    final double? cashOut = double.tryParse(_amountController.text.trim());
+    if (cashOut == null) return;
+
+    setState(() => _isLoading = true);
+
+    // call backend to end shift and record cash-out amount
+    final shiftResult = await AttendanceService.endShift(cashOut);
+
+    if (!mounted) return;
+
+    if (!shiftResult['success']) {
+      // show error and stop if end-shift fails
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(shiftResult['message'] ?? 'Failed to end shift')),
+      );
+      return;
+    }
+
+    // call backend to clock out attendance and invalidate session
+    await AuthService.logout(AppState.token!);
+
+    // clear stored session data (shared_preferences + in-memory AppState)
+    await SessionService.clearSession();
+    AppState.clearSession();
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    // show success dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -54,6 +91,7 @@ class _CashOutScreenState extends State<CashOutScreen> {
       ),
     );
 
+    // auto-close dialog after 2 seconds then navigate back to login screen
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     });
@@ -76,13 +114,14 @@ class _CashOutScreenState extends State<CashOutScreen> {
                     backgroundImage: AssetImage('assets/images/logo.png'),
                   ),
                   const SizedBox(width: 15),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Hello,", style: TextStyle(color: Colors.white70, fontSize: 16)),
+                      const Text("Hello,", style: TextStyle(color: Colors.white70, fontSize: 16)),
+                      // display logged-in user's name from AppState
                       Text(
-                        "Russel Marie!",
-                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                        "${AppState.userName}!",
+                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -105,7 +144,7 @@ class _CashOutScreenState extends State<CashOutScreen> {
                     style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: Color(0xFF345149), letterSpacing: 0.5),
                   ),
                   const SizedBox(height: 35),
-                  // display the cash-in amount clearly
+                  // display the cash-in amount passed in from PosScreen
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -140,7 +179,8 @@ class _CashOutScreenState extends State<CashOutScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       TextButton(
-                        onPressed: () => Navigator.pop(context),
+                        // disable cancel while API calls are in progress
+                        onPressed: _isLoading ? null : () => Navigator.pop(context),
                         child: const Text("Cancel", style: TextStyle(color: Colors.black45, fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 10),
@@ -148,21 +188,29 @@ class _CashOutScreenState extends State<CashOutScreen> {
                         width: 150,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _isValid ? _showLogoutPopup : null,
+                          // disable button while loading or input is invalid
+                          onPressed: _isValid && !_isLoading ? _showLogoutPopup : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF3B5B51),
                             disabledBackgroundColor: const Color(0xFF3B5B51).withOpacity(0.5),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                             elevation: 0,
                           ),
-                          child: Text(
-                            "Confirm",
-                            style: TextStyle(
-                              color: _isValid ? Colors.white : Colors.white60,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  // loading spinner while end-shift + logout calls are in flight
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : Text(
+                                  "Confirm",
+                                  style: TextStyle(
+                                    color: _isValid ? Colors.white : Colors.white60,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
