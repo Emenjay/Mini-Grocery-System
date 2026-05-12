@@ -27,6 +27,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
   bool _submittedOnce = false;
   bool _isLoading = false;
 
+  // REMOVED: selectedStatus - backend calculates stock status automatically
+
   List<Map<String, dynamic>> _categories = [];
   bool _categoriesLoading = true;
 
@@ -70,6 +72,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         _stockController.text.isNotEmpty &&
         selectedType != null &&
         selectedCategoryID != null &&
+        // REMOVED: selectedStatus check - not needed
         expirationDate != null &&
         dateReceived != null &&
         !_isExpiredError;
@@ -139,6 +142,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
+  // submit product to backend
   Future<void> _submitProduct() async {
     setState(() => _isLoading = true);
 
@@ -150,6 +154,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       unitMeasurement:
           '${_measureController.text.trim()} ${selectedType == 'Liquid' ? 'mL/L' : 'g/kg'}',
       stockQuantity: int.tryParse(_stockController.text) ?? 0,
+      //  stock status is now auto-calculated by backend from stockQuantity
       spoilageDate: expirationDate,
       isFastMoving: isFastMoving,
       receivedDate: dateReceived,
@@ -363,6 +368,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                     const SizedBox(height: 20),
 
+                    // REMOVED: Stock Status dropdown
+                    // stock status is now auto-calculated by backend
+
                     // initial stock field only
                     _buildTopField("Initial Stock", "0", _stockController,
                         isPrice: true,
@@ -551,23 +559,29 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  Widget _buildVelocityToggle(String label, bool isSelected, VoidCallback onTap) {
+  Widget _buildVelocityToggle(
+      String label, bool isSelected, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 45,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF3E5C51) : const Color(0xFFF8F9FA),
+          color: isSelected
+              ? const Color(0xFF3E5C51)
+              : const Color(0xFFF8F9FA),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: isSelected ? const Color(0xFF3E5C51) : Colors.black12),
+              color: isSelected
+                  ? const Color(0xFF3E5C51)
+                  : Colors.black12),
         ),
         child: Text(label,
             style: TextStyle(
                 color: isSelected ? Colors.white : Colors.black54,
                 fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                fontWeight:
+                    isSelected ? FontWeight.bold : FontWeight.normal)),
       ),
     );
   }

@@ -56,7 +56,7 @@ class MyApp extends StatelessWidget {
       ),
 
       // starting point
-      initialRoute: initialRoute, // determined by session state
+      initialRoute: '/',
 
       routes: {
         '/': (context) => const LoginPage(),
