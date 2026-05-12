@@ -3,6 +3,9 @@ const router                 = express.Router();
 const notificationController = require('../controllers/notificationController');
 const protect = require('../middleware/authMiddleware');
 
+// GET /api/notification/stream - SSE endpoint for real-time push
+router.get('/stream', protect, notificationController.stream);
+
 //Protect all notification routes — only owners/admins should see these.
 router.use(protect);
 

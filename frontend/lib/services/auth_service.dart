@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
+import '../services/notification_service.dart';
 
 class AuthService {
 
@@ -27,9 +28,10 @@ class AuthService {
       return {'success': false, 'message': 'Cannot connect to server. Check your connection.'};
     }
   }
-
+  
   // POST /api/auth/logout
   static Future<bool> logout(String token) async {
+    NotificationService.disconnect(intentional: true); // stop SSE reconnect loop on logout
     try {
       final response = await http.post(
         Uri.parse('${AppConstants.baseUrl}/api/auth/logout'),

@@ -3,6 +3,7 @@ import 'package:frontend/theme/colors.dart';
 import '../services/auth_service.dart';
 import '../services/session_service.dart';
 import '../utils/app_state.dart';
+import '../services/notification_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -43,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // login success — save token and user to storage and app state
+    // login success - save token and user to storage and app state
     final data = result['data'];
     final token = data['token'];
     final user = data['user'];
@@ -54,6 +55,8 @@ class _LoginPageState extends State<LoginPage> {
     // route based on role returned from backend
     final role = user['role'];
     if (role == 'Admin') {
+      NotificationService.resetForReconnect(); // allow reconnect after re-login
+      NotificationService.connect(); // start SSE connection for real-time notifications
       Navigator.pushReplacementNamed(context, '/admin-dashboard');
     } else if (role == 'Cashier') {
       Navigator.pushReplacementNamed(context, '/cash-in');
