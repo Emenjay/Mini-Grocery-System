@@ -36,7 +36,8 @@ const Dashboard = {
        JOIN users u ON a.user_id = u.user_id
        JOIN role r ON u.role_id = r.role_id
        WHERE a.clock_out_timestamp IS NULL
-       AND DATE(a.clock_in_timestamp) = CURDATE()`
+       AND DATE(a.clock_in_timestamp) = CURDATE()
+       AND r.role_name != 'Admin'`
     );
     return rows;
   }
