@@ -52,17 +52,6 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
         _isLoading = false;
       });
     } else {
-      // token expired → clear session and force re-login
-      if (result['message']?.toString().toLowerCase().contains('token') ==
-          true) {
-        await SessionService.clearSession();
-        AppState.clearSession();
-        if (!mounted) return;
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil('/login', (route) => false);
-        return;
-      }
       setState(() {
         _errorMessage = result['message'];
         _isLoading = false;
@@ -75,8 +64,6 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
-        child: RefreshIndicator(
-        onRefresh: _loadDashboard,
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -94,13 +81,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.redAccent),
                     ),
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 13,
-                      ),
-                    ),
+                    child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
                   ),
                 ),
               // --- stats section grid ---
@@ -113,14 +94,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                         title: "Total Products",
                         count: _isLoading ? '...' : totalProducts,
                         icon: Icons.shopping_bag_outlined,
-                        onTap: () async {
-                          await Navigator.pushNamed(
-                            context,
-                            '/staff-inventory',
-                            arguments: 'All',
-                          );
-                          _loadDashboard(); // refresh on return
-                        },
+                        onTap: () => Navigator.pushNamed(context, '/staff-inventory', arguments: 'All'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -129,11 +103,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                         title: "Low Stock Products",
                         count: _isLoading ? '...' : lowStock,
                         icon: Icons.inventory_2_outlined,
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          '/staff-inventory',
-                          arguments: 'Low Stock',
-                        ),
+                        onTap: () => Navigator.pushNamed(context, '/staff-inventory', arguments: 'Low Stock'),
                       ),
                     ),
                   ],
@@ -149,11 +119,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                         title: "Expired Stocks",
                         count: _isLoading ? '...' : expiredStocks,
                         icon: Icons.calendar_today_outlined,
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          '/staff-inventory',
-                          arguments: 'Expired',
-                        ),
+                        onTap: () => Navigator.pushNamed(context, '/staff-inventory', arguments: 'Expired'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -162,11 +128,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                         title: "Out of Stock Products",
                         count: _isLoading ? '...' : outOfStock,
                         icon: Icons.layers_clear_outlined,
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          '/staff-inventory',
-                          arguments: 'No Stock',
-                        ),
+                        onTap: () => Navigator.pushNamed(context, '/staff-inventory', arguments: 'No Stock'),
                       ),
                     ),
                   ],
@@ -185,23 +147,14 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                       label: "Add New Product",
                       icon: Icons.add_circle_outline,
                       color: const Color(0xFF76BA99),
-                      onTap: () async {
-                        await Navigator.pushNamed(context, '/add-product');
-                        _loadDashboard(); // refresh counts when returning
-                      },
+                      onTap: () => Navigator.pushNamed(context, '/add-product'),
                     ),
                     const SizedBox(height: 12),
                     _ActionButton(
                       label: "View Inventory",
                       icon: Icons.inventory_2,
                       color: const Color(0xFF35524A),
-                      onTap: () async {
-                        await Navigator.pushNamed(
-                          context, '/staff-inventory',
-                          arguments: 'Recently Added'
-                        );
-                        _loadDashboard(); // refresh counts when returning
-                      },
+                      onTap: () => Navigator.pushNamed(context, '/staff-inventory'),
                     ),
                   ],
                 ),
@@ -211,7 +164,6 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
           ),
         ),
       ),
-      ),
     );
   }
 }
@@ -220,28 +172,20 @@ class _Header extends StatelessWidget {
   final VoidCallback onDashboardRefresh;
   const _Header({required this.onDashboardRefresh});
 
-  // --- ʟᴏɢᴏᴜᴛ ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ ᴅɪᴀʟᴏɢ ---
+    // --- ʟᴏɢᴏᴜᴛ ᴄᴏɴꜰɪʀᴍᴀᴛɪᴏɴ ᴅɪᴀʟᴏɢ ---
   void _showLogoutConfirmation(BuildContext context) {
-    final outerContext =
-        context; // capture outer context for use in async callback
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
+      builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.help_outline_rounded,
-                  color: Color(0xFF35524A),
-                  size: 60,
-                ),
+                const Icon(Icons.help_outline_rounded, color: Color(0xFF35524A), size: 60),
                 const SizedBox(height: 16),
                 const Text(
                   "Logout Session",
@@ -261,44 +205,22 @@ class _Header extends StatelessWidget {
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.black12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
-                      child: const Text(
-                        "Cancel",
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: const Text("Cancel", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
                     ),
                     ElevatedButton(
                       onPressed: () async {
-                        Navigator.pop(dialogContext); // close confirm dialog
-                        await _handleLogout(outerContext);
+                        Navigator.pop(context); // close confirm dialog
+                        await _handleLogout(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF35524A),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
-                      child: const Text(
-                        "Logout",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: const Text("Logout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -312,12 +234,7 @@ class _Header extends StatelessWidget {
 
   Future<void> _handleLogout(BuildContext context) async {
     // call logout API - clocks out attendance and deletes paused carts
-    // safely get token — don't crash if null
-    final token = AppState.token;
-    if (token != null && token.isNotEmpty) {
-      await AuthService.logout(token);
-    }
-
+    await AuthService.logout(AppState.token!);
     // clear local session regardless of API result
     await SessionService.clearSession();
     AppState.clearSession();
@@ -325,7 +242,6 @@ class _Header extends StatelessWidget {
     if (!context.mounted) return;
     _showLogoutSuccess(context);
   }
-
   // --- ʟᴏɢᴏᴜᴛ ꜱᴜᴄᴄᴇꜱꜱ ᴍᴏᴅᴀʟ ---
   void _showLogoutSuccess(BuildContext context) {
     showDialog(
@@ -333,19 +249,13 @@ class _Header extends StatelessWidget {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.check_circle_outline_rounded,
-                  color: Color(0xFF2D936C),
-                  size: 60,
-                ),
+                const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF2D936C), size: 60),
                 const SizedBox(height: 16),
                 const Text(
                   "Logged Out",
@@ -361,24 +271,14 @@ class _Header extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.of(
-                      context,
-                    ).pushNamedAndRemoveUntil('/', (route) => false),
+                    onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF35524A),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text(
-                      "Close",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: const Text("Close", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
-                ),
+                )
               ],
             ),
           ),
@@ -427,7 +327,7 @@ class _Header extends StatelessWidget {
           IconButton(
             onPressed: () => _showLogoutConfirmation(context),
             icon: const Icon(Icons.logout_rounded, color: Colors.black87),
-          ),
+          )
         ],
       ),
     );
@@ -465,7 +365,7 @@ class _InventoryStatCard extends StatelessWidget {
               color: Colors.black.withOpacity(0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
-            ),
+            )
           ],
         ),
         child: Column(
@@ -518,15 +418,13 @@ class _SyncfusionCalendarCard extends StatelessWidget {
         color: const Color(0xFF35524A),
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 5),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))
         ],
       ),
       child: SfCalendarTheme(
-        data: SfCalendarThemeData(backgroundColor: Colors.transparent),
+        data: SfCalendarThemeData(
+          backgroundColor: Colors.transparent,
+        ),
         child: SfCalendar(
           view: CalendarView.month,
           showNavigationArrow: true,
@@ -603,11 +501,7 @@ class _ActionButton extends StatelessWidget {
           color: color,
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            ),
+            BoxShadow(color: Colors.black12, blurRadius: 5, offset: const Offset(0, 3))
           ],
         ),
         child: Row(
