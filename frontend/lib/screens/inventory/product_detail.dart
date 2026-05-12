@@ -417,11 +417,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
                 const SizedBox(height: 35),
                 if (!isEditing) ...[
-                  Text(_nameController.text,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    _unitMeasurementController.text.isNotEmpty
+                        ? '${_nameController.text} ${_unitMeasurementController.text}'
+                        : _nameController.text,
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                  ),
                   const Divider(
                       color: Colors.white38,
                       thickness: 1,

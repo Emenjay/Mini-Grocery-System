@@ -693,12 +693,12 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // display name and unit measurement together if unit exists
                     Text(
-                      item['name'],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                      item['unitMeasurement'] != null && item['unitMeasurement'].toString().isNotEmpty
+                          ? '${item['name']} ${item['unitMeasurement']}'
+                          : item['name'],
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     Text(
                       item['category'],

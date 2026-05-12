@@ -34,7 +34,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _fetchNotifications();
   }
 
-  // fetch all notifications from backend and split into recent (today) and previous
   Future<void> _fetchNotifications() async {
     setState(() {
       _isLoading = true;
@@ -50,23 +49,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           .map((n) => Map<String, dynamic>.from(n))
           .toList();
 
-      // split by today vs previous using created_at field from backend
-      final today = DateTime.now();
+      // recent = unread, previous = read
       setState(() {
-        _recent   = all.where((n) {
-          final created = DateTime.tryParse(n['created_at']?.toString() ?? '');
-          return created != null &&
-              created.year == today.year &&
-              created.month == today.month &&
-              created.day == today.day;
-        }).toList();
-        _previous = all.where((n) {
-          final created = DateTime.tryParse(n['created_at']?.toString() ?? '');
-          return created == null || !(
-              created.year == today.year &&
-              created.month == today.month &&
-              created.day == today.day);
-        }).toList();
+        _recent   = all.where((n) => n['is_read'] == false || n['is_read'] == 0).toList();
+        _previous = all.where((n) => n['is_read'] == true  || n['is_read'] == 1).toList();
         _isLoading = false;
       });
     } else {
@@ -77,22 +63,34 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  // mark a single notification as read — calls backend then updates local state
+  // mark single as read — removes from recent and moves to previous
   Future<void> _markSingleRead(Map<String, dynamic> notification) async {
     if (notification['is_read'] == true || notification['is_read'] == 1) return;
+
     final success = await NotificationService.markOneRead(notification['notification_id']);
     if (success && mounted) {
-      setState(() => notification['is_read'] = true);
+      setState(() {
+        // remove from recent
+        _recent.removeWhere(
+            (n) => n['notification_id'] == notification['notification_id']);
+        // add to top of previous as read
+        notification['is_read'] = true;
+        _previous.insert(0, notification);
+      });
     }
   }
 
-  // mark all notifications as read — calls backend then updates all local states
+  // mark all as read — moves everything from recent to previous
   Future<void> _markAllRead() async {
     await NotificationService.markAllRead();
     if (!mounted) return;
     setState(() {
-      for (final n in _recent)   n['is_read'] = true;
-      for (final n in _previous) n['is_read'] = true;
+      // mark all recent as read and move to previous
+      for (final n in _recent) {
+        n['is_read'] = true;
+      }
+      _previous.insertAll(0, _recent);
+      _recent.clear();
     });
   }
 

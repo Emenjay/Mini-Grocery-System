@@ -159,17 +159,17 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
     // combine product name and measurement into one field
     // if measurement is provided, append it to the name (e.g. "Ligo Sardines 155g") 
-    final measurement = _measureController.text.trim();
-    final fullProductName = measurement.isNotEmpty
-      ? '${_nameController.text.trim()} $measurement'
-      : _nameController.text.trim();
+    // final measurement = _measureController.text.trim();
+    // final fullProductName = measurement.isNotEmpty
+    //   ? '${_nameController.text.trim()} $measurement'
+    //   : _nameController.text.trim();
 
     final result = await InventoryService.addProduct(
       categoryID: selectedCategoryID!,
-      productName: fullProductName, // combined name + measurement
+      productName: _nameController.text.trim(),
       basePrice: double.tryParse(_priceController.text) ?? 0.0,
       description: _descController.text.trim(),
-      unitMeasurement: measurement,
+      unitMeasurement: _measureController.text.trim(),
       stockQuantity: int.tryParse(_stockController.text) ?? 0,
       //  stock status is now auto-calculated by backend from stockQuantity
       spoilageDate: expirationDate,
