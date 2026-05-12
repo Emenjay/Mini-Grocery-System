@@ -229,15 +229,6 @@ class _StaffListScreenState extends State<StaffListScreen> {
           Navigator.push(context, MaterialPageRoute(builder: (_) => StaffInfoScreen(staff: staff, initialIsEditing: true)))
               .then((_) => _fetchStaff());
         },
-        onToggleDuty: () {
-          Navigator.pop(context);
-          setState(() {
-            final i = _staffList.indexWhere((s) => s['user_id'] == staff['user_id']);
-            if (i != -1) {
-              _staffList[i]['is_on_duty'] = _isOnDuty(_staffList[i]) ? 0 : 1;
-            }
-          });
-        },
         onRemove: () {
           Navigator.pop(context);
           _showRemoveConfirmation(context, staff);
@@ -733,10 +724,9 @@ class _StaffMenuSheet extends StatelessWidget {
   final Map<String, dynamic> staff;
   final VoidCallback onView;
   final VoidCallback onEdit;
-  final VoidCallback onToggleDuty;
   final VoidCallback onRemove;
 
-  const _StaffMenuSheet({required this.staff, required this.onView, required this.onEdit, required this.onToggleDuty, required this.onRemove});
+  const _StaffMenuSheet({required this.staff, required this.onView, required this.onEdit, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -750,7 +740,6 @@ class _StaffMenuSheet extends StatelessWidget {
           const Divider(height: 20),
           _MenuOption(icon: Icons.visibility, label: 'View Staff Information', onTap: onView),
           _MenuOption(icon: Icons.edit, label: 'Edit Details', onTap: onEdit),
-          _MenuOption(icon: Icons.swap_horiz, label: 'Toggle Duty', onTap: onToggleDuty),
           _MenuOption(icon: Icons.delete, label: 'Remove Staff', onTap: onRemove, isDestructive: true),
         ],
       ),
