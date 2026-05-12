@@ -28,6 +28,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late TextEditingController _descController;
   late TextEditingController _basePriceController;
   late TextEditingController _stocksController;
+  late TextEditingController _unitMeasurementController;
 
   DateTime? _selectedExpirationDate;
   String? _selectedCategoryName;
@@ -65,6 +66,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         TextEditingController(text: product['name']?.toString() ?? '');
     _descController =
         TextEditingController(text: product['description']?.toString() ?? '');
+    _unitMeasurementController =
+        TextEditingController(text: product['unitMeasurement']?.toString() ?? '');
     _basePriceController =
         TextEditingController(text: product['basePrice']?.toString() ?? '0.00');
     _stocksController =
@@ -545,6 +548,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       isEditing: isEditing,
                       isPrice: true),
 
+                  _infoTile(Icons.straighten_outlined, "Unit Measurement", 
+                    _unitMeasurementController.text.isEmpty ? 'N/A' : _unitMeasurementController.text,
+                    controller: _unitMeasurementController, isEditing: isEditing),
+
                   _infoTile(Icons.inventory_2_outlined, "Available Stocks",
                       _stocksController.text,
                       controller: _stocksController,
@@ -726,4 +733,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ),
     );
   }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    _basePriceController.dispose();
+    _stocksController.dispose();
+    _unitMeasurementController.dispose();
+    super.dispose();
+  }
+
 }
