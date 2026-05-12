@@ -4,6 +4,8 @@ const db = require('../config/db');
 const Product = require('../models/productModel');
 const PausedCart = require('../models/pausedCartModel');
 
+const { checkAndNotifyLowStock, checkAndNotifyOutOfStock } = require('./notificationController');
+
 exports.checkout = async (req, res) => {
   try {
     const userID = req.user.userID;
@@ -89,6 +91,10 @@ exports.checkout = async (req, res) => {
 
       // deduct stock
       await Inventory.deductStock(item.product_id, item.quantity);
+
+      // check and push real-time if low/out of stock
+      await checkAndNotifyLowStock(item.product_id, req.app);
+      await checkAndNotifyOutOfStock(item.product_id, req.app);
 
       // check stock after deduction and warn if needed
       const inventory = await Inventory.getByProductID(item.product_id);

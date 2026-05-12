@@ -75,6 +75,8 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
+        child: RefreshIndicator(
+        onRefresh: _loadDashboard,
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -194,7 +196,10 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                       icon: Icons.inventory_2,
                       color: const Color(0xFF35524A),
                       onTap: () async {
-                        await Navigator.pushNamed(context, '/staff-inventory');
+                        await Navigator.pushNamed(
+                          context, '/staff-inventory',
+                          arguments: 'Recently Added'
+                        );
                         _loadDashboard(); // refresh counts when returning
                       },
                     ),
@@ -205,6 +210,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

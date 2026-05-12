@@ -11,6 +11,8 @@ import '../../utils/app_state.dart';
 import 'admin_inventory.dart';
 import 'staff_list_screen.dart';
 import 'admin_profile_screen.dart';
+import '../../services/notification_service.dart';
+import 'dart:async';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN DASHBOARD
@@ -166,10 +168,54 @@ class _DashboardContentState extends State<_DashboardContent> {
   double _monthlySales = 0;
   List<Map<String, dynamic>> _activeShifts = [];
 
+  // holds the stream subscription so we can cancel it on dispose to prevent memory leaks
+  StreamSubscription<Map<String, dynamic>>? _notifSubscription;
+
   @override
   void initState() {
     super.initState();
     _fetchDashboard();
+
+    // subscribe to real-time notifications — connection was already opened in login.dart
+    // store subscription so it can be cancelled on dispose
+    _notifSubscription = NotificationService.notificationStream.listen((notification) {
+      if (!mounted) return;
+      _showNotificationBanner(notification);
+    });
+  }
+
+
+  @override
+  void dispose() {
+    // cancel subscription to prevent calling setState on a disposed widget
+    _notifSubscription?.cancel();
+    super.dispose();
+  }
+
+  // show a floating snackbar when a real-time notification arrives
+  void _showNotificationBanner(Map<String, dynamic> notification) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              notification['title'] ?? 'Notification',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            Text(
+              notification['message'] ?? '',
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF35524A),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   Future<void> _fetchDashboard() async {

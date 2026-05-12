@@ -1,4 +1,5 @@
 // ignore_for_file: unused_element
+
 import 'package:flutter/material.dart';
 import '../../../theme/colors.dart';
 import '../../../services/inventory_service.dart';
@@ -26,7 +27,7 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   String activeSortPrice = 'None';
 
   // logic for dashboard navigation
-  bool _hasInitialFilterApplied = false;
+  String? _lastArguments;
 
   // backend data state
   List<Map<String, dynamic>> _products = [];
@@ -41,27 +42,38 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     // initial fetch happens after didChangeDependencies sets filters
   }
 
+
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // catch arguments from dashboard navigation and apply filters before first fetch
-    if (!_hasInitialFilterApplied) {
-      _hasInitialFilterApplied = true;
-      final args = ModalRoute.of(context)?.settings.arguments;
-      if (args is String) {
+    final args = ModalRoute.of(context)?.settings.arguments as String?;
+    if (args != _lastArguments) {
+      _lastArguments = args;
+
+      // set all filters inside one setState so _fetchProducts gets correct values
+      setState(() {
+        selectedCategory = 'Recently Added';
+        activeExpiryFilter = '';
+        activeSortAlpha = '';
+        activeSortPrice = 'None';
+        currentPage = 1;
+
+        // reset stock filter first, then apply from argument
+        activeStockFilter = '';
+
         if (args == 'Low Stock') {
           activeStockFilter = 'Low Stock';
         } else if (args == 'No Stock') {
-          activeStockFilter = 'Out of Stock'; // backend uses 'Out of Stock' not 'No Stock'
+          activeStockFilter = 'No Stock'; // must match _mapStockFilter key exactly
         } else if (args == 'Expired') {
           activeExpiryFilter = 'Expired';
-        } else if (args == 'All') {
-          activeStockFilter = '';
-          selectedCategory = 'Recently Added';
         }
-      }
-      _fetchProducts(); // fetch after filters are set
+        // 'All' and null just leave filters empty — show everything
+      });
+
+      _fetchProducts();
     }
   }
 
@@ -76,7 +88,11 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     final stockStatusParam = _mapStockFilter(activeStockFilter);
     final expiryParam = _mapExpiryFilter(activeExpiryFilter);
     final sortNameParam = activeSortAlpha;
-    final sortPriceParam = activeSortPrice == 'Ascending' ? 'asc' : activeSortPrice == 'Descending' ? 'desc' : '';
+    final sortPriceParam = activeSortPrice == 'Ascending'
+        ? 'asc'
+        : activeSortPrice == 'Descending'
+        ? 'desc'
+        : '';
     final isRecentlyAdded = selectedCategory == 'Recently Added';
     final categoryParam = isRecentlyAdded ? '' : selectedCategory;
 
@@ -97,25 +113,29 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     if (result['success']) {
       setState(() {
         // map backend product fields to the format the UI expects
-        _products = (result['products'] as List).map((p) => {
-          'id': p['product_id'],
-          'name': p['product_name'],
-          'category': p['category_name'],
-          'stocks': p['stock_quantity'] ?? 0,
-          // map backend stock_status to frontend display values
-          'status': _mapStockStatus(p['stock_status']),
-          'basePrice': double.tryParse(p['base_price'].toString()) ?? 0.0,
-          'markup': double.tryParse(p['markup_price'].toString()) ?? 0.0,
-          'retailPrice': p['retail_price'] ?? 0,
-          'spoilageDate': p['spoilage_date'],
-          'lastUpdated': p['last_updated'],
-          'description': p['description'] ?? '',
-          'unitMeasurement': p['unit_measurement'] ?? '',
-          'isfastmoving': p['isfastmoving'] ?? false,
-          'isApproved': p['is_approved'] ?? false,
-          'receivedDate': p['received_date'],
-          'categoryId': p['category_id'],
-        }).toList();
+        _products = (result['products'] as List)
+            .map(
+              (p) => {
+                'id': p['product_id'],
+                'name': p['product_name'],
+                'category': p['category_name'],
+                'stocks': p['stock_quantity'] ?? 0,
+                // map backend stock_status to frontend display values
+                'status': _mapStockStatus(p['stock_status']),
+                'basePrice': double.tryParse(p['base_price'].toString()) ?? 0.0,
+                'markup': double.tryParse(p['markup_price'].toString()) ?? 0.0,
+                'retailPrice': p['retail_price'] ?? 0,
+                'spoilageDate': p['spoilage_date'],
+                'lastUpdated': p['last_updated'],
+                'description': p['description'] ?? '',
+                'unitMeasurement': p['unit_measurement'] ?? '',
+                'isfastmoving': p['isfastmoving'] ?? false,
+                'isApproved': p['is_approved'] ?? false,
+                'receivedDate': p['received_date'],
+                'categoryId': p['category_id'],
+              },
+            )
+            .toList();
         _totalPages = result['pagination']['totalPages'] ?? 1;
         _totalItems = result['pagination']['total'] ?? 0;
         _isLoading = false;
@@ -131,30 +151,42 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   // map frontend stock filter label to backend expected value
   String _mapStockFilter(String filter) {
     switch (filter) {
-      case 'Available': return 'In Stock';
-      case 'Low Stock': return 'Low Stock';
-      case 'No Stock': return 'Out of Stock';
-      default: return '';
+      case 'Available':
+        return 'In Stock';
+      case 'Low Stock':
+        return 'Low Stock';
+      case 'No Stock':
+        return 'Out of Stock';
+      default:
+        return '';
     }
   }
 
   // map frontend expiry filter label to backend expected value
   String _mapExpiryFilter(String filter) {
     switch (filter) {
-      case 'Expired': return 'Expired';
-      case 'Expiring Soon': return 'Expiring Soon';
-      case 'Not Expiring Soon': return 'Not Expiring Soon';
-      default: return '';
+      case 'Expired':
+        return 'Expired';
+      case 'Expiring Soon':
+        return 'Expiring Soon';
+      case 'Not Expiring Soon':
+        return 'Not Expiring Soon';
+      default:
+        return '';
     }
   }
 
   // map backend stock_status to frontend display label
   String _mapStockStatus(String? status) {
     switch (status) {
-      case 'In Stock': return 'In Stock';
-      case 'Low Stock': return 'Low Stock';
-      case 'Out of Stock': return 'No Stock';
-      default: return 'No Stock';
+      case 'In Stock':
+        return 'In Stock';
+      case 'Low Stock':
+        return 'Low Stock';
+      case 'Out of Stock':
+        return 'No Stock';
+      default:
+        return 'No Stock';
     }
   }
 
@@ -168,15 +200,24 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
       _fetchProducts(); // refresh list after deletion
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Failed to delete product')),
+        SnackBar(
+          content: Text(result['message'] ?? 'Failed to delete product'),
+        ),
       );
     }
   }
 
   final List<String> categories = [
-    'Recently Added', 'Beverages', 'Liquor & Tobacco', 'Snacks & Sweets',
-    'Fresh & Prepared', 'Pantry Staples', 'Frozen Goods', 'Personal Care',
-    'Household Care', 'Miscellaneous',
+    'Recently Added',
+    'Beverages',
+    'Liquor & Tobacco',
+    'Snacks & Sweets',
+    'Fresh & Prepared',
+    'Pantry Staples',
+    'Frozen Goods',
+    'Personal Care',
+    'Household Care',
+    'Miscellaneous',
   ];
 
   // expiry filter options matching backend preset options
@@ -187,11 +228,22 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   ];
 
   // sidebar builders
-  Widget _buildSortRadio(String title, String value, String groupValue, Function(String?) onChanged) {
+  Widget _buildSortRadio(
+    String title,
+    String value,
+    String groupValue,
+    Function(String?) onChanged,
+  ) {
     return RadioListTile<String>(
-      title: Text(title, style: const TextStyle(color: Colors.black54, fontSize: 15)),
-      value: value, groupValue: groupValue, activeColor: AppColors.primaryDarkTeal,
-      dense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+      title: Text(
+        title,
+        style: const TextStyle(color: Colors.black54, fontSize: 15),
+      ),
+      value: value,
+      groupValue: groupValue,
+      activeColor: AppColors.primaryDarkTeal,
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 15),
       onChanged: onChanged,
     );
   }
@@ -200,24 +252,40 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
-        title: Text(title, style: const TextStyle(color: AppColors.primaryDarkTeal, fontWeight: FontWeight.bold)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.primaryDarkTeal,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         children: children,
       ),
     );
   }
 
-  Widget _buildDrawerLink(String text, {required bool isSelected, required VoidCallback onTap}) {
+  Widget _buildDrawerLink(
+    String text, {
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Container(
-        width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
-        child: Text(text, style: TextStyle(
-          color: isSelected ? AppColors.primaryDarkTeal : Colors.black54,
-          fontSize: 15,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
-          decorationThickness: 2,
-        )),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isSelected ? AppColors.primaryDarkTeal : Colors.black54,
+            fontSize: 15,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            decoration: isSelected
+                ? TextDecoration.underline
+                : TextDecoration.none,
+            decorationThickness: 2,
+          ),
+        ),
       ),
     );
   }
@@ -230,7 +298,10 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
       endDrawer: Drawer(
         width: MediaQuery.of(context).size.width * 0.75,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(topLeft: Radius.circular(30), bottomLeft: Radius.circular(30)),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(30),
+            bottomLeft: Radius.circular(30),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +311,14 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Filters", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+                  const Text(
+                    "Filters",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryDarkTeal,
+                    ),
+                  ),
                   // reset all filters button
                   IconButton(
                     onPressed: () {
@@ -254,7 +332,11 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                       });
                       _fetchProducts(); // refetch with cleared filters
                     },
-                    icon: const Icon(Icons.restart_alt, color: AppColors.primaryDarkTeal, size: 28),
+                    icon: const Icon(
+                      Icons.restart_alt,
+                      color: AppColors.primaryDarkTeal,
+                      size: 28,
+                    ),
                     tooltip: 'Reset filters',
                   ),
                 ],
@@ -264,59 +346,148 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 children: [
-                  _buildExpansionTile("Categories", children: [
-                    ...categories.map((cat) => _buildDrawerLink(cat, isSelected: selectedCategory == cat, onTap: () {
-                      setState(() { selectedCategory = cat; currentPage = 1; });
-                      Navigator.pop(context);
-                      _fetchProducts(); // refetch when category changes in drawer
-                    })),
-                  ]),
-                  _buildExpansionTile("Stock Status", children: [
-                    _buildDrawerLink("Available", isSelected: activeStockFilter == "Available", onTap: () {
-                      setState(() { activeStockFilter = "Available"; currentPage = 1; });
-                      _fetchProducts();
-                    }),
-                    _buildDrawerLink("Low Stock", isSelected: activeStockFilter == "Low Stock", onTap: () {
-                      setState(() { activeStockFilter = "Low Stock"; currentPage = 1; });
-                      _fetchProducts();
-                    }),
-                    _buildDrawerLink("No Stock", isSelected: activeStockFilter == "No Stock", onTap: () {
-                      setState(() { activeStockFilter = "No Stock"; currentPage = 1; });
-                      _fetchProducts();
-                    }),
-                  ]),
-                  _buildExpansionTile("Expiration Date", children: [
-                    // replaced hardcoded months with backend preset options
-                    ...expiryFilters.map((filter) => _buildDrawerLink(filter,
-                      isSelected: activeExpiryFilter == filter,
-                      onTap: () {
-                        setState(() { activeExpiryFilter = filter; currentPage = 1; });
-                        _fetchProducts();
-                      }
-                    )),
-                  ]),
-                  const Divider(height: 40, thickness: 1, indent: 15, endIndent: 15),
-                  const Padding(padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8), child: Text("Alphabetical Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal))),
+                  _buildExpansionTile(
+                    "Categories",
+                    children: [
+                      ...categories.map(
+                        (cat) => _buildDrawerLink(
+                          cat,
+                          isSelected: selectedCategory == cat,
+                          onTap: () {
+                            setState(() {
+                              selectedCategory = cat;
+                              currentPage = 1;
+                            });
+                            Navigator.pop(context);
+                            _fetchProducts(); // refetch when category changes in drawer
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  _buildExpansionTile(
+                    "Stock Status",
+                    children: [
+                      _buildDrawerLink(
+                        "Available",
+                        isSelected: activeStockFilter == "Available",
+                        onTap: () {
+                          setState(() {
+                            activeStockFilter = "Available";
+                            currentPage = 1;
+                          });
+                          _fetchProducts();
+                        },
+                      ),
+                      _buildDrawerLink(
+                        "Low Stock",
+                        isSelected: activeStockFilter == "Low Stock",
+                        onTap: () {
+                          setState(() {
+                            activeStockFilter = "Low Stock";
+                            currentPage = 1;
+                          });
+                          _fetchProducts();
+                        },
+                      ),
+                      _buildDrawerLink(
+                        "No Stock",
+                        isSelected: activeStockFilter == "No Stock",
+                        onTap: () {
+                          setState(() {
+                            activeStockFilter = "No Stock";
+                            currentPage = 1;
+                          });
+                          _fetchProducts();
+                        },
+                      ),
+                    ],
+                  ),
+                  _buildExpansionTile(
+                    "Expiration Date",
+                    children: [
+                      // replaced hardcoded months with backend preset options
+                      ...expiryFilters.map(
+                        (filter) => _buildDrawerLink(
+                          filter,
+                          isSelected: activeExpiryFilter == filter,
+                          onTap: () {
+                            setState(() {
+                              activeExpiryFilter = filter;
+                              currentPage = 1;
+                            });
+                            _fetchProducts();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(
+                    height: 40,
+                    thickness: 1,
+                    indent: 15,
+                    endIndent: 15,
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text(
+                      "Alphabetical Sort",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryDarkTeal,
+                      ),
+                    ),
+                  ),
                   _buildSortRadio("A - Z", "A-Z", activeSortAlpha, (val) {
-                    setState(() { activeSortAlpha = val!; currentPage = 1; });
+                    setState(() {
+                      activeSortAlpha = val!;
+                      currentPage = 1;
+                    });
                     _fetchProducts();
                   }),
                   _buildSortRadio("Z - A", "Z-A", activeSortAlpha, (val) {
-                    setState(() { activeSortAlpha = val!; currentPage = 1; });
+                    setState(() {
+                      activeSortAlpha = val!;
+                      currentPage = 1;
+                    });
                     _fetchProducts();
                   }),
                   const SizedBox(height: 15),
-                  const Padding(padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8), child: Text("Price Sort", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal))),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text(
+                      "Price Sort",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryDarkTeal,
+                      ),
+                    ),
+                  ),
                   _buildSortRadio("None", "None", activeSortPrice, (val) {
-                    setState(() { activeSortPrice = val!; currentPage = 1; });
+                    setState(() {
+                      activeSortPrice = val!;
+                      currentPage = 1;
+                    });
                     _fetchProducts();
                   }),
-                  _buildSortRadio("Ascending", "Ascending", activeSortPrice, (val) {
-                    setState(() { activeSortPrice = val!; currentPage = 1; });
+                  _buildSortRadio("Ascending", "Ascending", activeSortPrice, (
+                    val,
+                  ) {
+                    setState(() {
+                      activeSortPrice = val!;
+                      currentPage = 1;
+                    });
                     _fetchProducts();
                   }),
-                  _buildSortRadio("Descending", "Descending", activeSortPrice, (val) {
-                    setState(() { activeSortPrice = val!; currentPage = 1; });
+                  _buildSortRadio("Descending", "Descending", activeSortPrice, (
+                    val,
+                  ) {
+                    setState(() {
+                      activeSortPrice = val!;
+                      currentPage = 1;
+                    });
                     _fetchProducts();
                   }),
                   const SizedBox(height: 40),
@@ -327,8 +498,13 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductScreen()))
-            .then((_) => _fetchProducts()), // refresh list when returning from add product
+        onPressed: () =>
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AddProductScreen()),
+            ).then(
+              (_) => _fetchProducts(),
+            ), // refresh list when returning from add product
         backgroundColor: const Color(0xFF004D40),
         child: const Icon(Icons.add, color: Colors.white, size: 35),
       ),
@@ -339,23 +515,38 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
                 children: [
-                  _circleIcon(Icons.keyboard_return, () => Navigator.pop(context)),
+                  _circleIcon(
+                    Icons.keyboard_return,
+                    () => Navigator.pop(context),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Container(
                       height: 38,
-                      decoration: BoxDecoration(color: AppColors.surfaceLightGray.withOpacity(0.3), borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLightGray.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: TextField(
                         onChanged: (val) {
-                          setState(() { searchQuery = val; currentPage = 1; });
+                          setState(() {
+                            searchQuery = val;
+                            currentPage = 1;
+                          });
                           // fetch from backend on search change
                           _fetchProducts();
                         },
                         decoration: const InputDecoration(
                           hintText: "Search name or ID...",
-                          hintStyle: TextStyle(fontSize: 12, color: Colors.black26),
+                          hintStyle: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black26,
+                          ),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
@@ -363,14 +554,18 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                   const SizedBox(width: 8),
                   _circleIcon(Icons.search, () => _fetchProducts()),
                   const SizedBox(width: 6),
-                  _circleIcon(Icons.tune, () => _scaffoldKey.currentState?.openEndDrawer()),
+                  _circleIcon(
+                    Icons.tune,
+                    () => _scaffoldKey.currentState?.openEndDrawer(),
+                  ),
                 ],
               ),
             ),
             SizedBox(
               height: 40,
               child: ListView.builder(
-                scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: categories.length,
                 itemBuilder: (context, index) {
                   final cat = categories[index];
@@ -378,16 +573,29 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(cat, style: TextStyle(color: isSelected ? Colors.white : Colors.black54, fontSize: 12)),
+                      label: Text(
+                        cat,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
                       selected: isSelected,
                       onSelected: (val) {
                         if (val) {
-                          setState(() { selectedCategory = cat; currentPage = 1; });
+                          setState(() {
+                            selectedCategory = cat;
+                            currentPage = 1;
+                          });
                           _fetchProducts(); // refetch when category chip changes
                         }
                       },
-                      selectedColor: AppColors.primaryDarkTeal, backgroundColor: AppColors.surfaceLightGray,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), showCheckmark: false,
+                      selectedColor: AppColors.primaryDarkTeal,
+                      backgroundColor: AppColors.surfaceLightGray,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      showCheckmark: false,
                     ),
                   );
                 },
@@ -399,16 +607,24 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
             const SizedBox(height: 10),
             Expanded(
               child: _isLoading
-                ? const Center(child: CircularProgressIndicator()) // loading state
-                : _errorMessage != null
-                  ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent))) // error state
-                  : _products.isEmpty
-                    ? const Center(child: Text("No items found")) // empty state
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _products.length,
-                        itemBuilder: (context, index) => _buildProductCard(_products, index),
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    ) // loading state
+                  : _errorMessage != null
+                  ? Center(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(color: Colors.redAccent),
                       ),
+                    ) // error state
+                  : _products.isEmpty
+                  ? const Center(child: Text("No items found")) // empty state
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _products.length,
+                      itemBuilder: (context, index) =>
+                          _buildProductCard(_products, index),
+                    ),
             ),
           ],
         ),
@@ -427,24 +643,43 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
       },
       background: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(15)),
-        alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_forever_outlined, color: Colors.white, size: 28),
+        decoration: BoxDecoration(
+          color: Colors.redAccent,
+          borderRadius: BorderRadius.circular(15),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(
+          Icons.delete_forever_outlined,
+          color: Colors.white,
+          size: 28,
+        ),
       ),
       child: GestureDetector(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ProductDetailScreen(
-            productList: list,
-            initialIndex: index,
-          )),
-        ).then((_) => _fetchProducts()), // refresh after returning from product detail
+        onTap: () =>
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    ProductDetailScreen(productList: list, initialIndex: index),
+              ),
+            ).then(
+              (_) => _fetchProducts(),
+            ), // refresh after returning from product detail
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 6), padding: const EdgeInsets.all(12),
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(15),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
             border: Border.all(color: Colors.black12),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))]
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             children: [
@@ -452,23 +687,50 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(item['category'], style: const TextStyle(fontSize: 11, color: Colors.black45, fontStyle: FontStyle.italic)),
+                    Text(
+                      item['name'],
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      item['category'],
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black45,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                     // show product_id from backend
-                    Text('ID: ${item['id']}', style: const TextStyle(fontSize: 10, color: Color(0xFF3E5C51), fontWeight: FontWeight.bold)),
+                    Text(
+                      'ID: ${item['id']}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF3E5C51),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Icon(Icons.arrow_forward, size: 14, color: Colors.black45),
+                  const Icon(
+                    Icons.arrow_forward,
+                    size: 14,
+                    color: Colors.black45,
+                  ),
                   const SizedBox(height: 12),
-                  Text("${item['stocks']} stocks", style: const TextStyle(fontSize: 12, color: Colors.black38)),
+                  Text(
+                    "${item['stocks']} stocks",
+                    style: const TextStyle(fontSize: 12, color: Colors.black38),
+                  ),
                   const SizedBox(height: 4),
                   _statusTag(item['status']),
                 ],
-              )
+              ),
             ],
           ),
         ),
@@ -476,20 +738,26 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, Map<String, dynamic> item) {
+  void _showDeleteConfirmation(
+    BuildContext context,
+    Map<String, dynamic> item,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete Item?"),
         content: Text("Remove ${item['name']}?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _deleteProduct(item); // call backend delete then refresh
             },
-            child: const Text("Delete", style: TextStyle(color: Colors.red))
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -501,17 +769,30 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF2D936C), size: 60),
+                const Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: Color(0xFF2D936C),
+                  size: 60,
+                ),
                 const SizedBox(height: 16),
-                const Text("Deletion Successful", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  "Deletion Successful",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
-                const Text("The item has been removed from inventory.", textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: Colors.black54)),
+                const Text(
+                  "The item has been removed from inventory.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
@@ -519,11 +800,19 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF35524A),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
-                    child: const Text("Done", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      "Done",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -536,8 +825,12 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.black12)),
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.black12),
+        ),
         child: Icon(icon, size: 18, color: AppColors.primaryDarkTeal),
       ),
     );
@@ -547,10 +840,29 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _pageBtn(Icons.chevron_left, currentPage > 1 ? () { setState(() => currentPage--); _fetchProducts(); } : null),
+        _pageBtn(
+          Icons.chevron_left,
+          currentPage > 1
+              ? () {
+                  setState(() => currentPage--);
+                  _fetchProducts();
+                }
+              : null,
+        ),
         for (int i = 1; i <= _totalPages; i++)
-          _pageNum(i.toString(), currentPage == i, _totalPages > 1, () { setState(() => currentPage = i); _fetchProducts(); }),
-        _pageBtn(Icons.chevron_right, currentPage < _totalPages ? () { setState(() => currentPage++); _fetchProducts(); } : null),
+          _pageNum(i.toString(), currentPage == i, _totalPages > 1, () {
+            setState(() => currentPage = i);
+            _fetchProducts();
+          }),
+        _pageBtn(
+          Icons.chevron_right,
+          currentPage < _totalPages
+              ? () {
+                  setState(() => currentPage++);
+                  _fetchProducts();
+                }
+              : null,
+        ),
       ],
     );
   }
@@ -559,30 +871,58 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4), padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(color: onTap != null ? const Color(0xFF3E5C51) : Colors.grey[400], borderRadius: BorderRadius.circular(4)),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: onTap != null ? const Color(0xFF3E5C51) : Colors.grey[400],
+          borderRadius: BorderRadius.circular(4),
+        ),
         child: Icon(icon, color: Colors.white, size: 16),
       ),
     );
   }
 
-  Widget _pageNum(String txt, bool active, bool interactive, VoidCallback onTap) {
+  Widget _pageNum(
+    String txt,
+    bool active,
+    bool interactive,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: interactive ? onTap : null,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(color: active ? const Color(0xFFB2DFDB) : Colors.black12, borderRadius: BorderRadius.circular(4)),
-        child: Text(txt, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFB2DFDB) : Colors.black12,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          txt,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
 
   Widget _statusTag(String status) {
-    Color color = (status == 'In Stock' || status == 'Available') ? const Color(0xFF2D936C) : (status == 'Low Stock' ? Colors.orange : Colors.redAccent);
+    Color color = (status == 'In Stock' || status == 'Available')
+        ? const Color(0xFF2D936C)
+        : (status == 'Low Stock' ? Colors.orange : Colors.redAccent);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
-      child: Text(status, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        status,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }

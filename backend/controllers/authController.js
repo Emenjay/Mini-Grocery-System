@@ -3,15 +3,16 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 const Attendance = require('../models/attendanceModel');
 const PausedCart = require('../models/pausedCartModel');
+const { notifyEmployeeLogin, notifyEmployeeLogout } = require('./notificationController');
 
 // login authentication
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
-    
+
     // check if fields are provided
     if (!username || !password) {
-        return res.status(400).json({ message: 'Username and password are required'});
+      return res.status(400).json({ message: 'Username and password are required' });
     }
 
     // find user in db
@@ -33,7 +34,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid username or password' });
     }
 
-     // check for abandoned shift from a previous day and warn, but leave it open
+    // check for abandoned shift from a previous day and warn, but leave it open
     const abandonedShift = await Attendance.findAbandonedAttendance(user.user_id);
     if (abandonedShift) {
       console.warn(`User ${user.user_id} has an abandoned attendance record from ${abandonedShift.clock_in_timestamp}`);
@@ -45,14 +46,18 @@ exports.login = async (req, res) => {
       await Attendance.clockIn(user.user_id);
     }
 
-    // generate token
+    // notify admin that employee logged in
+    // use user.full_name (from DB), user.user_id as shiftId placeholder, pass req.app for SSE push
+    await notifyEmployeeLogin(user.user_id, user.full_name, 0, user.user_id, req.app);
+
+    // generate token — include username and fullName so Flutter can display them
     const token = jwt.sign(
-      { userID: user.user_id, role: user.role_name },
+      { userID: user.user_id, role: user.role_name, username: user.username, fullName: user.full_name },
       process.env.JWT_SECRET,
-      { expiresIn: '12h' } // token expires after 13 hours
+      { expiresIn: '12h' }
     );
 
-    // if all previous condtions passed, login success
+    // if all previous conditions passed, login success
     res.status(200).json({
       message: 'Login successful',
       token,
@@ -74,6 +79,8 @@ exports.login = async (req, res) => {
 exports.logout = async (req, res) => {
   try {
     const userID = req.user.userID; // from JWT
+    // fullName is now in the JWT payload so we can use it here without a DB query
+    const fullName = req.user.fullName || 'Unknown User';
 
     const activeAttendance = await Attendance.findActiveAttendance(userID);
     if (!activeAttendance) {
@@ -84,6 +91,9 @@ exports.logout = async (req, res) => {
     await PausedCart.deleteAllPausedCarts(userID);
 
     await Attendance.clockOut(userID);
+
+    // notify admin that employee logged out, pass req.app for SSE push
+    await notifyEmployeeLogout(userID, fullName, 0, 0, userID, req.app);
 
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (err) {

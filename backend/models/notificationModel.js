@@ -14,6 +14,7 @@ const NotificationModel = {
 
   // return all notifications ordered newest-first
   async findAll({ limit = 50, offset = 0 } = {}) {
+    
     const [rows] = await db.query(
       `SELECT * FROM notification
        ORDER BY created_at DESC
