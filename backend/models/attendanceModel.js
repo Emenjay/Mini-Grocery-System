@@ -62,6 +62,18 @@ const Attendance = {
     return result.insertId;
   },
 
+  // update clock out timestamp for today's attendance record
+  clockOut: async (userID) => {
+  const [result] = await db.query(
+    `UPDATE attendance 
+     SET clock_out_timestamp = NOW()
+     WHERE user_id = ? AND clock_out_timestamp IS NULL
+     AND DATE(clock_in_timestamp) = CURDATE()`,
+    [userID]
+  );
+  return result.affectedRows;
+},
+
   // create cash_in transaction record
   startCashIn: async (userID, cashIn) => {
     const [result] = await db.query(
@@ -94,17 +106,6 @@ const Attendance = {
       [result.insertId]
     );
     return rows[0].date_time;
-  },
-
-  // clock out in attendance table
-  clockOut: async (userID) => {
-    await db.query(
-      `UPDATE attendance
-       SET clock_out_timestamp = NOW()
-       WHERE user_id = ?
-       AND clock_out_timestamp IS NULL`,
-      [userID]
-    );
   },
 
   // calculate total sales between cash_in and cash_out timestamps

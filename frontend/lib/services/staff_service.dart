@@ -33,6 +33,29 @@ class StaffService {
     }
   }
 
+  // POST /api/users/:id/toggle-duty
+  static Future<Map<String, dynamic>> toggleDuty(int userId) async {
+    try {
+      final url = '${AppConstants.baseUrl}/api/users/$userId/toggle-duty';
+      print('Calling: $url'); // check this in Flutter console
+      final response = await http.post(Uri.parse(url), headers: _headers);
+      print(
+        'Response: ${response.statusCode} ${response.body}',
+      ); // check this too
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'is_on_duty': data['is_on_duty']};
+      }
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Failed to toggle duty',
+      };
+    } catch (e) {
+      print('Error: $e'); // check what error is thrown
+      return {'success': false, 'message': 'Cannot connect to server.'};
+    }
+  }
+
   // GET /api/users/:id
   static Future<Map<String, dynamic>> getStaffByID(int id) async {
     try {

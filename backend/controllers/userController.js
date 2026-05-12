@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const User = require('../models/userModel');
 const fs = require('fs');
 const path = require('path');
+const db = require('../config/db');
 
 // get all employees
 // supports ?search=name and ?role=Cashier query params
@@ -147,6 +148,45 @@ exports.updateUser = async (req, res) => {
     await User.updateUser(id, fields);
 
     res.status(200).json({ message: 'Employee updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// toggle duty status (clock in/out)
+exports.toggleDuty = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByID(id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // check if user has an open shift today
+    const [rows] = await db.query(
+      `SELECT attendance_id FROM attendance
+       WHERE user_id = ? AND clock_out_timestamp IS NULL
+       AND DATE(clock_in_timestamp) = CURDATE()`,
+      [id]
+    );
+
+    const isOnDuty = rows.length > 0;
+    // if on duty, clock out by setting clock_out_timestamp to now
+    if (isOnDuty) {
+      await db.query(
+        `UPDATE attendance SET clock_out_timestamp = NOW()
+         WHERE user_id = ? AND clock_out_timestamp IS NULL
+         AND DATE(clock_in_timestamp) = CURDATE()`,
+        [id]
+      );
+    } else {
+      await db.query(
+        `INSERT INTO attendance (user_id, clock_in_timestamp) VALUES (?, NOW())`,
+        [id]
+      );
+    }
+
+    res.status(200).json({ success: true, is_on_duty: !isOnDuty });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

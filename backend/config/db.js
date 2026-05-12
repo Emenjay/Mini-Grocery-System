@@ -1,6 +1,6 @@
 // MySQL connection config
 
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 const pool = mysql.createPool({
@@ -10,4 +10,9 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
 });
 
-module.exports = pool.promise(); // use promise-based queries
+// set timezone to Philippine time for every new connection
+pool.on('connection', (connection) => {
+  connection.query("SET time_zone = '+08:00'");
+});
+
+module.exports = pool; // export the connection pool for use in other modules

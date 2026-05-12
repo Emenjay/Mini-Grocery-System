@@ -5,7 +5,7 @@ const NotificationModel = {
   // insert a new notification
   async create(userId, type, title, message, referenceId = null) {
     const [result] = await db.query(
-      `INSERT INTO notification (user_id, type, title, message, reference_id, is_read, created_at)
+      `INSERT INTO notification (UserID, Type, Title, Message, ReferenceID, IsRead, CreatedAt)
        VALUES (?, ?, ?, ?, ?, FALSE, NOW())`,
       [userId, type, title, message, referenceId]
     );
@@ -17,7 +17,7 @@ const NotificationModel = {
     
     const [rows] = await db.query(
       `SELECT * FROM notification
-       ORDER BY created_at DESC
+       ORDER BY CreatedAt DESC
        LIMIT ? OFFSET ?`,
       [limit, offset]
     );
@@ -28,8 +28,8 @@ const NotificationModel = {
   async findUnread() {
     const [rows] = await db.query(
       `SELECT * FROM notification
-       WHERE is_read = 0
-       ORDER BY created_at DESC`
+       WHERE IsRead = 0
+       ORDER BY CreatedAt DESC`
     );
     return rows;
   },
@@ -37,7 +37,7 @@ const NotificationModel = {
   // count unread notifications
   async countUnread() {
     const [[row]] = await db.query(
-      `SELECT COUNT(*) AS count FROM notification WHERE is_read = 0`
+      `SELECT COUNT(*) AS count FROM notification WHERE IsRead = 0`
     );
     return row.count;
   },
@@ -45,7 +45,7 @@ const NotificationModel = {
   // mark a single notification as read
   async markOneRead(notificationId) {
     const [result] = await db.query(
-      `UPDATE notification SET is_read = 1 WHERE notification_id = ?`,
+      `UPDATE notification SET IsRead = 1 WHERE NotificationID = ?`,
       [notificationId]
     );
     return result.affectedRows;
@@ -54,7 +54,7 @@ const NotificationModel = {
   // mark all notifications as read
   async markAllRead() {
     const [result] = await db.query(
-      `UPDATE notification SET is_read = 1 WHERE is_read = 0`
+      `UPDATE notification SET IsRead = 1 WHERE IsRead = 0`
     );
     return result.affectedRows;
   },
@@ -62,7 +62,7 @@ const NotificationModel = {
   // delete a single notification
   async deleteOne(notificationId) {
     const [result] = await db.query(
-      `DELETE FROM notification WHERE notification_id = ?`,
+      `DELETE FROM notification WHERE NotificationID = ?`,
       [notificationId]
     );
     return result.affectedRows;

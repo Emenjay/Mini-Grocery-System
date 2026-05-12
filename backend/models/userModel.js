@@ -36,8 +36,9 @@ const User = {
       LEFT JOIN attendance a 
         ON a.user_id = u.user_id
         AND a.clock_out_timestamp IS NULL
-        AND DATE(a.clock_in_timestamp) = CURDATE()
-      WHERE (u.full_name LIKE ? OR r.role_name LIKE ?)
+        AND DATE(a.clock_in_timestamp + INTERVAL 8 HOUR) = CURDATE()
+      WHERE u.account_status = 1
+      AND (u.full_name LIKE ? OR r.role_name LIKE ?)
     `;
 
     const params = [keyword, keyword];
@@ -71,8 +72,8 @@ const User = {
     const [rows] = await db.query(
       `SELECT 
         attendance_id,
-        clock_in_timestamp,
-        clock_out_timestamp
+        clock_in_timestamp + INTERVAL 8 HOUR AS clock_in_timestamp,
+        clock_out_timestamp + INTERVAL 8 HOUR AS clock_out_timestamp // adjust to PH time for display
        FROM attendance
        WHERE user_id = ?
        ORDER BY clock_in_timestamp DESC`,

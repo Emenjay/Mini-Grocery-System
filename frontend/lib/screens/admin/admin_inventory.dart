@@ -24,14 +24,23 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  // predefined categories and expiration filters for the sidebar
   final List<String> categories = [
-    'Recently Added', 'Beverages', 'Liquor & Tobacco', 'Snacks & Sweets',
-    'Fresh Foods', 'Prepared Foods', 'Frozen Goods', 'Personal Care',
-    'Household Care', 'Miscellaneous',
+    'Recently Added',
+    'Beverages',
+    'Liquor & Tobacco',
+    'Snacks & Sweets',
+    'Fresh & Prepared',
+    'Frozen Goods',
+    'Personal Care',
+    'Household Care',
+    'Miscellaneous',
   ];
 
   final List<String> expirationChoices = [
-    'Expired', 'Expiring Soon', 'Not Expiring Soon',
+    'Expired',
+    'Expiring Soon',
+    'Not Expiring Soon',
   ];
 
   @override
@@ -51,9 +60,9 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
 
     String sortName = '';
     String sortPrice = '';
-    if (selectedSort == 'A-Z')        sortName = 'A-Z';
-    if (selectedSort == 'Z-A')        sortName = 'Z-A';
-    if (selectedSort == 'Price-Asc')  sortPrice = 'asc';
+    if (selectedSort == 'A-Z') sortName = 'A-Z';
+    if (selectedSort == 'Z-A') sortName = 'Z-A';
+    if (selectedSort == 'Price-Asc') sortPrice = 'asc';
     if (selectedSort == 'Price-Desc') sortPrice = 'desc';
 
     String stockStatus = '';
@@ -93,11 +102,15 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     if (!mounted) return;
 
     if (result['success']) {
-      setState(() => _products.removeWhere((p) => p['product_id'] == productId));
+      setState(
+        () => _products.removeWhere((p) => p['product_id'] == productId),
+      );
       _showActionSuccess("Product deleted successfully!");
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Failed to delete product')),
+        SnackBar(
+          content: Text(result['message'] ?? 'Failed to delete product'),
+        ),
       );
     }
   }
@@ -122,9 +135,14 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                 child: const Icon(Icons.check, color: Colors.white, size: 45),
               ),
               const SizedBox(height: 20),
-              Text(message,
+              Text(
+                message,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal),
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryDarkTeal,
+                ),
               ),
               const SizedBox(height: 25),
               SizedBox(
@@ -134,9 +152,17 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF35524A),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
-                  child: Text("OK", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    "OK",
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -148,10 +174,14 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
 
   String _getStatusLabel(String? status) {
     switch (status) {
-      case 'Out of Stock': return 'No Stock';
-      case 'Low Stock':    return 'Low Stock';
-      case 'In Stock':     return 'In Stock';
-      default:             return status ?? 'Unknown';
+      case 'Out of Stock':
+        return 'No Stock';
+      case 'Low Stock':
+        return 'Low Stock';
+      case 'In Stock':
+        return 'In Stock';
+      default:
+        return status ?? 'Unknown';
     }
   }
 
@@ -181,7 +211,10 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                     decoration: const InputDecoration(
                       hintText: '',
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 10,
+                      ),
                     ),
                   ),
                 ),
@@ -214,16 +247,26 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                     _fetchProducts();
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF2F3E46) : const Color(0xFF9E9E9E),
+                      color: isSelected
+                          ? const Color(0xFF2F3E46)
+                          : const Color(0xFF9E9E9E),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(cat,
+                    child: Text(
+                      cat,
                       style: GoogleFonts.poppins(
-                        fontSize: 12, color: Colors.white,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      )),
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
               );
@@ -234,95 +277,138 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
         const Divider(height: 1, color: Colors.black12),
         Expanded(
           child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-              ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)))
+              ? const Center(child: CircularProgressIndicator())
+              : _errorMessage != null
+              ? Center(
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                )
               : _products.isEmpty
-                ? const Center(child: Text('No products found'))
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                    itemCount: _products.length,
-                    itemBuilder: (context, index) {
-                      final product = _products[index];
-                      final statusLabel = _getStatusLabel(product['stock_status']);
-                      return GestureDetector(
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AdminProductDetailScreen(
-                                productList: _products,
-                                initialIndex: index,
-                              ),
+              ? const Center(child: Text('No products found'))
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                  itemCount: _products.length,
+                  itemBuilder: (context, index) {
+                    final product = _products[index];
+                    final statusLabel = _getStatusLabel(
+                      product['stock_status'],
+                    );
+                    return GestureDetector(
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AdminProductDetailScreen(
+                              productList: _products,
+                              initialIndex: index,
                             ),
-                          );
-                          _fetchProducts();
-                        },
-                        child: Dismissible(
-                          key: Key(product['product_id'].toString()),
-                          direction: DismissDirection.endToStart,
-                          onDismissed: (dir) => _deleteProduct(product['product_id']),
-                          background: Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(15)),
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 20),
-                            child: const Icon(Icons.delete_outline, color: Colors.white, size: 32),
                           ),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(15),
-                              boxShadow: [
-                                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(product['product_name'] ?? '',
-                                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18, color: const Color(0xFF2F3E46)),
+                        );
+                        _fetchProducts();
+                      },
+                      child: Dismissible(
+                        key: Key(product['product_id'].toString()),
+                        direction: DismissDirection.endToStart,
+                        onDismissed: (dir) =>
+                            _deleteProduct(product['product_id']),
+                        background: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      product['product_name'] ?? '',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: const Color(0xFF2F3E46),
                                       ),
-                                      Text(product['category_name'] ?? '',
-                                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45, fontStyle: FontStyle.italic),
+                                    ),
+                                    Text(
+                                      product['category_name'] ?? '',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        color: Colors.black45,
+                                        fontStyle: FontStyle.italic,
                                       ),
-                                      if (product['is_approved'] == false || product['is_approved'] == 0)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 4),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: Colors.orange.shade100,
-                                              borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    if (product['is_approved'] == false ||
+                                        product['is_approved'] == 0)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.shade100,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
                                             ),
-                                            child: Text('Pending Approval',
-                                              style: GoogleFonts.poppins(fontSize: 10, color: Colors.orange.shade800),
+                                          ),
+                                          child: Text(
+                                            'Pending Approval',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 10,
+                                              color: Colors.orange.shade800,
                                             ),
                                           ),
                                         ),
-                                    ],
-                                  ),
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    const Icon(Icons.arrow_forward, size: 16, color: Colors.black45),
-                                    const SizedBox(height: 12),
-                                    _buildStatusTag(statusLabel),
+                                      ),
                                   ],
                                 ),
-                              ],
-                            ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Icon(
+                                    Icons.arrow_forward,
+                                    size: 16,
+                                    color: Colors.black45,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildStatusTag(statusLabel),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -352,8 +438,13 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                   backgroundImage: AssetImage('assets/images/logo.png'),
                 ),
                 const SizedBox(width: 15),
-                Text('Inventory',
-                  style: GoogleFonts.poppins(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w600),
+                Text(
+                  'Inventory',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -390,7 +481,14 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Filters", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
+                Text(
+                  "Filters",
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF35524A),
+                  ),
+                ),
                 TextButton(
                   onPressed: () {
                     setState(() {
@@ -401,7 +499,13 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                     });
                     _fetchProducts();
                   },
-                  child: Text("Reset", style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    "Reset",
+                    style: GoogleFonts.poppins(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -410,35 +514,77 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 10),
               children: [
-                _buildExpansionTile("Categories", children: [
-                  ...categories.map((cat) => _buildDrawerLink(
-                    cat,
-                    isSelected: selectedCategories.contains(cat),
-                    onTap: () {
-                      setState(() => selectedCategories = {cat});
-                      Navigator.pop(context);
-                      _fetchProducts();
-                    },
-                  )),
-                ]),
-                _buildExpansionTile("Stock Status", children: [
-                  _buildDrawerLink("In Stock",    isSelected: selectedStockStatuses.contains("In Stock"),    onTap: () => setState(() => selectedStockStatuses = {"In Stock"})),
-                  _buildDrawerLink("Low Stock",   isSelected: selectedStockStatuses.contains("Low Stock"),   onTap: () => setState(() => selectedStockStatuses = {"Low Stock"})),
-                  _buildDrawerLink("Out of Stock",isSelected: selectedStockStatuses.contains("Out of Stock"),onTap: () => setState(() => selectedStockStatuses = {"Out of Stock"})),
-                ]),
-                _buildExpansionTile("Expiration Date", children: [
-                  ...expirationChoices.map((choice) => _buildDrawerLink(
-                    choice,
-                    isSelected: selectedExpirationFilters.contains(choice),
-                    onTap: () => setState(() => selectedExpirationFilters = {choice}),
-                  )),
-                ]),
-                const Divider(height: 40, thickness: 1, indent: 15, endIndent: 15),
+                _buildExpansionTile(
+                  "Categories",
+                  children: [
+                    ...categories.map(
+                      (cat) => _buildDrawerLink(
+                        cat,
+                        isSelected: selectedCategories.contains(cat),
+                        onTap: () {
+                          setState(() => selectedCategories = {cat});
+                          Navigator.pop(context);
+                          _fetchProducts();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                _buildExpansionTile(
+                  "Stock Status",
+                  children: [
+                    _buildDrawerLink(
+                      "In Stock",
+                      isSelected: selectedStockStatuses.contains("In Stock"),
+                      onTap: () =>
+                          setState(() => selectedStockStatuses = {"In Stock"}),
+                    ),
+                    _buildDrawerLink(
+                      "Low Stock",
+                      isSelected: selectedStockStatuses.contains("Low Stock"),
+                      onTap: () =>
+                          setState(() => selectedStockStatuses = {"Low Stock"}),
+                    ),
+                    _buildDrawerLink(
+                      "Out of Stock",
+                      isSelected: selectedStockStatuses.contains(
+                        "Out of Stock",
+                      ),
+                      onTap: () => setState(
+                        () => selectedStockStatuses = {"Out of Stock"},
+                      ),
+                    ),
+                  ],
+                ),
+                _buildExpansionTile(
+                  "Expiration Date",
+                  children: [
+                    ...expirationChoices.map(
+                      (choice) => _buildDrawerLink(
+                        choice,
+                        isSelected: selectedExpirationFilters.contains(choice),
+                        onTap: () => setState(
+                          () => selectedExpirationFilters = {choice},
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(
+                  height: 40,
+                  thickness: 1,
+                  indent: 15,
+                  endIndent: 15,
+                ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Text(
                     "Alphabetical Sort",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A)),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF35524A),
+                    ),
                   ),
                 ),
                 _buildSortRadio("A - Z", "A-Z"),
@@ -448,11 +594,15 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Text(
                     "Price Sort",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A)),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF35524A),
+                    ),
                   ),
                 ),
                 _buildSortRadio("None", null),
-                _buildSortRadio("Ascending",  "Price-Asc"),
+                _buildSortRadio("Ascending", "Price-Asc"),
                 _buildSortRadio("Descending", "Price-Desc"),
                 const SizedBox(height: 40),
               ],
@@ -465,7 +615,10 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
 
   Widget _buildSortRadio(String title, String? value) {
     return RadioListTile<String?>(
-      title: Text(title, style: GoogleFonts.poppins(color: Colors.black54, fontSize: 15)),
+      title: Text(
+        title,
+        style: GoogleFonts.poppins(color: Colors.black54, fontSize: 15),
+      ),
       value: value,
       groupValue: selectedSort,
       activeColor: const Color(0xFF35524A),
@@ -482,25 +635,39 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
-        title: Text(title, style: GoogleFonts.poppins(color: const Color(0xFF35524A), fontWeight: FontWeight.bold)),
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(
+            color: const Color(0xFF35524A),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         children: children,
       ),
     );
   }
 
-  Widget _buildDrawerLink(String text, {required bool isSelected, required VoidCallback onTap}) {
+  Widget _buildDrawerLink(
+    String text, {
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
-        child: Text(text,
+        child: Text(
+          text,
           style: GoogleFonts.poppins(
             color: isSelected ? const Color(0xFF35524A) : Colors.black54,
             fontSize: 15,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
-          )),
+            decoration: isSelected
+                ? TextDecoration.underline
+                : TextDecoration.none,
+          ),
+        ),
       ),
     );
   }
@@ -508,13 +675,22 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
   Widget _buildStatusTag(String status) {
     Color bgColor = status == 'In Stock'
         ? const Color(0xFF2D936C)
-        : (status == 'Low Stock' ? const Color(0xFFF2A65A) : const Color(0xFFEF5350));
+        : (status == 'Low Stock'
+              ? const Color(0xFFF2A65A)
+              : const Color(0xFFEF5350));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Text(
         status,
-        style: GoogleFonts.poppins(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+        style: GoogleFonts.poppins(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

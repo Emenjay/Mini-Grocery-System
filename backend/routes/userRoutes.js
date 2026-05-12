@@ -19,4 +19,7 @@ router.put('/:id', protect, upload.single('profilePicture'), userController.upda
 // deactivate employee
 router.patch('/:id/deactivate', protect, userController.deactivateUser);
 
+// toggle duty status (clock in/out)
+router.post('/:id/toggle-duty', protect, userController.toggleDuty);
+
 module.exports = router;

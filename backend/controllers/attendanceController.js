@@ -86,6 +86,22 @@ exports.endShift = async (req, res) => {
   }
 };
 
+// toggle duty status (clock in if off duty, clock out if on duty)
+exports.toggleDuty = async (req, res) => {
+  const { id } = req.params;
+  const user = await User.findByID(id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  const isOnDuty = await Attendance.isOnDuty(id); // check open shift today
+  if (isOnDuty) {
+    await Attendance.clockOut(id);
+  } else {
+    await Attendance.clockIn(id);
+  }
+
+  res.status(200).json({ success: true, is_on_duty: !isOnDuty });
+};
+
 // GET /api/attendance/active
 // returns the active shift for today if one exists, null otherwise
 // Flutter uses this on cash-in screen load to skip straight to POS if shift is already running
