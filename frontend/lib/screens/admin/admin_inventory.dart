@@ -14,11 +14,13 @@ class AdminInventoryScreen extends StatefulWidget {
 
 class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  Set<String> selectedCategories = {'Recently Added'};
+
   String searchQuery = '';
-  Set<String> selectedStockStatuses = {};
-  Set<String> selectedExpirationFilters = {};
-  String? selectedSort;
+  String selectedCategory = 'Recently Added';
+  String activeStockFilter = '';
+  String activeExpiryFilter = '';
+  String activeSortAlpha = '';
+  String activeSortPrice = 'None';
 
   List<Map<String, dynamic>> _products = [];
   bool _isLoading = true;
@@ -26,13 +28,27 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
 
   final List<String> categories = [
     'Recently Added', 'Beverages', 'Liquor & Tobacco', 'Snacks & Sweets',
-    'Fresh Foods', 'Prepared Foods', 'Frozen Goods', 'Personal Care',
+    'Fresh & Prepared', 'Pantry Staples', 'Frozen Goods', 'Personal Care',
     'Household Care', 'Miscellaneous',
   ];
 
-  final List<String> expirationChoices = [
-    'Expired', 'Expiring Soon', 'Not Expiring Soon',
-  ];
+  // generates next 12 months dynamically for expiry filter
+  List<String> get _expiryMonthFilters {
+    final now = DateTime.now();
+    return List.generate(12, (i) {
+      final month = DateTime(now.year, now.month + i);
+      return '${month.year}-${month.month.toString().padLeft(2, '0')}';
+    });
+  }
+
+  // converts YYYY-MM key to display label e.g. '2026-05' → 'May 2026'
+  String _formatMonthLabel(String yearMonth) {
+    final parts = yearMonth.split('-');
+    final date = DateTime(int.parse(parts[0]), int.parse(parts[1]));
+    const months = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+    return '${months[date.month - 1]} ${date.year}';
+  }
 
   @override
   void initState() {
@@ -46,27 +62,29 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
       _errorMessage = null;
     });
 
-    final isRecentlyAdded = selectedCategories.contains('Recently Added');
-    final categoryParam = isRecentlyAdded ? '' : selectedCategories.first;
+    final isRecentlyAdded = selectedCategory == 'Recently Added';
+    final categoryParam = isRecentlyAdded ? '' : selectedCategory;
 
-    String sortName = '';
-    String sortPrice = '';
-    if (selectedSort == 'A-Z')        sortName = 'A-Z';
-    if (selectedSort == 'Z-A')        sortName = 'Z-A';
-    if (selectedSort == 'Price-Asc')  sortPrice = 'asc';
-    if (selectedSort == 'Price-Desc') sortPrice = 'desc';
+    // map sort price to backend expected values
+    final sortPriceParam = activeSortPrice == 'Ascending' ? 'asc'
+        : activeSortPrice == 'Descending' ? 'desc' : '';
 
-    String stockStatus = '';
-    if (selectedStockStatuses.isNotEmpty) {
-      stockStatus = selectedStockStatuses.first;
-    }
+    // map stock filter to backend expected values
+    String stockStatusParam = '';
+    if (activeStockFilter == 'Available') stockStatusParam = 'In Stock';
+    else if (activeStockFilter == 'Low Stock') stockStatusParam = 'Low Stock';
+    else if (activeStockFilter == 'No Stock') stockStatusParam = 'Out of Stock';
+
+    // expiry filter passes through directly (YYYY-MM or preset keyword)
+    final expiryParam = activeExpiryFilter;
 
     final result = await InventoryService.getProducts(
       search: searchQuery,
       category: categoryParam,
-      stockStatus: stockStatus,
-      sortName: sortName,
-      sortPrice: sortPrice,
+      stockStatus: stockStatusParam,
+      expirationFilter: expiryParam,
+      sortName: activeSortAlpha,
+      sortPrice: sortPriceParam,
       recentlyAdded: isRecentlyAdded,
       all: true, // admin sees all products without pagination
     );
@@ -113,12 +131,8 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 70,
-                height: 70,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF76BA1B),
-                  shape: BoxShape.circle,
-                ),
+                width: 70, height: 70,
+                decoration: const BoxDecoration(color: Color(0xFF76BA1B), shape: BoxShape.circle),
                 child: const Icon(Icons.check, color: Colors.white, size: 45),
               ),
               const SizedBox(height: 20),
@@ -128,8 +142,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
               ),
               const SizedBox(height: 25),
               SizedBox(
-                width: 120,
-                height: 40,
+                width: 120, height: 40,
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
@@ -179,7 +192,8 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                     },
                     style: GoogleFonts.poppins(fontSize: 14),
                     decoration: const InputDecoration(
-                      hintText: '',
+                      hintText: 'Search products...',
+                      hintStyle: TextStyle(color: Colors.black26, fontSize: 13),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                     ),
@@ -205,12 +219,12 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
             itemCount: categories.length,
             itemBuilder: (context, index) {
               final cat = categories[index];
-              final isSelected = selectedCategories.contains(cat);
+              final isSelected = selectedCategory == cat;
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: GestureDetector(
                   onTap: () {
-                    setState(() => selectedCategories = {cat});
+                    setState(() => selectedCategory = cat);
                     _fetchProducts();
                   },
                   child: Container(
@@ -256,11 +270,30 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                               ),
                             ),
                           );
-                          _fetchProducts();
+                          _fetchProducts(); // refresh after returning from detail
                         },
                         child: Dismissible(
                           key: Key(product['product_id'].toString()),
                           direction: DismissDirection.endToStart,
+                          confirmDismiss: (direction) async {
+                            // show confirmation before deleting
+                            bool confirmed = false;
+                            await showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text("Delete Product?"),
+                                content: Text("Remove ${product['product_name']}?"),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+                                  TextButton(
+                                    onPressed: () { confirmed = true; Navigator.pop(ctx); },
+                                    child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            return confirmed;
+                          },
                           onDismissed: (dir) => _deleteProduct(product['product_id']),
                           background: Container(
                             margin: const EdgeInsets.only(bottom: 16),
@@ -275,9 +308,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(15),
-                              boxShadow: [
-                                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
-                              ],
+                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4))],
                             ),
                             child: Row(
                               children: [
@@ -291,15 +322,13 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                                       Text(product['category_name'] ?? '',
                                         style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45, fontStyle: FontStyle.italic),
                                       ),
+                                      // show pending approval badge for unapproved products
                                       if (product['is_approved'] == false || product['is_approved'] == 0)
                                         Padding(
                                           padding: const EdgeInsets.only(top: 4),
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: Colors.orange.shade100,
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
+                                            decoration: BoxDecoration(color: Colors.orange.shade100, borderRadius: BorderRadius.circular(8)),
                                             child: Text('Pending Approval',
                                               style: GoogleFonts.poppins(fontSize: 10, color: Colors.orange.shade800),
                                             ),
@@ -330,6 +359,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.white,
+      // sidebar filter — same structure as staff_inventory
       endDrawer: _buildFilterSidebar(),
       body: Column(
         children: [
@@ -347,8 +377,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const CircleAvatar(
-                  radius: 22,
-                  backgroundColor: Colors.white,
+                  radius: 22, backgroundColor: Colors.white,
                   backgroundImage: AssetImage('assets/images/logo.png'),
                 ),
                 const SizedBox(width: 15),
@@ -373,6 +402,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     );
   }
 
+  // sidebar filter
   Widget _buildFilterSidebar() {
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.75,
@@ -391,17 +421,20 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text("Filters", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
-                TextButton(
+                // reset all filters button
+                IconButton(
                   onPressed: () {
                     setState(() {
-                      selectedCategories = {'Recently Added'};
-                      selectedStockStatuses = {};
-                      selectedExpirationFilters = {};
-                      selectedSort = null;
+                      selectedCategory = 'Recently Added';
+                      activeStockFilter = '';
+                      activeExpiryFilter = '';
+                      activeSortAlpha = '';
+                      activeSortPrice = 'None';
                     });
                     _fetchProducts();
                   },
-                  child: Text("Reset", style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.restart_alt, color: Color(0xFF35524A), size: 28),
+                  tooltip: 'Reset filters',
                 ),
               ],
             ),
@@ -413,47 +446,69 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                 _buildExpansionTile("Categories", children: [
                   ...categories.map((cat) => _buildDrawerLink(
                     cat,
-                    isSelected: selectedCategories.contains(cat),
+                    isSelected: selectedCategory == cat,
                     onTap: () {
-                      setState(() => selectedCategories = {cat});
+                      setState(() => selectedCategory = cat);
                       Navigator.pop(context);
                       _fetchProducts();
                     },
                   )),
                 ]),
                 _buildExpansionTile("Stock Status", children: [
-                  _buildDrawerLink("In Stock",    isSelected: selectedStockStatuses.contains("In Stock"),    onTap: () => setState(() => selectedStockStatuses = {"In Stock"})),
-                  _buildDrawerLink("Low Stock",   isSelected: selectedStockStatuses.contains("Low Stock"),   onTap: () => setState(() => selectedStockStatuses = {"Low Stock"})),
-                  _buildDrawerLink("Out of Stock",isSelected: selectedStockStatuses.contains("Out of Stock"),onTap: () => setState(() => selectedStockStatuses = {"Out of Stock"})),
+                  _buildDrawerLink("Available", isSelected: activeStockFilter == "Available", onTap: () {
+                    setState(() => activeStockFilter = "Available");
+                    _fetchProducts();
+                  }),
+                  _buildDrawerLink("Low Stock", isSelected: activeStockFilter == "Low Stock", onTap: () {
+                    setState(() => activeStockFilter = "Low Stock");
+                    _fetchProducts();
+                  }),
+                  _buildDrawerLink("No Stock", isSelected: activeStockFilter == "No Stock", onTap: () {
+                    setState(() => activeStockFilter = "No Stock");
+                    _fetchProducts();
+                  }),
                 ]),
-                _buildExpansionTile("Expiration Date", children: [
-                  ...expirationChoices.map((choice) => _buildDrawerLink(
-                    choice,
-                    isSelected: selectedExpirationFilters.contains(choice),
-                    onTap: () => setState(() => selectedExpirationFilters = {choice}),
+                // expiry filter now uses dynamic month list
+                _buildExpansionTile("Expiration Month", children: [
+                  ..._expiryMonthFilters.map((monthKey) => _buildDrawerLink(
+                    _formatMonthLabel(monthKey),
+                    isSelected: activeExpiryFilter == monthKey,
+                    onTap: () {
+                      setState(() => activeExpiryFilter = monthKey);
+                      _fetchProducts();
+                    },
                   )),
                 ]),
                 const Divider(height: 40, thickness: 1, indent: 15, endIndent: 15),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text(
-                    "Alphabetical Sort",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A)),
-                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text("Alphabetical Sort", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
                 ),
-                _buildSortRadio("A - Z", "A-Z"),
-                _buildSortRadio("Z - A", "Z-A"),
+                _buildSortRadio("A - Z", "A-Z", activeSortAlpha, (val) {
+                  setState(() => activeSortAlpha = val!);
+                  _fetchProducts();
+                }),
+                _buildSortRadio("Z - A", "Z-A", activeSortAlpha, (val) {
+                  setState(() => activeSortAlpha = val!);
+                  _fetchProducts();
+                }),
                 const SizedBox(height: 15),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text(
-                    "Price Sort",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A)),
-                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text("Price Sort", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
                 ),
-                _buildSortRadio("None", null),
-                _buildSortRadio("Ascending",  "Price-Asc"),
-                _buildSortRadio("Descending", "Price-Desc"),
+                _buildSortRadio("None", "None", activeSortPrice, (val) {
+                  setState(() => activeSortPrice = val!);
+                  _fetchProducts();
+                }),
+                _buildSortRadio("Ascending", "Ascending", activeSortPrice, (val) {
+                  setState(() => activeSortPrice = val!);
+                  _fetchProducts();
+                }),
+                _buildSortRadio("Descending", "Descending", activeSortPrice, (val) {
+                  setState(() => activeSortPrice = val!);
+                  _fetchProducts();
+                }),
                 const SizedBox(height: 40),
               ],
             ),
@@ -463,18 +518,15 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     );
   }
 
-  Widget _buildSortRadio(String title, String? value) {
-    return RadioListTile<String?>(
+  Widget _buildSortRadio(String title, String value, String groupValue, Function(String?) onChanged) {
+    return RadioListTile<String>(
       title: Text(title, style: GoogleFonts.poppins(color: Colors.black54, fontSize: 15)),
       value: value,
-      groupValue: selectedSort,
+      groupValue: groupValue,
       activeColor: const Color(0xFF35524A),
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 15),
-      onChanged: (val) {
-        setState(() => selectedSort = val);
-        _fetchProducts();
-      },
+      onChanged: onChanged,
     );
   }
 
@@ -500,6 +552,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
             fontSize: 15,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
+            decorationThickness: 2,
           )),
       ),
     );
@@ -512,8 +565,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
-      child: Text(
-        status,
+      child: Text(status,
         style: GoogleFonts.poppins(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );
