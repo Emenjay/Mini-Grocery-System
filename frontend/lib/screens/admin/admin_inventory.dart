@@ -123,12 +123,8 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 70,
-                height: 70,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF76BA1B),
-                  shape: BoxShape.circle,
-                ),
+                width: 70, height: 70,
+                decoration: const BoxDecoration(color: Color(0xFF76BA1B), shape: BoxShape.circle),
                 child: const Icon(Icons.check, color: Colors.white, size: 45),
               ),
               const SizedBox(height: 20),
@@ -138,8 +134,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
               ),
               const SizedBox(height: 25),
               SizedBox(
-                width: 120,
-                height: 40,
+                width: 120, height: 40,
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
@@ -189,7 +184,8 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                     },
                     style: GoogleFonts.poppins(fontSize: 14),
                     decoration: const InputDecoration(
-                      hintText: '',
+                      hintText: 'Search products...',
+                      hintStyle: TextStyle(color: Colors.black26, fontSize: 13),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                     ),
@@ -266,11 +262,30 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                               ),
                             ),
                           );
-                          _fetchProducts();
+                          _fetchProducts(); // refresh after returning from detail
                         },
                         child: Dismissible(
                           key: Key(product['product_id'].toString()),
                           direction: DismissDirection.endToStart,
+                          confirmDismiss: (direction) async {
+                            // show confirmation before deleting
+                            bool confirmed = false;
+                            await showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text("Delete Product?"),
+                                content: Text("Remove ${product['product_name']}?"),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+                                  TextButton(
+                                    onPressed: () { confirmed = true; Navigator.pop(ctx); },
+                                    child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            return confirmed;
+                          },
                           onDismissed: (dir) => _deleteProduct(product['product_id']),
                           background: Container(
                             margin: const EdgeInsets.only(bottom: 16),
@@ -285,9 +300,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(15),
-                              boxShadow: [
-                                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
-                              ],
+                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4))],
                             ),
                             child: Row(
                               children: [
@@ -301,15 +314,13 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
                                       Text(product['category_name'] ?? '',
                                         style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45, fontStyle: FontStyle.italic),
                                       ),
+                                      // show pending approval badge for unapproved products
                                       if (product['is_approved'] == false || product['is_approved'] == 0)
                                         Padding(
                                           padding: const EdgeInsets.only(top: 4),
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: Colors.orange.shade100,
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
+                                            decoration: BoxDecoration(color: Colors.orange.shade100, borderRadius: BorderRadius.circular(8)),
                                             child: Text('Pending Approval',
                                               style: GoogleFonts.poppins(fontSize: 10, color: Colors.orange.shade800),
                                             ),
@@ -340,6 +351,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.white,
+      // sidebar filter — same structure as staff_inventory
       endDrawer: _buildFilterSidebar(),
       body: Column(
         children: [
@@ -357,8 +369,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const CircleAvatar(
-                  radius: 22,
-                  backgroundColor: Colors.white,
+                  radius: 22, backgroundColor: Colors.white,
                   backgroundImage: AssetImage('assets/images/logo.png'),
                 ),
                 const SizedBox(width: 15),
@@ -383,6 +394,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     );
   }
 
+  // sidebar filter
   Widget _buildFilterSidebar() {
     String tempCategory = selectedCategory;
     String? tempStockStatus = selectedStockStatus;
@@ -560,8 +572,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
-      child: Text(
-        status,
+      child: Text(status,
         style: GoogleFonts.poppins(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );

@@ -111,7 +111,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       backgroundColor: _pageBg,
       body: Column(
         children: [
-          // HEADER — unchanged
+          // HEADER
           _NotifHeader(onBack: () => Navigator.pop(context)),
 
           // BODY
