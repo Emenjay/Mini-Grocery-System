@@ -25,6 +25,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
   List<dynamic> _attendance = [];
   bool _loadingAttendance = true;
 
+  final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _contactController;
   late TextEditingController _addressController;
@@ -38,9 +39,13 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
     _nameController = TextEditingController(
       text: widget.staff['full_name'] ?? '',
     );
-    _contactController = TextEditingController(
-      text: widget.staff['contact_number'] ?? '',
-    );
+
+    final rawContact = widget.staff['contact_number']?.toString() ?? '';
+    final contactDigits = rawContact.startsWith('+639')
+      ? rawContact.substring(4) : rawContact.startsWith('639')
+      ? rawContact.substring(3) : rawContact;
+    _contactController = TextEditingController(text: contactDigits);
+
     _addressController = TextEditingController(
       text: widget.staff['address'] ?? '',
     );
@@ -65,10 +70,11 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
   }
 
   Future<void> _updateStaff() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     final result = await StaffService.updateStaff(
       id: widget.staff['user_id'],
       fullName: _nameController.text.trim(),
-      contactNumber: _contactController.text.trim(),
+      contactNumber: '+639${_contactController.text.trim()}',
       address: _addressController.text.trim(),
     );
 
@@ -79,7 +85,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
       final updatedStaff = {
         ...widget.staff,
         'full_name': _nameController.text.trim(),
-        'contact_number': _contactController.text.trim(),
+        'contact_number': '+639{$_contactController.text.trim()}',
         'address': _addressController.text.trim(),
         if (_pickedPhoto != null) 'photo': _pickedPhoto!.path,
       };
@@ -278,178 +284,208 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Top Section (Gradient Background)
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF2E8B7F), Color(0xFF35524A)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-              width: double.infinity,
-              padding: const EdgeInsets.only(bottom: 45),
-              child: Column(
-                children: [
-                  // Back button and duty status row
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            width: 38, height: 38,
-                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                            child: const Icon(Icons.arrow_back, color: Color(0xFF2E4F4F), size: 20),
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            Text(onDuty ? 'On Duty' : 'Off Duty', style: GoogleFonts.poppins(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
-                            const SizedBox(width: 8),
-                            Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: onDuty ? const Color(0xFF7BF07F) : Colors.white38)),
-                          ],
-                        ),
-                      ],
-                    ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // Top Section (Gradient Background)
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF2E8B7F), Color(0xFF35524A)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                   ),
-                  if (_isEditing) ...[
-                    const SizedBox(height: 5),
-                    Text('Edit Staff Information', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  ],
-                  const SizedBox(height: 15),
-
-                  GestureDetector(
-                    onTap: _isEditing ? _pickPhoto : null,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 65,
-                          backgroundColor: Colors.white24,
-                          backgroundImage: _pickedPhoto != null
-                              ? FileImage(_pickedPhoto!) as ImageProvider
-                              : (widget.staff['photo'].toString().startsWith('assets/')
-                                  ? AssetImage(widget.staff['photo'].toString())
-                                  : FileImage(File(widget.staff['photo'].toString()))),
-                        ),
-                        if (_isEditing)
-                          Container(
-                            width: 130, height: 130,
-                            decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.add, color: Colors.white, size: 30),
-                                Text(_pickedPhoto != null ? 'Change Photo' : 'Profile Photo', style: GoogleFonts.poppins(color: Colors.white, fontSize: 11)),
-                              ],
+                ),
+                width: double.infinity,
+                padding: const EdgeInsets.only(bottom: 45),
+                child: Column(
+                  children: [
+                    // Back button and duty status row
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            child: Container(
+                              width: 38, height: 38,
+                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                              child: const Icon(Icons.arrow_back, color: Color(0xFF2E4F4F), size: 20),
                             ),
                           ),
-                      ],
+                          Row(
+                            children: [
+                              Text(onDuty ? 'On Duty' : 'Off Duty', style: GoogleFonts.poppins(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+                              const SizedBox(width: 8),
+                              Container(width: 10, height: 10, decoration: BoxDecoration(shape: BoxShape.circle, color: onDuty ? const Color(0xFF7BF07F) : Colors.white38)),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                    if (_isEditing) ...[
+                      const SizedBox(height: 5),
+                      Text('Edit Staff Information', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    ],
+                    const SizedBox(height: 15),
 
-                  const SizedBox(height: 16),
-
-                  if (_isEditing)
-                    Container(
-                      width: 250,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+                    GestureDetector(
+                      onTap: _isEditing ? _pickPhoto : null,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 65,
+                            backgroundColor: Colors.white24,
+                            backgroundImage: _pickedPhoto != null
+                                ? FileImage(_pickedPhoto!) as ImageProvider
+                                : (widget.staff['photo'].toString().startsWith('assets/')
+                                    ? AssetImage(widget.staff['photo'].toString())
+                                    : FileImage(File(widget.staff['photo'].toString()))),
+                          ),
+                          if (_isEditing)
+                            Container(
+                              width: 130, height: 130,
+                              decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.add, color: Colors.white, size: 30),
+                                  Text(_pickedPhoto != null ? 'Change Photo' : 'Profile Photo', style: GoogleFonts.poppins(color: Colors.white, fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
-                      child: TextField(
-                        controller: _nameController,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87),
-                        decoration: const InputDecoration(border: InputBorder.none, isDense: true, hintText: 'Full Name'),
-                      ),
-                    )
-                  else
-                    Text(_nameController.text, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontFamily: AppFonts.poppins, fontSize: 22, fontWeight: FontWeight.bold)),
+                    ),
 
-                  const SizedBox(height: 4),
-                  Text(widget.staff['role_name']?.toString() ?? '', textAlign: TextAlign.center, style: const TextStyle(color: Color.fromARGB(153, 236, 233, 233), fontFamily: AppFonts.avenir, fontSize: 14)),
-                  const SizedBox(height: 15),
-                ],
+                    const SizedBox(height: 16),
+
+                    if (_isEditing)
+                      Container(
+                        width: 250,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+                        ),
+                        child: TextField(
+                          controller: _nameController,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87),
+                          decoration: const InputDecoration(border: InputBorder.none, isDense: true, hintText: 'Full Name'),
+                        ),
+                      )
+                    else
+                      Text(_nameController.text, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontFamily: AppFonts.poppins, fontSize: 22, fontWeight: FontWeight.bold)),
+
+                    const SizedBox(height: 4),
+                    Text(widget.staff['role_name']?.toString() ?? '', textAlign: TextAlign.center, style: const TextStyle(color: Color.fromARGB(153, 236, 233, 233), fontFamily: AppFonts.avenir, fontSize: 14)),
+                    const SizedBox(height: 15),
+                  ],
+                ),
               ),
-            ),
 
-            // Bottom Section (White Card Content)
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-              transform: Matrix4.translationValues(0, -30, 0),
-              padding: const EdgeInsets.fromLTRB(24, 30, 24, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Action Button Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const _SectionLabel(label: 'Contact Number:'),
-                      SizedBox(
-                        height: 32,
-                        child: ElevatedButton.icon(
-                          onPressed: _toggleEdit,
-                          icon: Icon(_isEditing ? Icons.check : Icons.edit, size: 14, color: Colors.white),
-                          label: Text(_isEditing ? 'Confirm' : 'Edit Account', style: TextStyle(color: Colors.white, fontFamily: AppFonts.poppins, fontSize: 11, fontWeight: FontWeight.w600)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2E8B7F),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              // Bottom Section (White Card Content)
+              Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+                transform: Matrix4.translationValues(0, -30, 0),
+                padding: const EdgeInsets.fromLTRB(24, 30, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Edit button row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        SizedBox(
+                          height: 32,
+                          child: ElevatedButton.icon(
+                            onPressed: _toggleEdit,
+                            icon: Icon(_isEditing ? Icons.check : Icons.edit, size: 14, color: Colors.white),
+                            label: Text(_isEditing ? 'Confirm' : 'Edit Account', style: TextStyle(color: Colors.white, fontFamily: AppFonts.poppins, fontSize: 11, fontWeight: FontWeight.w600)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2E8B7F),
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  if (_isEditing) _buildEditableField(_contactController) else _SectionValue(value: _contactController.text),
-                  const SizedBox(height: 18),
-                  const _SectionLabel(label: 'Full Address:'),
-                  const SizedBox(height: 4),
-                  if (_isEditing) _buildEditableField(_addressController) else _SectionValue(value: _addressController.text),
-                  const SizedBox(height: 32),
-
-                  // -- Tracked Attendance Section --
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(color: AppColors.primaryLightTeal, borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Tracked Attendance', style: TextStyle(fontFamily: AppFonts.poppins, color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
-                        _loadingAttendance
-                            ? const Center(child: CircularProgressIndicator())
-                            : shifts.isEmpty
-                                ? const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Text('No attendance records yet.', style: TextStyle(fontFamily: AppFonts.avenir, color: Colors.white54, fontSize: 13))))
-                                : ListView.separated(
-                                    shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
-                                    itemCount: shifts.length,
-                                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                                    itemBuilder: (context, index) => _AttendanceRow(shift: shifts[index] as Map<String, dynamic>),
-                                  ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+
+                    const SizedBox(height: 20),
+
+                    // Contact Number
+                    const _SectionLabel(label: 'Contact Number:'),
+                    const SizedBox(height: 8),
+                    if (_isEditing)
+                      _ContactNumberField(controller: _contactController)
+                    else
+                      _SectionValue(value: '+639${_contactController.text}'),
+                    
+                    const SizedBox(height: 18),
+
+                    // full address
+                    const _SectionLabel(label: 'Full Address:'),
+                     if (_isEditing)
+                      TextFormField(
+                        controller: _addressController,
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Address is required' : null,
+                        style: const TextStyle(color: Colors.black87, fontFamily: AppFonts.poppins, fontSize: 14),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: const Color(0xFFF2F2F2),
+                          hintText: 'Enter Full Address',
+                          hintStyle: const TextStyle(color: Colors.black38, fontFamily: AppFonts.avenir, fontSize: 13),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                          errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.redAccent)),
+                          focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.redAccent)),
+                        ),
+                      )
+                    else
+                      _SectionValue(value: _addressController.text),
+
+                    const SizedBox(height: 32),
+
+
+                    // -- Tracked Attendance Section --
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(color: AppColors.primaryLightTeal, borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Tracked Attendance', style: TextStyle(fontFamily: AppFonts.poppins, color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 16),
+                          _loadingAttendance
+                              ? const Center(child: CircularProgressIndicator())
+                              : shifts.isEmpty
+                                  ? const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Text('No attendance records yet.', style: TextStyle(fontFamily: AppFonts.avenir, color: Colors.white54, fontSize: 13))))
+                                  : ListView.separated(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      itemCount: shifts.length,
+                                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                      itemBuilder: (context, index) => _AttendanceRow(shift: shifts[index] as Map<String, dynamic>),
+                                    ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -470,6 +506,56 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
 }
 
 // Helper Widgets (unchanged)
+
+// contact info
+class _ContactNumberField extends StatelessWidget {
+  final TextEditingController controller;
+  const _ContactNumberField({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(color: const Color(0xFF2E8B7F), borderRadius: BorderRadius.circular(10)),
+          alignment: Alignment.center,
+          child: const Text('+ 639', style: TextStyle(color: Colors.white, fontFamily: AppFonts.poppins, fontWeight: FontWeight.w600, fontSize: 14)),
+        ),
+
+        const SizedBox(width: 10),
+        
+        Expanded(
+          child: TextFormField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            maxLength: 9,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Contact number is required';
+              if (v.trim().length < 9) return 'Enter 9 digits after +639';
+              return null;
+            },
+            style: const TextStyle(color: Colors.black87, fontFamily: AppFonts.poppins, fontSize: 14),
+            decoration: InputDecoration(
+              counterText: '',
+              filled: true,
+              fillColor: const Color(0xFFF2F2F2),
+              hintText: 'Enter Contact Number',
+              hintStyle: const TextStyle(color: Colors.black38, fontFamily: AppFonts.avenir, fontSize: 13),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.redAccent)),
+              focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.redAccent)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   final String label;
   const _SectionLabel({required this.label});
