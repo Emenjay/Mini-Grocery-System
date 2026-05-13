@@ -16,9 +16,10 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   Set<String> selectedCategories = {'Recently Added'};
   String searchQuery = '';
-  Set<String> selectedStockStatuses = {};
-  Set<String> selectedExpirationFilters = {};
-  String? selectedSort;
+  String? selectedStockStatus;
+  Set<String> selectedExpirations = {};
+  String? selectedSortName;
+  String? selectedSortPrice;
 
   List<Map<String, dynamic>> _products = [];
   bool _isLoading = true;
@@ -30,9 +31,20 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     'Household Care', 'Miscellaneous',
   ];
 
-  final List<String> expirationChoices = [
-    'Expired', 'Expiring Soon', 'Not Expiring Soon',
-  ];
+  List<String> get expirationChoices {
+    final now = DateTime.now();
+    final List<String> months = [];
+    final List<String> monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    for (int i = 0; i < 12; i++) {
+      final date = DateTime(now.year, now.month + i, 1);
+      months.add('${monthNames[date.month - 1]} ${date.year}');
+    }
+    return months;
+  }
 
   @override
   void initState() {
@@ -49,22 +61,19 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     final isRecentlyAdded = selectedCategories.contains('Recently Added');
     final categoryParam = isRecentlyAdded ? '' : selectedCategories.first;
 
-    String sortName = '';
+    String sortName = selectedSortName ?? '';
     String sortPrice = '';
-    if (selectedSort == 'A-Z')        sortName = 'A-Z';
-    if (selectedSort == 'Z-A')        sortName = 'Z-A';
-    if (selectedSort == 'Price-Asc')  sortPrice = 'asc';
-    if (selectedSort == 'Price-Desc') sortPrice = 'desc';
+    if (selectedSortPrice == 'Price-Asc')  sortPrice = 'asc';
+    if (selectedSortPrice == 'Price-Desc') sortPrice = 'desc';
 
-    String stockStatus = '';
-    if (selectedStockStatuses.isNotEmpty) {
-      stockStatus = selectedStockStatuses.first;
-    }
+    String stockStatus = selectedStockStatus ?? '';
+    String expirationFilter = selectedExpirations.join(',');
 
     final result = await InventoryService.getProducts(
       search: searchQuery,
       category: categoryParam,
       stockStatus: stockStatus,
+      expirationFilter: expirationFilter,
       sortName: sortName,
       sortPrice: sortPrice,
       recentlyAdded: isRecentlyAdded,
@@ -374,134 +383,165 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
   }
 
   Widget _buildFilterSidebar() {
+    Set<String> tempCategories = Set.from(selectedCategories);
+    String? tempStockStatus = selectedStockStatus;
+    Set<String> tempExpirations = Set.from(selectedExpirations);
+    String? tempSortName = selectedSortName;
+    String? tempSortPrice = selectedSortPrice;
+
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.75,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          bottomLeft: Radius.circular(30),
-        ),
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(30), bottomLeft: Radius.circular(30)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(25, 60, 20, 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: StatefulBuilder(
+        builder: (context, setDrawerState) {
+          return SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Filters", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      selectedCategories = {'Recently Added'};
-                      selectedStockStatuses = {};
-                      selectedExpirationFilters = {};
-                      selectedSort = null;
-                    });
-                    _fetchProducts();
-                  },
-                  child: Text("Reset", style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(25, 20, 20, 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Filters", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
+                      TextButton(
+                        onPressed: () {
+                          setDrawerState(() {
+                            tempCategories = {'Recently Added'};
+                            tempStockStatus = null;
+                            tempExpirations = {};
+                            tempSortName = null;
+                            tempSortPrice = null;
+                          });
+                        },
+                        child: Text("Reset", style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      _buildExpansionChecklist(
+                        'Categories',
+                        categories,
+                        tempCategories,
+                        (cat) => setDrawerState(() {
+                          if (tempCategories.contains(cat)) {
+                            tempCategories.remove(cat);
+                          } else {
+                            tempCategories.add(cat);
+                          }
+                        }),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildFilterSectionTitle('Stock Status'),
+                      _buildRadioOption('All', null, tempStockStatus, (val) => setDrawerState(() => tempStockStatus = val)),
+                      _buildRadioOption('In Stock', 'In Stock', tempStockStatus, (val) => setDrawerState(() => tempStockStatus = val)),
+                      _buildRadioOption('Low Stock', 'Low Stock', tempStockStatus, (val) => setDrawerState(() => tempStockStatus = val)),
+                      _buildRadioOption('Out of Stock', 'Out of Stock', tempStockStatus, (val) => setDrawerState(() => tempStockStatus = val)),
+                      const SizedBox(height: 10),
+                      _buildExpansionChecklist(
+                        'Expiration Date',
+                        expirationChoices,
+                        tempExpirations,
+                        (choice) => setDrawerState(() {
+                          if (tempExpirations.contains(choice)) {
+                            tempExpirations.remove(choice);
+                          } else {
+                            tempExpirations.add(choice);
+                          }
+                        }),
+                      ),
+                      const SizedBox(height: 10),
+                      const Divider(),
+                      _buildFilterSectionTitle('Sort Alphabetically'),
+                      _buildRadioOption('None', null, tempSortName, (val) => setDrawerState(() => tempSortName = val)),
+                      _buildRadioOption('A-Z', 'A-Z', tempSortName, (val) => setDrawerState(() => tempSortName = val)),
+                      _buildRadioOption('Z-A', 'Z-A', tempSortName, (val) => setDrawerState(() => tempSortName = val)),
+                      const SizedBox(height: 15),
+                      _buildFilterSectionTitle('Sort by Price'),
+                      _buildRadioOption('None', null, tempSortPrice, (val) => setDrawerState(() => tempSortPrice = val)),
+                      _buildRadioOption('Ascending', 'Price-Asc', tempSortPrice, (val) => setDrawerState(() => tempSortPrice = val)),
+                      _buildRadioOption('Descending', 'Price-Desc', tempSortPrice, (val) => setDrawerState(() => tempSortPrice = val)),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 45,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          selectedCategories = tempCategories;
+                          selectedStockStatus = tempStockStatus;
+                          selectedExpirations = tempExpirations;
+                          selectedSortName = tempSortName;
+                          selectedSortPrice = tempSortPrice;
+                        });
+                        _fetchProducts();
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF35524A),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text('Apply Filters', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              children: [
-                _buildExpansionTile("Categories", children: [
-                  ...categories.map((cat) => _buildDrawerLink(
-                    cat,
-                    isSelected: selectedCategories.contains(cat),
-                    onTap: () {
-                      setState(() => selectedCategories = {cat});
-                      Navigator.pop(context);
-                      _fetchProducts();
-                    },
-                  )),
-                ]),
-                _buildExpansionTile("Stock Status", children: [
-                  _buildDrawerLink("In Stock",    isSelected: selectedStockStatuses.contains("In Stock"),    onTap: () => setState(() => selectedStockStatuses = {"In Stock"})),
-                  _buildDrawerLink("Low Stock",   isSelected: selectedStockStatuses.contains("Low Stock"),   onTap: () => setState(() => selectedStockStatuses = {"Low Stock"})),
-                  _buildDrawerLink("Out of Stock",isSelected: selectedStockStatuses.contains("Out of Stock"),onTap: () => setState(() => selectedStockStatuses = {"Out of Stock"})),
-                ]),
-                _buildExpansionTile("Expiration Date", children: [
-                  ...expirationChoices.map((choice) => _buildDrawerLink(
-                    choice,
-                    isSelected: selectedExpirationFilters.contains(choice),
-                    onTap: () => setState(() => selectedExpirationFilters = {choice}),
-                  )),
-                ]),
-                const Divider(height: 40, thickness: 1, indent: 15, endIndent: 15),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text(
-                    "Alphabetical Sort",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A)),
-                  ),
-                ),
-                _buildSortRadio("A - Z", "A-Z"),
-                _buildSortRadio("Z - A", "Z-A"),
-                const SizedBox(height: 15),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Text(
-                    "Price Sort",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF35524A)),
-                  ),
-                ),
-                _buildSortRadio("None", null),
-                _buildSortRadio("Ascending",  "Price-Asc"),
-                _buildSortRadio("Descending", "Price-Desc"),
-                const SizedBox(height: 40),
-              ],
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildSortRadio(String title, String? value) {
-    return RadioListTile<String?>(
-      title: Text(title, style: GoogleFonts.poppins(color: Colors.black54, fontSize: 15)),
-      value: value,
-      groupValue: selectedSort,
-      activeColor: const Color(0xFF35524A),
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 15),
-      onChanged: (val) {
-        setState(() => selectedSort = val);
-        _fetchProducts();
-      },
-    );
-  }
+  Widget _buildFilterSectionTitle(String title) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: Text(title, style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
+  );
 
-  Widget _buildExpansionTile(String title, {required List<Widget> children}) {
+  Widget _buildExpansionChecklist(String title, List<String> options, Set<String> selectedValues, Function(String) onToggle) {
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
-        title: Text(title, style: GoogleFonts.poppins(color: const Color(0xFF35524A), fontWeight: FontWeight.bold)),
-        children: children,
+        title: Text(title, style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(left: 10),
+        children: options.map((opt) => CheckboxListTile(
+          value: selectedValues.contains(opt),
+          onChanged: (value) => onToggle(opt),
+          title: Text(opt, style: GoogleFonts.poppins(fontSize: 14,
+            color: selectedValues.contains(opt) ? const Color(0xFF2F3E46) : Colors.black54,
+            fontWeight: selectedValues.contains(opt) ? FontWeight.bold : FontWeight.w500)),
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          activeColor: const Color(0xFF35524A),
+          dense: true,
+        )).toList(),
       ),
     );
   }
 
-  Widget _buildDrawerLink(String text, {required bool isSelected, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
-        child: Text(text,
-          style: GoogleFonts.poppins(
-            color: isSelected ? const Color(0xFF35524A) : Colors.black54,
-            fontSize: 15,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
-          )),
-      ),
+  Widget _buildRadioOption(String label, String? value, String? groupValue, Function(String?) onChanged, {bool isSortPrice = false}) {
+    return RadioListTile<String?>(
+      value: value,
+      groupValue: groupValue,
+      onChanged: onChanged,
+      title: Text(label, style: GoogleFonts.poppins(fontSize: 15,
+        color: groupValue == value ? const Color(0xFF2F3E46) : Colors.black54,
+        fontWeight: groupValue == value ? FontWeight.bold : FontWeight.w500)),
+      activeColor: const Color(0xFF35524A),
+      contentPadding: EdgeInsets.zero,
+      dense: true,
     );
   }
 
