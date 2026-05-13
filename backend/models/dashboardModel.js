@@ -27,18 +27,17 @@ const Dashboard = {
 
   // active shifts - list of users currently clocked in today
   getActiveShifts: async () => {
-     const [rows] = await db.query(
-    `SELECT 
-      u.user_id, u.full_name, u.profile_picture,
-      r.role_name,
-      a.clock_in_timestamp
-     FROM attendance a
-     JOIN users u ON a.user_id = u.user_id
-     JOIN role r ON u.role_id = r.role_id
-     WHERE a.clock_out_timestamp IS NULL
-     AND DATE(a.clock_in_timestamp + INTERVAL 8 HOUR) = CURDATE()
-     AND u.account_status = 1
-     AND r.role_name != 'Admin'`
+    const [rows] = await db.query(
+      `SELECT 
+        u.user_id, u.full_name, u.profile_picture,
+        r.role_name,
+        a.clock_in_timestamp
+       FROM attendance a
+       JOIN users u ON a.user_id = u.user_id
+       JOIN role r ON u.role_id = r.role_id
+       WHERE a.clock_out_timestamp IS NULL
+       AND DATE(a.clock_in_timestamp) = CURDATE()
+       AND r.role_name != 'Admin'` 
     );
     return rows;
   }

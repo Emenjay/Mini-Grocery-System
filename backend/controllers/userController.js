@@ -216,3 +216,17 @@ exports.deactivateUser = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// GET /api/users/roles - returns all roles for frontend dropdowns
+exports.getRoles = async (req, res) => {
+  try {
+    const [roles] = await db.query(
+      // exclude Admin role — staff cannot be assigned admin through this form
+      `SELECT role_id, role_name FROM role WHERE role_name != 'Admin' ORDER BY role_name ASC`
+    );
+    res.status(200).json({ message: 'Roles retrieved successfully', roles });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

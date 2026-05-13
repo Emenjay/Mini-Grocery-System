@@ -6,6 +6,7 @@ import '../../theme/text_styles.dart';
 import 'staff_info_screen.dart';
 import 'add_staff_screen.dart';
 import '../../services/staff_service.dart';
+import '../../utils/app_state.dart';
 
 class StaffListScreen extends StatefulWidget {
   final bool isSubPage;
@@ -22,16 +23,13 @@ class _StaffListScreenState extends State<StaffListScreen> {
 
   // Filter states
   Set<String> selectedRoles = {};
-  Set<String> selectedStatuses = {};
+  String? selectedStatus; // 'On Duty', 'Off Duty'
   String? selectedSort; // 'A-Z', 'Z-A'
 
   final List<String> availableRoles = ['Inventory Staff', 'Cashier'];
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
-
-  String _filterRole = 'All';
-  String _filterDuty = 'All';
 
   List<Map<String, dynamic>> _staffList = [];
   bool _isLoading = false;
@@ -93,10 +91,10 @@ class _StaffListScreenState extends State<StaffListScreen> {
 
   List<Map<String, dynamic>> get filteredStaff {
     List<Map<String, dynamic>> filtered = _staffList.where((s) {
-      if (selectedStatuses.isEmpty) return true;
+      if (selectedStatus == null) return true;
       final bool onDuty = _isOnDuty(s);
-      return (selectedStatuses.contains('On Duty') && onDuty) ||
-          (selectedStatuses.contains('Off Duty') && !onDuty);
+      return (selectedStatus == 'On Duty' && onDuty) ||
+             (selectedStatus == 'Off Duty' && !onDuty);
     }).toList();
 
     if (selectedSort == 'A-Z') {
@@ -673,22 +671,8 @@ class _StaffListScreenState extends State<StaffListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Hello,',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  Text(
-                    'Russel Marie!',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Hello,', style: GoogleFonts.poppins(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w400)),
+                  Text('${AppState.userName}!', style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                 ],
               ),
               const Spacer(),
@@ -760,146 +744,110 @@ class _StaffListScreenState extends State<StaffListScreen> {
   }
 
   Widget _buildFilterSidebar() {
+    Set<String> tempRoles = Set.from(selectedRoles);
+    String? tempStatus = selectedStatus;
+    String? tempSort = selectedSort;
+
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.75,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          bottomLeft: Radius.circular(20),
-        ),
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(30), bottomLeft: Radius.circular(30)),
       ),
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 4, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Filter Staff',
-                      style: GoogleFonts.poppins(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2F3E46),
+      child: StatefulBuilder(
+        builder: (context, setDrawerState) {
+          return SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(25, 20, 20, 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Filters", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            selectedRoles = {};
+                            selectedStatus = null;
+                            selectedSort = null;
+                          });
+                          setDrawerState(() {
+                            tempRoles = {};
+                            tempStatus = null;
+                            tempSort = null;
+                          });
+                          _fetchStaff();
+                        },
+                        child: Text("Reset", style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.bold)),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    ],
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        selectedRoles = {};
-                        selectedStatuses = {};
-                        selectedSort = null;
-                      });
-                      _fetchStaff();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      child: Text(
-                        'Reset',
-                        style: GoogleFonts.poppins(
-                          color: Colors.redAccent,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      _buildFilterSectionTitle('Roles'),
+                      const SizedBox(height: 8),
+                      ...availableRoles.map((role) => CheckboxListTile(
+                        value: tempRoles.contains(role),
+                        onChanged: (value) {
+                          setDrawerState(() {
+                            if (value == true) tempRoles.add(role);
+                            else tempRoles.remove(role);
+                          });
+                        },
+                        title: Text(role, style: GoogleFonts.poppins(fontSize: 14,
+                          color: tempRoles.contains(role) ? const Color(0xFF2F3E46) : Colors.black54,
+                          fontWeight: tempRoles.contains(role) ? FontWeight.bold : FontWeight.w500)),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                        activeColor: const Color(0xFF35524A),
+                        dense: true,
+                      )),
+                      const SizedBox(height: 10),
+                      _buildFilterSectionTitle('Status'),
+                      _buildRadioOption('All', null, tempStatus, (val) => setDrawerState(() => tempStatus = val)),
+                      _buildRadioOption('On Duty', 'On Duty', tempStatus, (val) => setDrawerState(() => tempStatus = val)),
+                      _buildRadioOption('Off Duty', 'Off Duty', tempStatus, (val) => setDrawerState(() => tempStatus = val)),
+                      const SizedBox(height: 30),
+                      const Divider(),
+                      _buildFilterSectionTitle('Sort Alphabetically'),
+                      const SizedBox(height: 5),
+                      _buildRadioOption('A-Z', 'A-Z', tempSort, (val) => setDrawerState(() => tempSort = val)),
+                      _buildRadioOption('Z-A', 'Z-A', tempSort, (val) => setDrawerState(() => tempSort = val)),
+                      const SizedBox(height: 40),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  _buildFilterSectionTitle('Roles'),
-                  const SizedBox(height: 8),
-                  ...availableRoles.map(
-                    (role) => CheckboxListTile(
-                      value: selectedRoles.contains(role),
-                      onChanged: (value) {
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 45,
+                    child: ElevatedButton(
+                      onPressed: () {
                         setState(() {
-                          if (value == true)
-                            selectedRoles.add(role);
-                          else
-                            selectedRoles.remove(role);
+                          selectedRoles = tempRoles;
+                          selectedStatus = tempStatus;
+                          selectedSort = tempSort;
                         });
                         _fetchStaff();
+                        Navigator.pop(context);
                       },
-                      title: Text(
-                        role,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: selectedRoles.contains(role)
-                              ? const Color(0xFF2F3E46)
-                              : Colors.black54,
-                          fontWeight: selectedRoles.contains(role)
-                              ? FontWeight.bold
-                              : FontWeight.w500,
-                        ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF35524A),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      controlAffinity: ListTileControlAffinity.leading,
-                      contentPadding: EdgeInsets.zero,
-                      activeColor: const Color(0xFF35524A),
-                      dense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildExpandableChecklistFilter(
-                    'Status',
-                    ['On Duty', 'Off Duty'],
-                    selectedStatuses,
-                    (val) {
-                      setState(() {
-                        if (selectedStatuses.contains(val))
-                          selectedStatuses.remove(val);
-                        else
-                          selectedStatuses.add(val);
-                      });
-                      _fetchStaff();
-                    },
-                  ),
-                  const SizedBox(height: 30),
-                  const Divider(),
-                  _buildFilterSectionTitle('Sort Alphabetically'),
-                  const SizedBox(height: 5),
-                  _buildRadioSortOption('A-Z', 'A-Z'),
-                  _buildRadioSortOption('Z-A', 'Z-A'),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 45,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF35524A),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(
-                    'Apply Filters',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      child: Text('Apply Filters', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -913,72 +861,17 @@ class _StaffListScreenState extends State<StaffListScreen> {
     ),
   );
 
-  Widget _buildRadioSortOption(
-    String label,
-    String value,
-  ) => RadioListTile<String>(
-    value: value,
-    groupValue: selectedSort,
-    onChanged: (newValue) {
-      setState(() => selectedSort = newValue);
-      _fetchStaff();
-    },
-    title: Text(
-      label,
-      style: GoogleFonts.poppins(
-        fontSize: 15,
-        color: selectedSort == value ? const Color(0xFF2F3E46) : Colors.black54,
-        fontWeight: selectedSort == value ? FontWeight.bold : FontWeight.w500,
-      ),
-    ),
-    activeColor: const Color(0xFF35524A),
-    contentPadding: EdgeInsets.zero,
-    dense: true,
-  );
-
-  Widget _buildExpandableChecklistFilter(
-    String title,
-    List<String> options,
-    Set<String> selectedValues,
-    Function(String) onToggle,
-  ) {
-    return ExpansionTile(
-      title: Text(
-        title,
-        style: GoogleFonts.poppins(
-          fontSize: 17,
-          fontWeight: FontWeight.bold,
-          color: const Color(0xFF35524A),
-        ),
-      ),
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: const EdgeInsets.only(left: 10),
-      shape: const RoundedRectangleBorder(side: BorderSide.none),
-      collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
-      children: options
-          .map(
-            (opt) => CheckboxListTile(
-              value: selectedValues.contains(opt),
-              onChanged: (value) => onToggle(opt),
-              title: Text(
-                opt,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: selectedValues.contains(opt)
-                      ? const Color(0xFF2F3E46)
-                      : Colors.black54,
-                  fontWeight: selectedValues.contains(opt)
-                      ? FontWeight.bold
-                      : FontWeight.w500,
-                ),
-              ),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-              activeColor: const Color(0xFF35524A),
-              dense: true,
-            ),
-          )
-          .toList(),
+  Widget _buildRadioOption(String label, String? value, String? groupValue, Function(String?) onChanged) {
+    return RadioListTile<String?>(
+      value: value,
+      groupValue: groupValue,
+      onChanged: onChanged,
+      title: Text(label, style: GoogleFonts.poppins(fontSize: 15,
+        color: groupValue == value ? const Color(0xFF2F3E46) : Colors.black54,
+        fontWeight: groupValue == value ? FontWeight.bold : FontWeight.w500)),
+      activeColor: const Color(0xFF35524A),
+      contentPadding: EdgeInsets.zero,
+      dense: true,
     );
   }
 }
@@ -999,29 +892,26 @@ class _StaffCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Determine photo source (profile_picture from backend, or photo from UI)
     String? photoPath = staff['profile_picture'] ?? staff['photo'];
-    Widget photoWidget;
-    if (photoPath != null && photoPath.isNotEmpty) {
-      if (photoPath.startsWith('assets/')) {
-        photoWidget = Image.asset(
-          photoPath,
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
-        );
-      } else if (File(photoPath).existsSync()) {
-        photoWidget = Image.file(
-          File(photoPath),
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
-        );
-      } else {
-        photoWidget = _buildPlaceholderPhoto();
+    
+    // updated photo resolution — handles server URLs, local files, asset paths
+    Widget _resolvedPhoto() {
+      final String? path = staff['profile_picture']?.toString() ?? staff['photo']?.toString();
+      if (path == null || path.isEmpty) return _buildPlaceholderPhoto();
+
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        // server URL — profile picture uploaded to backend
+        return Image.network(path, width: 100, height: 100, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
       }
-    } else {
-      photoWidget = _buildPlaceholderPhoto();
+      if (path.startsWith('assets/')) {
+        return Image.asset(path, width: 100, height: 100, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+      }
+      if (File(path).existsSync()) {
+        return Image.file(File(path), width: 100, height: 100, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+      }
+      return _buildPlaceholderPhoto();
     }
 
     return Container(
@@ -1044,10 +934,7 @@ class _StaffCard extends StatelessWidget {
             padding: const EdgeInsets.all(12.0),
             child: Row(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: photoWidget,
-                ),
+                ClipRRect(borderRadius: BorderRadius.circular(10), child: _resolvedPhoto()),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(

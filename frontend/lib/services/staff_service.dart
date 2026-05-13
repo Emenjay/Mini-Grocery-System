@@ -164,4 +164,21 @@ class StaffService {
       return {'success': false, 'message': 'Cannot connect to server.'};
     }
   }
+
+  // GET /api/users/roles - fetch roles for add staff dropdown
+static Future<Map<String, dynamic>> getRoles() async {
+  try {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/api/users/roles'),
+      headers: _headers,
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return {'success': true, 'roles': data['roles']};
+    }
+    return {'success': false, 'message': data['message'] ?? 'Failed to fetch roles'};
+  } catch (e) {
+    return {'success': false, 'message': 'Cannot connect to server.'};
+  }
+}
 }

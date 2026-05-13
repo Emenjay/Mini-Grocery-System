@@ -162,17 +162,18 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
     }
   }
 
-  // map frontend expiry filter label to backend expected value
+  // updated — month filters pass through as-is (YYYY-MM format)
+  // preset keywords kept for any existing dashboard navigation
   String _mapExpiryFilter(String filter) {
+    if (filter.isEmpty) return '';
+    // if it looks like a month key, pass it straight to backend
+    if (RegExp(r'^\d{4}-\d{2}$').hasMatch(filter)) return filter;
+    // legacy preset mappings kept for dashboard navigation compatibility
     switch (filter) {
-      case 'Expired':
-        return 'Expired';
-      case 'Expiring Soon':
-        return 'Expiring Soon';
-      case 'Not Expiring Soon':
-        return 'Not Expiring Soon';
-      default:
-        return '';
+      case 'Expired': return 'Expired';
+      case 'Expiring Soon': return 'Expiring Soon';
+      case 'Not Expiring Soon': return 'Not Expiring Soon';
+      default: return '';
     }
   }
 
@@ -221,11 +222,24 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   ];
 
   // expiry filter options matching backend preset options
-  final List<String> expiryFilters = [
-    'Expired',
-    'Expiring Soon',
-    'Not Expiring Soon',
-  ];
+  // generates the next 12 months dynamically from current month
+  List<String> get _expiryMonthFilters {
+    final now = DateTime.now();
+    return List.generate(12, (i) {
+      final month = DateTime(now.year, now.month + i);
+      // format as YYYY-MM for backend, display as Month YYYY
+      return '${month.year}-${month.month.toString().padLeft(2, '0')}';
+    });
+  }
+
+  // helper to display month filter as readable label (e.g. '2026-05' -> 'May 2026')
+  String _formatMonthLabel(String yearMonth) {
+    final parts = yearMonth.split('-');
+    final date = DateTime(int.parse(parts[0]), int.parse(parts[1]));
+    const months = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+    return '${months[date.month - 1]} ${date.year}';
+  }
 
   // sidebar builders
   Widget _buildSortRadio(
@@ -403,25 +417,17 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                       ),
                     ],
                   ),
-                  _buildExpansionTile(
-                    "Expiration Date",
-                    children: [
-                      // replaced hardcoded months with backend preset options
-                      ...expiryFilters.map(
-                        (filter) => _buildDrawerLink(
-                          filter,
-                          isSelected: activeExpiryFilter == filter,
-                          onTap: () {
-                            setState(() {
-                              activeExpiryFilter = filter;
-                              currentPage = 1;
-                            });
-                            _fetchProducts();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildExpansionTile("Expiration Month", children: [
+                    // dynamically generated months instead of hardcoded presets
+                    ..._expiryMonthFilters.map((monthKey) => _buildDrawerLink(
+                      _formatMonthLabel(monthKey), // display as 'May 2026'
+                      isSelected: activeExpiryFilter == monthKey,
+                      onTap: () {
+                        setState(() { activeExpiryFilter = monthKey; currentPage = 1; });
+                        _fetchProducts();
+                      }
+                    )),
+                  ]),
                   const Divider(
                     height: 40,
                     thickness: 1,
@@ -687,12 +693,12 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // display name and unit measurement together if unit exists
                     Text(
-                      item['name'],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                      item['unitMeasurement'] != null && item['unitMeasurement'].toString().isNotEmpty
+                          ? '${item['name']} ${item['unitMeasurement']}'
+                          : item['name'],
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     Text(
                       item['category'],
