@@ -22,7 +22,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
   final ScrollController _scrollController = ScrollController();
 
   // Filter states
-  Set<String> selectedRoles = {};
+  String? selectedRole;
   String? selectedStatus; // 'On Duty', 'Off Duty'
   String? selectedSort; // 'A-Z', 'Z-A'
 
@@ -53,9 +53,8 @@ class _StaffListScreenState extends State<StaffListScreen> {
     setState(() => _isLoading = true);
 
     String roleParam = '';
-    if (selectedRoles.length == 1) {
-      final r = selectedRoles.first;
-      roleParam = (r == 'Inventory Staff') ? 'Inventory' : 'Cashier';
+    if (selectedRole != null) {
+      roleParam = (selectedRole == 'Inventory Staff') ? 'Inventory' : 'Cashier';
     }
 
     final result = await StaffService.getAllStaff(
@@ -409,7 +408,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
   }
 
   Widget _buildFilterSidebar() {
-    Set<String> tempRoles = Set.from(selectedRoles);
+    String? tempRole = selectedRole;
     String? tempStatus = selectedStatus;
     String? tempSort = selectedSort;
 
@@ -425,26 +424,21 @@ class _StaffListScreenState extends State<StaffListScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(25, 20, 20, 20),
+                  padding: const EdgeInsets.fromLTRB(25, 40, 20, 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("Filters", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
-                      TextButton(
+                      Text("Filters", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+                      IconButton(
                         onPressed: () {
-                          setState(() {
-                            selectedRoles = {};
-                            selectedStatus = null;
-                            selectedSort = null;
-                          });
                           setDrawerState(() {
-                            tempRoles = {};
+                            tempRole = null;
                             tempStatus = null;
                             tempSort = null;
                           });
-                          _fetchStaff();
                         },
-                        child: Text("Reset", style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                        icon: const Icon(Icons.restart_alt, color: AppColors.primaryDarkTeal, size: 28),
+                        tooltip: 'Reset filters',
                       ),
                     ],
                   ),
@@ -453,33 +447,29 @@ class _StaffListScreenState extends State<StaffListScreen> {
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     children: [
-                      _buildFilterSectionTitle('Roles'),
-                      const SizedBox(height: 8),
-                      ...availableRoles.map((role) => CheckboxListTile(
-                        value: tempRoles.contains(role),
-                        onChanged: (value) {
-                          setDrawerState(() {
-                            if (value == true) tempRoles.add(role);
-                            else tempRoles.remove(role);
-                          });
-                        },
-                        title: Text(role, style: GoogleFonts.poppins(fontSize: 14,
-                          color: tempRoles.contains(role) ? const Color(0xFF2F3E46) : Colors.black54,
-                          fontWeight: tempRoles.contains(role) ? FontWeight.bold : FontWeight.w500)),
-                        controlAffinity: ListTileControlAffinity.leading,
-                        contentPadding: EdgeInsets.zero,
-                        activeColor: const Color(0xFF35524A),
-                        dense: true,
-                      )),
+                      _buildExpansionTile(
+                        'Roles',
+                        [
+                          _buildDrawerLink('All', isSelected: tempRole == null, onTap: () => setDrawerState(() => tempRole = null)),
+                          ...availableRoles.map((role) => _buildDrawerLink(
+                            role,
+                            isSelected: tempRole == role,
+                            onTap: () => setDrawerState(() => tempRole = role),
+                          )),
+                        ],
+                      ),
                       const SizedBox(height: 10),
-                      _buildFilterSectionTitle('Status'),
-                      _buildRadioOption('All', null, tempStatus, (val) => setDrawerState(() => tempStatus = val)),
-                      _buildRadioOption('On Duty', 'On Duty', tempStatus, (val) => setDrawerState(() => tempStatus = val)),
-                      _buildRadioOption('Off Duty', 'Off Duty', tempStatus, (val) => setDrawerState(() => tempStatus = val)),
-                      const SizedBox(height: 30),
-                      const Divider(),
+                      _buildExpansionTile(
+                        'Status',
+                        [
+                          _buildDrawerLink('All', isSelected: tempStatus == null, onTap: () => setDrawerState(() => tempStatus = null)),
+                          _buildDrawerLink('On Duty', isSelected: tempStatus == 'On Duty', onTap: () => setDrawerState(() => tempStatus = 'On Duty')),
+                          _buildDrawerLink('Off Duty', isSelected: tempStatus == 'Off Duty', onTap: () => setDrawerState(() => tempStatus = 'Off Duty')),
+                        ],
+                      ),
+                      const Divider(height: 20),
                       _buildFilterSectionTitle('Sort Alphabetically'),
-                      const SizedBox(height: 5),
+                      _buildRadioOption('None', null, tempSort, (val) => setDrawerState(() => tempSort = val)),
                       _buildRadioOption('A-Z', 'A-Z', tempSort, (val) => setDrawerState(() => tempSort = val)),
                       _buildRadioOption('Z-A', 'Z-A', tempSort, (val) => setDrawerState(() => tempSort = val)),
                       const SizedBox(height: 40),
@@ -494,7 +484,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         setState(() {
-                          selectedRoles = tempRoles;
+                          selectedRole = tempRole;
                           selectedStatus = tempStatus;
                           selectedSort = tempSort;
                         });
@@ -502,7 +492,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF35524A),
+                        backgroundColor: AppColors.primaryDarkTeal,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       child: Text('Apply Filters', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -517,7 +507,40 @@ class _StaffListScreenState extends State<StaffListScreen> {
     );
   }
 
-  Widget _buildFilterSectionTitle(String title) => Text(title, style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF35524A)));
+  Widget _buildFilterSectionTitle(String title) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: Text(title, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+  );
+
+  Widget _buildExpansionTile(String title, List<Widget> children) {
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        title: Text(title, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(left: 10),
+        children: children,
+      ),
+    );
+  }
+
+  Widget _buildDrawerLink(String text, {required bool isSelected, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+        child: Text(text,
+          style: GoogleFonts.poppins(
+            color: isSelected ? AppColors.primaryDarkTeal : Colors.black54,
+            fontSize: 15,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
+            decorationThickness: 2,
+          )),
+      ),
+    );
+  }
 
   Widget _buildRadioOption(String label, String? value, String? groupValue, Function(String?) onChanged) {
     return RadioListTile<String?>(
@@ -527,7 +550,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
       title: Text(label, style: GoogleFonts.poppins(fontSize: 15,
         color: groupValue == value ? const Color(0xFF2F3E46) : Colors.black54,
         fontWeight: groupValue == value ? FontWeight.bold : FontWeight.w500)),
-      activeColor: const Color(0xFF35524A),
+      activeColor: AppColors.primaryDarkTeal,
       contentPadding: EdgeInsets.zero,
       dense: true,
     );
