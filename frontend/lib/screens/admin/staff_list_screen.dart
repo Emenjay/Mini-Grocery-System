@@ -6,6 +6,7 @@ import '../../theme/text_styles.dart';
 import 'staff_info_screen.dart';
 import 'add_staff_screen.dart';
 import '../../services/staff_service.dart';
+import '../../utils/app_state.dart';
 
 class StaffListScreen extends StatefulWidget {
   final bool isSubPage;
@@ -359,7 +360,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('Hello,', style: GoogleFonts.poppins(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w400)),
-                  Text('Russel Marie!', style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                  Text('${AppState.userName}!', style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                 ],
               ),
               const Spacer(),
@@ -545,19 +546,26 @@ class _StaffCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Determine photo source (profile_picture from backend, or photo from UI)
     String? photoPath = staff['profile_picture'] ?? staff['photo'];
-    Widget photoWidget;
-    if (photoPath != null && photoPath.isNotEmpty) {
-      if (photoPath.startsWith('assets/')) {
-        photoWidget = Image.asset(photoPath, width: 100, height: 100, fit: BoxFit.cover,
+    
+    // updated photo resolution — handles server URLs, local files, asset paths
+    Widget _resolvedPhoto() {
+      final String? path = staff['profile_picture']?.toString() ?? staff['photo']?.toString();
+      if (path == null || path.isEmpty) return _buildPlaceholderPhoto();
+
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        // server URL — profile picture uploaded to backend
+        return Image.network(path, width: 100, height: 100, fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
-      } else if (File(photoPath).existsSync()) {
-        photoWidget = Image.file(File(photoPath), width: 100, height: 100, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
-      } else {
-        photoWidget = _buildPlaceholderPhoto();
       }
-    } else {
-      photoWidget = _buildPlaceholderPhoto();
+      if (path.startsWith('assets/')) {
+        return Image.asset(path, width: 100, height: 100, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+      }
+      if (File(path).existsSync()) {
+        return Image.file(File(path), width: 100, height: 100, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+      }
+      return _buildPlaceholderPhoto();
     }
 
     return Container(
@@ -574,7 +582,7 @@ class _StaffCard extends StatelessWidget {
             padding: const EdgeInsets.all(12.0),
             child: Row(
               children: [
-                ClipRRect(borderRadius: BorderRadius.circular(10), child: photoWidget),
+                ClipRRect(borderRadius: BorderRadius.circular(10), child: _resolvedPhoto()),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(

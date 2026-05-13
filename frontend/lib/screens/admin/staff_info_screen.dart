@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../services/staff_service.dart';
+import '../../utils/app_state.dart';
+
 
 class StaffInfoScreen extends StatefulWidget {
   final Map<String, dynamic> staff;
@@ -53,6 +55,26 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
     _contactController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  // resolves profile photo from multiple possible sources:
+  // - null/empty → null (shows placeholder icon)
+  // - http/https URL → NetworkImage (server-hosted photo)
+  // - assets/ path → AssetImage
+  // - local file path → FileImage
+  ImageProvider? _resolvePhoto(dynamic photoValue) {
+    final String? path = photoValue?.toString();
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return NetworkImage(path); // server URL from backend
+    }
+    if (path.startsWith('assets/')) {
+      return AssetImage(path);
+    }
+    if (File(path).existsSync()) {
+      return FileImage(File(path));
+    }
+    return null;
   }
 
   Future<void> _loadAttendance() async {
@@ -247,7 +269,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('Hello,', style: GoogleFonts.poppins(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w400)),
-                  Text('Russel Marie!', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text('${AppState.userName}!', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
                 ],
               ),
               const Spacer(),
@@ -329,14 +351,16 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        CircleAvatar(
+                      CircleAvatar(
                           radius: 65,
                           backgroundColor: Colors.white24,
                           backgroundImage: _pickedPhoto != null
-                              ? FileImage(_pickedPhoto!) as ImageProvider
-                              : (widget.staff['photo'].toString().startsWith('assets/')
-                                  ? AssetImage(widget.staff['photo'].toString())
-                                  : FileImage(File(widget.staff['photo'].toString()))),
+                            ? FileImage(_pickedPhoto!) as ImageProvider
+                            : _resolvePhoto(widget.staff['profile_picture'] ?? widget.staff['photo']),
+                          // show person icon if no photo resolves
+                          child: (_pickedPhoto == null && _resolvePhoto(widget.staff['profile_picture'] ?? widget.staff['photo']) == null)
+                            ? const Icon(Icons.person, color: Colors.white38, size: 50)
+                            : null,
                         ),
                         if (_isEditing)
                           Container(
