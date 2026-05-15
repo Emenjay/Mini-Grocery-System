@@ -95,37 +95,6 @@ class _CashInScreenState extends State<CashInScreen> {
     setState(() => _isChecking = false);
   }
 
-  void _showCancelConfirmation() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Cancel Shift?", style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text("You will go back to the login screen if you cancel your shift."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context); // close dialog
-
-              // call logout API to clock out attendance since they are already clocked in from login
-              await AuthService.logout(AppState.token!);
-              await SessionService.clearSession();
-              AppState.clearSession();
-
-              if (!mounted) return;
-              Navigator.pushReplacementNamed(context, '/');
-            },
-            child: const Text("Okay", style: TextStyle(color: Color(0xFF3B5B51), fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _submitCashIn() async {
     double? amount = double.tryParse(_amountController.text);
     if (amount == null) return;
@@ -297,55 +266,37 @@ class _CashInScreenState extends State<CashInScreen> {
                       ),
                     ),
                     const SizedBox(height: 35),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        TextButton(
-                          onPressed: _isLoading ? null : _showCancelConfirmation,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                          ),
-                          child: const Text(
-                            "Cancel",
-                            style: TextStyle(
-                              color: Colors.black45,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                    Center(
+                      child: SizedBox(
+                        width: 150,
+                        height: 50,
+                        child: ElevatedButton(
+                          // disable button while loading or input is empty
+                          onPressed: isInputEmpty || _isLoading ? null : _submitCashIn,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3B5B51),
+                            disabledBackgroundColor: const Color(0xFF3B5B51).withOpacity(0.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
                             ),
+                            elevation: 0,
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        SizedBox(
-                          width: 150,
-                          height: 50,
-                          child: ElevatedButton(
-                            // disable button while loading or input is empty
-                            onPressed: isInputEmpty || _isLoading ? null : _submitCashIn,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF3B5B51),
-                              disabledBackgroundColor: const Color(0xFF3B5B51).withOpacity(0.5),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                )
-                              : Text(
-                                  "Confirm",
-                                  style: TextStyle(
-                                    color: isInputEmpty ? Colors.white60 : Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : Text(
+                                "Confirm",
+                                style: TextStyle(
+                                  color: isInputEmpty ? Colors.white60 : Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                          ),
+                              ),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
