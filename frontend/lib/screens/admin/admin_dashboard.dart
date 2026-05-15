@@ -235,6 +235,7 @@ class _DashboardContentState extends State<_DashboardContent> {
         _monthlySales = double.tryParse(data['monthlySales'].toString()) ?? 0;
         _activeShifts = (data['activeShifts'] as List)
             .map((s) => Map<String, dynamic>.from(s))
+            .where((s) => s['role_name'] != 'Admin')
             .toList();
         _isLoading = false;
       });

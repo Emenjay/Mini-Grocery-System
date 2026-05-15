@@ -127,15 +127,6 @@ class _StaffListScreenState extends State<StaffListScreen> {
           Navigator.push(context, MaterialPageRoute(builder: (_) => StaffInfoScreen(staff: staff, initialIsEditing: true)))
               .then((_) => _fetchStaff());
         },
-        onToggleDuty: () {
-          Navigator.pop(context);
-          setState(() {
-            final i = _staffList.indexWhere((s) => s['user_id'] == staff['user_id']);
-            if (i != -1) {
-              _staffList[i]['is_on_duty'] = _isOnDuty(_staffList[i]) ? 0 : 1;
-            }
-          });
-        },
         onRemove: () {
           Navigator.pop(context);
           _showRemoveConfirmation(context, staff);
@@ -320,6 +311,10 @@ class _StaffListScreenState extends State<StaffListScreen> {
                                 staff: staff,
                                 onDuty: _isOnDuty(staff),
                                 onMenuTap: () => _showStaffMenu(context, staff),
+                                onCardTap: () => Navigator.push(context,
+                                  MaterialPageRoute(
+                                  builder: (_) => StaffInfoScreen(staff: staff)),
+                                ).then((_) => _fetchStaff()),
                               );
                             },
                           ),
@@ -561,9 +556,10 @@ class _StaffListScreenState extends State<StaffListScreen> {
 class _StaffCard extends StatelessWidget {
   final Map<String, dynamic> staff;
   final VoidCallback onMenuTap;
+  final VoidCallback onCardTap;
   final bool onDuty;
 
-  const _StaffCard({required this.staff, required this.onMenuTap, required this.onDuty});
+  const _StaffCard({required this.staff, required this.onMenuTap, required this.onCardTap, required this.onDuty});
 
   @override
   Widget build(BuildContext context) {
@@ -590,57 +586,62 @@ class _StaffCard extends StatelessWidget {
       }
       return _buildPlaceholderPhoto();
     }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      height: 125,
-      decoration: BoxDecoration(
-        color: const Color(0xFF35524A),
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                ClipRRect(borderRadius: BorderRadius.circular(10), child: _resolvedPhoto()),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(staff['full_name'] ?? '', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text(staff['role_name'] ?? '', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: onDuty ? const Color(0xFF4CAF50) : Colors.white38)),
-                          const SizedBox(width: 6),
-                          Text(onDuty ? 'On Duty' : 'Off Duty', style: GoogleFonts.poppins(color: onDuty ? Colors.white : Colors.white54, fontSize: 11)),
-                        ],
-                      ),
-                    ],
+    
+    return GestureDetector(
+        onTap: onCardTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          height: 125,
+          
+        decoration: BoxDecoration(
+          color: const Color(0xFF35524A),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+          
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  ClipRRect(borderRadius: BorderRadius.circular(10), child: _resolvedPhoto()),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(staff['full_name'] ?? '', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text(staff['role_name'] ?? '', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: onDuty ? const Color(0xFF4CAF50) : Colors.white38)),
+                            const SizedBox(width: 6),
+                            Text(onDuty ? 'On Duty' : 'Off Duty', style: GoogleFonts.poppins(color: onDuty ? Colors.white : Colors.white54, fontSize: 11)),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: GestureDetector(
-              onTap: onMenuTap,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.more_horiz, color: Color(0xFF2E4F4F), size: 18),
+                ],
               ),
             ),
-          ),
-        ],
+            Positioned(
+              top: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: onMenuTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.more_horiz, color: Color(0xFF2E4F4F), size: 18),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -655,10 +656,9 @@ class _StaffMenuSheet extends StatelessWidget {
   final Map<String, dynamic> staff;
   final VoidCallback onView;
   final VoidCallback onEdit;
-  final VoidCallback onToggleDuty;
   final VoidCallback onRemove;
 
-  const _StaffMenuSheet({required this.staff, required this.onView, required this.onEdit, required this.onToggleDuty, required this.onRemove});
+  const _StaffMenuSheet({required this.staff, required this.onView, required this.onEdit, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -672,7 +672,6 @@ class _StaffMenuSheet extends StatelessWidget {
           const Divider(height: 20),
           _MenuOption(icon: Icons.visibility, label: 'View Staff Information', onTap: onView),
           _MenuOption(icon: Icons.edit, label: 'Edit Details', onTap: onEdit),
-          _MenuOption(icon: Icons.swap_horiz, label: 'Toggle Duty', onTap: onToggleDuty),
           _MenuOption(icon: Icons.delete, label: 'Remove Staff', onTap: onRemove, isDestructive: true),
         ],
       ),
