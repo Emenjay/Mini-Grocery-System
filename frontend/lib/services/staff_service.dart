@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
 import '../utils/app_state.dart';
@@ -19,9 +20,8 @@ class StaffService {
         if (search.isNotEmpty) 'search': search,
         if (role.isNotEmpty) 'role': role,
       };
-      final uri = Uri.parse(
-        '${AppConstants.baseUrl}/api/users',
-      ).replace(queryParameters: queryParams);
+      final uri = Uri.parse('${AppConstants.baseUrl}/api/users')
+          .replace(queryParameters: queryParams);
       final response = await http.get(uri, headers: _headers);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -54,7 +54,7 @@ class StaffService {
     }
   }
 
-  // POST /api/users
+  // POST /api/users - multipart/form-data because of optional profile picture
   static Future<Map<String, dynamic>> addStaff({
     required int roleID,
     required String username,
@@ -62,34 +62,46 @@ class StaffService {
     required String fullName,
     String? contactNumber,
     String? address,
+    File? profilePicture,
   }) async {
     try {
-      final response = await http.post(
+      final request = http.MultipartRequest(
+        'POST',
         Uri.parse('${AppConstants.baseUrl}/api/users'),
-        headers: _headers,
-        body: jsonEncode({
-          'roleID': roleID,
-          'username': username,
-          'password': password,
-          'fullName': fullName,
-          if (contactNumber != null) 'contactNumber': contactNumber,
-          if (address != null) 'address': address,
-        }),
       );
+      request.headers['Authorization'] = 'Bearer ${AppState.token}';
+
+      // required fields
+      request.fields['roleID']   = roleID.toString();
+      request.fields['username'] = username;
+      request.fields['password'] = password;
+      request.fields['fullName'] = fullName;
+      if (contactNumber != null) request.fields['contactNumber'] = contactNumber;
+      if (address != null)       request.fields['address']       = address;
+
+      // attach photo if provided
+      if (profilePicture != null) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'profilePicture',
+          profilePicture.path,
+        ));
+      }
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
       final data = jsonDecode(response.body);
+
       if (response.statusCode == 201) {
         return {'success': true, 'user': data['user']};
       }
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Failed to add staff',
-      };
+      return {'success': false, 'message': data['message'] ?? 'Failed to add staff'};
     } catch (e) {
       return {'success': false, 'message': 'Cannot connect to server.'};
     }
   }
 
-  // PUT /api/users/:id
+  // PUT /api/users/:id - multipart/form-data to support optional profile picture upload
+  // backend multer handles file save and deletes the old photo automatically
   static Future<Map<String, dynamic>> updateStaff({
     required int id,
     String? fullName,
@@ -98,27 +110,37 @@ class StaffService {
     String? username,
     String? password,
     int? roleID,
+    File? profilePicture, // pass File to upload new photo, null to keep existing
   }) async {
     try {
-      final body = <String, dynamic>{};
-      if (fullName != null) body['fullName'] = fullName;
-      if (contactNumber != null) body['contactNumber'] = contactNumber;
-      if (address != null) body['address'] = address;
-      if (username != null) body['username'] = username;
-      if (password != null) body['password'] = password;
-      if (roleID != null) body['roleID'] = roleID;
-
-      final response = await http.put(
+      final request = http.MultipartRequest(
+        'PUT',
         Uri.parse('${AppConstants.baseUrl}/api/users/$id'),
-        headers: _headers,
-        body: jsonEncode(body),
       );
+      request.headers['Authorization'] = 'Bearer ${AppState.token}';
+
+      // only include fields that were provided
+      if (fullName != null)      request.fields['fullName']      = fullName;
+      if (contactNumber != null) request.fields['contactNumber'] = contactNumber;
+      if (address != null)       request.fields['address']       = address;
+      if (username != null)      request.fields['username']      = username;
+      if (password != null)      request.fields['password']      = password;
+      if (roleID != null)        request.fields['roleID']        = roleID.toString();
+
+      // attach new profile picture if provided - backend deletes old one before saving new
+      if (profilePicture != null) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'profilePicture',
+          profilePicture.path,
+        ));
+      }
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
       final data = jsonDecode(response.body);
+
       if (response.statusCode == 200) return {'success': true};
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Failed to update',
-      };
+      return {'success': false, 'message': data['message'] ?? 'Failed to update'};
     } catch (e) {
       return {'success': false, 'message': 'Cannot connect to server.'};
     }
@@ -133,29 +155,26 @@ class StaffService {
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) return {'success': true};
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Failed to deactivate',
-      };
+      return {'success': false, 'message': data['message'] ?? 'Failed to deactivate'};
     } catch (e) {
       return {'success': false, 'message': 'Cannot connect to server.'};
     }
   }
 
   // GET /api/users/roles - fetch roles for add staff dropdown
-static Future<Map<String, dynamic>> getRoles() async {
-  try {
-    final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/api/users/roles'),
-      headers: _headers,
-    );
-    final data = jsonDecode(response.body);
-    if (response.statusCode == 200) {
-      return {'success': true, 'roles': data['roles']};
+  static Future<Map<String, dynamic>> getRoles() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/api/users/roles'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'roles': data['roles']};
+      }
+      return {'success': false, 'message': data['message'] ?? 'Failed to fetch roles'};
+    } catch (e) {
+      return {'success': false, 'message': 'Cannot connect to server.'};
     }
-    return {'success': false, 'message': data['message'] ?? 'Failed to fetch roles'};
-  } catch (e) {
-    return {'success': false, 'message': 'Cannot connect to server.'};
   }
-}
 }

@@ -7,6 +7,7 @@ import 'staff_info_screen.dart';
 import 'add_staff_screen.dart';
 import '../../services/staff_service.dart';
 import '../../utils/app_state.dart';
+import '../../utils/constants.dart';
 
 class StaffListScreen extends StatefulWidget {
   final bool isSubPage;
@@ -568,24 +569,33 @@ class _StaffCard extends StatelessWidget {
     
     // updated photo resolution — handles server URLs, local files, asset paths
     Widget _resolvedPhoto() {
-      final String? path = staff['profile_picture']?.toString() ?? staff['photo']?.toString();
-      if (path == null || path.isEmpty) return _buildPlaceholderPhoto();
+    final String? path = staff['profile_picture']?.toString() ?? staff['photo']?.toString();
+    if (path == null || path.isEmpty) return _buildPlaceholderPhoto();
 
-      if (path.startsWith('http://') || path.startsWith('https://')) {
-        // server URL — profile picture uploaded to backend
-        return Image.network(path, width: 100, height: 100, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
-      }
-      if (path.startsWith('assets/')) {
-        return Image.asset(path, width: 100, height: 100, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
-      }
-      if (File(path).existsSync()) {
-        return Image.file(File(path), width: 100, height: 100, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
-      }
-      return _buildPlaceholderPhoto();
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      // already a full URL
+      return Image.network(path, width: 100, height: 100, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
     }
+    // relative backend path e.g. 'uploads/profiles/profile-123.jpg'
+    // prefix with baseUrl so Flutter can fetch it over the network
+    if (path.startsWith('uploads/')) {
+      return Image.network(
+        '${AppConstants.baseUrl}/$path',
+        width: 100, height: 100, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
+      );
+    }
+    if (path.startsWith('assets/')) {
+      return Image.asset(path, width: 100, height: 100, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+    }
+    if (File(path).existsSync()) {
+      return Image.file(File(path), width: 100, height: 100, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+    }
+    return _buildPlaceholderPhoto();
+  }
     
     return GestureDetector(
         onTap: onCardTap,

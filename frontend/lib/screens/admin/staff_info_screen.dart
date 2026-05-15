@@ -6,6 +6,7 @@ import '../../../theme/colors.dart';
 import '../../theme/text_styles.dart';
 import '../../services/staff_service.dart';
 import '../../utils/app_state.dart';
+import '../../utils/constants.dart';
 
 
 class StaffInfoScreen extends StatefulWidget {
@@ -64,14 +65,20 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
 
   // resolves profile photo from multiple possible sources:
   // - null/empty → null (shows placeholder icon)
-  // - http/https URL → NetworkImage (server-hosted photo)
+  // - starts with 'uploads/' → relative backend path, prefix with baseUrl
+  // - http/https URL → NetworkImage (already full URL)
   // - assets/ path → AssetImage
-  // - local file path → FileImage
+  // - local file path → FileImage (newly picked, not yet uploaded)
   ImageProvider? _resolvePhoto(dynamic photoValue) {
     final String? path = photoValue?.toString();
     if (path == null || path.isEmpty) return null;
+
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      return NetworkImage(path); // server URL from backend
+      return NetworkImage(path);
+    }
+    // relative path from backend e.g. 'uploads/profiles/profile-123.jpg'
+    if (path.startsWith('uploads/')) {
+      return NetworkImage('${AppConstants.baseUrl}/$path');
     }
     if (path.startsWith('assets/')) {
       return AssetImage(path);
@@ -92,32 +99,35 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
   }
 
   Future<void> _updateStaff() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    final result = await StaffService.updateStaff(
-      id: widget.staff['user_id'],
-      fullName: _nameController.text.trim(),
-      contactNumber: '+639${_contactController.text.trim()}',
-      address: _addressController.text.trim(),
+  if (!(_formKey.currentState?.validate() ?? false)) return;
+
+  // pass profilePicture only if a new one was picked, backend deletes old photo automatically
+  final result = await StaffService.updateStaff(
+    id: widget.staff['user_id'],
+    fullName: _nameController.text.trim(),
+    contactNumber: '+639${_contactController.text.trim()}',
+    address: _addressController.text.trim(),
+    profilePicture: _pickedPhoto, // null = keep existing, File = replace and delete old
+  );
+
+  if (!mounted) return;
+
+  if (result['success']) {
+    final updatedStaff = {
+      ...widget.staff,
+      'full_name': _nameController.text.trim(),
+      'contact_number': '+639${_contactController.text.trim()}',
+      'address': _addressController.text.trim(),
+      // if a new photo was picked, update local path so the card shows it immediately
+      if (_pickedPhoto != null) 'profile_picture': _pickedPhoto!.path,
+    };
+    _showUpdateSuccess(context, updatedStaff);
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message'] ?? 'Failed to update')),
     );
-
-    if (!mounted) return;
-
-    if (result['success']) {
-      // Build updated staff map (including photo if changed)
-      final updatedStaff = {
-        ...widget.staff,
-        'full_name': _nameController.text.trim(),
-        'contact_number': '+639{$_contactController.text.trim()}',
-        'address': _addressController.text.trim(),
-        if (_pickedPhoto != null) 'photo': _pickedPhoto!.path,
-      };
-      _showUpdateSuccess(context, updatedStaff);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Failed to update')),
-      );
-    }
   }
+}
 
   void _toggleEdit() async {
     if (_isEditing) {
@@ -363,10 +373,13 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                             radius: 65,
                             backgroundColor: Colors.white24,
                             backgroundImage: _pickedPhoto != null
-                                ? FileImage(_pickedPhoto!) as ImageProvider
-                                : (widget.staff['photo'].toString().startsWith('assets/')
-                                    ? AssetImage(widget.staff['photo'].toString())
-                                    : FileImage(File(widget.staff['photo'].toString()))),
+                              // newly picked local file — show immediately before upload
+                              ? FileImage(_pickedPhoto!) as ImageProvider
+                              : _resolvePhoto(widget.staff['profile_picture']),
+                            // show person icon when no photo is available
+                            child: (_pickedPhoto == null && _resolvePhoto(widget.staff['profile_picture']) == null)
+                              ? const Icon(Icons.person, color: Colors.white38, size: 50)
+                              : null,
                           ),
                           if (_isEditing)
                             Container(

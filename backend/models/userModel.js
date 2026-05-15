@@ -48,6 +48,13 @@ const User = {
       params.push(roleFilter);
     }
 
+    // GROUP BY all non‑aggregated columns to collapse duplicate rows
+  query += `
+    GROUP BY u.user_id, u.full_name, u.username, u.contact_number,
+             u.address, u.profile_picture, u.account_status, u.created_at,
+             r.role_name
+  `;
+
     const [rows] = await db.query(query, params);
     return rows;
   },

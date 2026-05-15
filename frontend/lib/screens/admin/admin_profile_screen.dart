@@ -82,37 +82,37 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       ),
     );
   }
+  
+Future<void> _saveProfile() async {
+  setState(() => _isSaving = true);
 
-  Future<void> _saveProfile() async {
-    setState(() => _isSaving = true);
+  // pass profilePicture only if admin picked a new one
+  // backend deletes old photo file automatically before saving new one
+  final result = await StaffService.updateStaff(
+    id: AppState.userID,
+    fullName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
+    contactNumber: _contactController.text.trim().isNotEmpty ? _contactController.text.trim() : null,
+    address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
+    username: _usernameController.text.trim().isNotEmpty ? _usernameController.text.trim() : null,
+    password: _passwordController.text.trim().isNotEmpty ? _passwordController.text.trim() : null,
+    profilePicture: _pickedPhoto, // null = keep existing, File = replace and delete old
+  );
 
-    // build update payload — only send fields that have values
-    final result = await StaffService.updateStaff(
-      id: AppState.userID,
-      fullName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
-      contactNumber: _contactController.text.trim().isNotEmpty ? _contactController.text.trim() : null,
-      address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
-      username: _usernameController.text.trim().isNotEmpty ? _usernameController.text.trim() : null,
-      // only send password if admin actually typed a new one
-      password: _passwordController.text.trim().isNotEmpty ? _passwordController.text.trim() : null,
-    );
+  if (!mounted) return;
+  setState(() => _isSaving = false);
 
-    if (!mounted) return;
-    setState(() => _isSaving = false);
-
-    if (result['success']) {
-      // update AppState with new name so header reflects change immediately
-      if (_nameController.text.trim().isNotEmpty) {
-        AppState.user?['fullName'] = _nameController.text.trim();
-      }
-      setState(() => _isEditing = false);
-      _showUpdateSuccess(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Failed to update profile')),
-      );
+  if (result['success']) {
+    if (_nameController.text.trim().isNotEmpty) {
+      AppState.user?['fullName'] = _nameController.text.trim();
     }
+    setState(() => _isEditing = false);
+    _showUpdateSuccess(context);
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message'] ?? 'Failed to update profile')),
+    );
   }
+}
 
   void _toggleEdit() {
     if (_isEditing) {

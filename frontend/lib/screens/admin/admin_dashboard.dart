@@ -13,6 +13,7 @@ import 'staff_list_screen.dart';
 import 'admin_profile_screen.dart';
 import '../../services/notification_service.dart';
 import 'dart:async';
+import '../../utils/constants.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN DASHBOARD
@@ -590,8 +591,11 @@ class _ActiveShiftItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final clockIn = shift['clock_in_timestamp']?.toString() ?? '';
     final timeStr = clockIn.isNotEmpty
-        ? 'Active since ${clockIn.substring(11, 16)}' // extract HH:mm
+        ? 'Active since ${clockIn.substring(11, 16)}'
         : 'Active';
+
+    // Get profile picture path (relative or full URL)
+    final String? photoPath = shift['profile_picture']?.toString();
 
     return Row(
       children: [
@@ -599,7 +603,12 @@ class _ActiveShiftItem extends StatelessWidget {
           width: 100,
           padding: const EdgeInsets.symmetric(vertical: 5),
           decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(6)),
-          child: Center(child: Text(shift['role_name']?.toString() ?? '', style: GoogleFonts.poppins(color: Colors.white, fontSize: 10))),
+          child: Center(
+            child: Text(
+              shift['role_name']?.toString() ?? '',
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 10),
+            ),
+          ),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -607,36 +616,80 @@ class _ActiveShiftItem extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(shift['full_name']?.toString() ?? '', 
+              Text(
+                shift['full_name']?.toString() ?? '',
                 style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 11),
-                overflow: TextOverflow.ellipsis, maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
               Text(timeStr, style: GoogleFonts.poppins(color: Colors.white70, fontSize: 9)),
             ],
           ),
         ),
         const SizedBox(width: 8),
-        Stack(
-          children: [
-            Container(
-              width: 30, height: 30,
-              decoration: BoxDecoration(color: const Color(0xFF324A4A), borderRadius: BorderRadius.circular(5)),
-              child: const Icon(Icons.person, color: Colors.white38, size: 18),
-            ),
-            Positioned(
-              top: 2, right: 2,
-              child: Container(
-                width: 8, height: 8,
-                decoration: BoxDecoration(
-                  color: Colors.greenAccent,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1),
-                ),
-              ),
-            ),
-          ],
+        // Profile picture (or fallback icon)
+        ClipRRect(
+          borderRadius: BorderRadius.circular(5),
+          child: _buildProfileImage(photoPath),
         ),
       ],
+    );
+  }
+
+  Widget _buildProfileImage(String? path) {
+    // Fallback if no path or empty
+    if (path == null || path.isEmpty) {
+      return Container(
+        width: 30,
+        height: 30,
+        color: const Color(0xFF324A4A),
+        child: const Icon(Icons.person, color: Colors.white38, size: 18),
+      );
+    }
+
+    // Full URL handling
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return Image.network(
+        path,
+        width: 30,
+        height: 30,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallbackIcon(),
+      );
+    }
+
+    // Relative backend path (e.g., 'uploads/profiles/xxx.jpg')
+    if (path.startsWith('uploads/')) {
+      return Image.network(
+        '${AppConstants.baseUrl}/$path',
+        width: 30,
+        height: 30,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallbackIcon(),
+      );
+    }
+
+    // Asset image (local)
+    if (path.startsWith('assets/')) {
+      return Image.asset(
+        path,
+        width: 30,
+        height: 30,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallbackIcon(),
+      );
+    }
+
+    // Fallback for any other case
+    return _fallbackIcon();
+  }
+
+  Widget _fallbackIcon() {
+return Container(                                                                                                                                                                                                   
+      width: 30,
+      height: 30,
+      color: const Color(0xFF324A4A),
+      child: const Icon(Icons.person, color: Colors.white38, size: 18),
     );
   }
 }
