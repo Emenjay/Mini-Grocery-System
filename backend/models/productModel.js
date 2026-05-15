@@ -39,13 +39,21 @@ const Product = {
     params.push(stockStatus);
   }
 
-  // expiry filter
-  if (expirationFilter === 'Expired') {
-    query += ` AND i.spoilage_date < CURDATE()`;
-  } else if (expirationFilter === 'Expiring Soon') {
-    query += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
-  } else if (expirationFilter === 'Not Expiring Soon') {
-    query += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
+  // expiry filter - supports both month-based (e.g. '2026-05') and preset filters
+  if (expirationFilter) {
+    // check if it's a month filter (format: YYYY-MM) or a preset keyword
+    const monthPattern = /^\d{4}-\d{2}$/;
+    if (monthPattern.test(expirationFilter)) {
+      // filter by specific month — matches products expiring in that month/year
+      query += ` AND DATE_FORMAT(i.spoilage_date, '%Y-%m') = ?`;
+      params.push(expirationFilter);
+    } else if (expirationFilter === 'Expired') {
+      query += ` AND i.spoilage_date < CURDATE()`;
+    } else if (expirationFilter === 'Expiring Soon') {
+      query += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
+    } else if (expirationFilter === 'Not Expiring Soon') {
+      query += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
+    }
   }
 
   // sorting
@@ -86,13 +94,19 @@ const Product = {
   if (isApprovedOnly) countQuery += ` AND p.is_approved = TRUE`;
   if (category) { countQuery += ` AND c.category_name = ?`; countParams.push(category); }
   if (stockStatus) { countQuery += ` AND i.stock_status = ?`; countParams.push(stockStatus); }
-  if (expirationFilter === 'Expired') {
+  if (expirationFilter) {
+  const monthPattern = /^\d{4}-\d{2}$/;
+  if (monthPattern.test(expirationFilter)) {
+    countQuery += ` AND DATE_FORMAT(i.spoilage_date, '%Y-%m') = ?`;
+    countParams.push(expirationFilter);
+  } else if (expirationFilter === 'Expired') {
     countQuery += ` AND i.spoilage_date < CURDATE()`;
   } else if (expirationFilter === 'Expiring Soon') {
     countQuery += ` AND i.spoilage_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`;
   } else if (expirationFilter === 'Not Expiring Soon') {
     countQuery += ` AND (i.spoilage_date > DATE_ADD(CURDATE(), INTERVAL 7 DAY) OR i.spoilage_date IS NULL)`;
   }
+}
 
   const [[{ total }]] = await db.query(countQuery, countParams);
 

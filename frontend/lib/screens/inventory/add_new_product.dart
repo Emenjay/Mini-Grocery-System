@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../services/inventory_service.dart';
 
+// categories that are perishable - always use 15 (normal) threshold
+// Fresh & Prepared, Pantry Staples, Frozen Goods are perishable and slower-moving
+const perishableCategories = ['Fresh & Prepared', 'Pantry Staples', 'Frozen Goods'];
+
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
 
@@ -31,6 +35,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   List<Map<String, dynamic>> _categories = [];
   bool _categoriesLoading = true;
+  
 
   @override
   void initState() {
@@ -68,7 +73,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   bool get _canSubmit {
     return _nameController.text.isNotEmpty &&
         _priceController.text.isNotEmpty &&
-        _measureController.text.isNotEmpty &&
+        // _measureController.text.isNotEmpty &&
         _stockController.text.isNotEmpty &&
         selectedType != null &&
         selectedCategoryID != null &&
@@ -79,11 +84,17 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   void _updateCategory(String? categoryName, int? categoryId) {
-    setState(() {
-      selectedCategoryName = categoryName;
-      selectedCategoryID = categoryId;
-    });
-  }
+  setState(() {
+    selectedCategoryName = categoryName;
+    selectedCategoryID = categoryId;
+
+    // auto-set velocity to Normal (15) for perishable categories
+    // these categories spoil and don't need the high 50-unit fast-moving threshold
+    if (categoryName != null && perishableCategories.contains(categoryName)) {
+      isFastMoving = false; // force Normal threshold
+    }
+  });
+}
 
   Future<void> _confirmAddProduct() async {
     showDialog(
@@ -146,13 +157,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
   Future<void> _submitProduct() async {
     setState(() => _isLoading = true);
 
+    // combine product name and measurement into one field
+    // if measurement is provided, append it to the name (e.g. "Ligo Sardines 155g") 
+    // final measurement = _measureController.text.trim();
+    // final fullProductName = measurement.isNotEmpty
+    //   ? '${_nameController.text.trim()} $measurement'
+    //   : _nameController.text.trim();
+
     final result = await InventoryService.addProduct(
       categoryID: selectedCategoryID!,
       productName: _nameController.text.trim(),
       basePrice: double.tryParse(_priceController.text) ?? 0.0,
       description: _descController.text.trim(),
-      unitMeasurement:
-          '${_measureController.text.trim()} ${selectedType == 'Liquid' ? 'mL/L' : 'g/kg'}',
+      unitMeasurement: _measureController.text.trim(),
       stockQuantity: int.tryParse(_stockController.text) ?? 0,
       //  stock status is now auto-calculated by backend from stockQuantity
       spoilageDate: expirationDate,
@@ -305,7 +322,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               "Measurement",
                               selectedType == "Liquid" ? "mL / L" : "g / kg",
                               _measureController,
-                              showError: _measureController.text.isEmpty)),
+                              showError: false)),
                       const SizedBox(width: 12),
                       Expanded(
                           child: _buildTopField(
@@ -353,18 +370,31 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Expanded(
-                            child: _buildVelocityToggle(
-                                "Normal (15 Threshold)",
-                                !isFastMoving,
-                                () => setState(() => isFastMoving = false))),
+                        Expanded(child: _buildVelocityToggle(
+                          "Normal (15 Threshold)", 
+                          !isFastMoving, 
+                          // disable toggle if perishable category is selected
+                          perishableCategories.contains(selectedCategoryName)
+                            ? null // null onTap = disabled
+                            : () => setState(() => isFastMoving = false)
+                        )),
                         const SizedBox(width: 10),
-                        Expanded(
-                            child: _buildVelocityToggle(
-                                "Fast (50 Threshold)",
-                                isFastMoving,
-                                () => setState(() => isFastMoving = true))),
+                        Expanded(child: _buildVelocityToggle(
+                          "Fast (50 Threshold)", 
+                          isFastMoving, 
+                          perishableCategories.contains(selectedCategoryName)
+                            ? null // null onTap = disabled
+                            : () => setState(() => isFastMoving = true)
+                        )),
                       ],
+                    ),
+                    if (perishableCategories.contains(selectedCategoryName))
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text(
+                        "Threshold auto-set to Normal for perishable categories.",
+                        style: TextStyle(fontSize: 10, color: Colors.black45, fontStyle: FontStyle.italic),
+                      ),
                     ),
                     const SizedBox(height: 20),
 
@@ -559,32 +589,46 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  Widget _buildVelocityToggle(
-      String label, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 45,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
+  // updated to accept nullable onTap - null means disabled/locked
+Widget _buildVelocityToggle(String label, bool isSelected, VoidCallback? onTap) {
+  final isLocked = onTap == null;
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      height: 45, alignment: Alignment.center,
+      decoration: BoxDecoration(
+        // locked selected = solid, locked unselected = greyed out
+        color: isSelected
+            ? (isLocked ? Colors.grey[400] : const Color(0xFF3E5C51))
+            : const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
           color: isSelected
-              ? const Color(0xFF3E5C51)
-              : const Color(0xFFF8F9FA),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-              color: isSelected
-                  ? const Color(0xFF3E5C51)
-                  : Colors.black12),
+              ? (isLocked ? Colors.grey : const Color(0xFF3E5C51))
+              : Colors.black12
         ),
-        child: Text(label,
-            style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black54,
-                fontSize: 11,
-                fontWeight:
-                    isSelected ? FontWeight.bold : FontWeight.normal)),
       ),
-    );
-  }
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // show lock icon when auto-selected by category
+          if (isLocked && isSelected) ...[
+            const Icon(Icons.lock_outline, size: 12, color: Colors.white),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.black54,
+              fontSize: 11,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   Widget _buildTopField(
       String label, String hint, TextEditingController controller,

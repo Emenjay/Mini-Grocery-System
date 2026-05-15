@@ -7,6 +7,9 @@ const userController = require('../controllers/userController');
 // get all employees, supports ?search=name&role=Cashier
 router.get('/', protect, userController.getAllUsers);
 
+// GET /api/users/roles - fetch all roles for add staff dropdown
+router.get('/roles', protect, userController.getRoles);
+
 // get single employee + attendance history
 router.get('/:id', protect, userController.getUserByID);
 

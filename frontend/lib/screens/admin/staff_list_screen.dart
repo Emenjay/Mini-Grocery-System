@@ -6,6 +6,7 @@ import '../../theme/text_styles.dart';
 import 'staff_info_screen.dart';
 import 'add_staff_screen.dart';
 import '../../services/staff_service.dart';
+import '../../utils/app_state.dart';
 
 class StaffListScreen extends StatefulWidget {
   final bool isSubPage;
@@ -21,17 +22,14 @@ class _StaffListScreenState extends State<StaffListScreen> {
   final ScrollController _scrollController = ScrollController();
 
   // Filter states
-  Set<String> selectedRoles = {};
-  Set<String> selectedStatuses = {};
+  String? selectedRole;
+  String? selectedStatus; // 'On Duty', 'Off Duty'
   String? selectedSort; // 'A-Z', 'Z-A'
 
   final List<String> availableRoles = ['Inventory Staff', 'Cashier'];
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
-
-  String _filterRole = 'All';
-  String _filterDuty = 'All';
 
   List<Map<String, dynamic>> _staffList = [];
   bool _isLoading = false;
@@ -55,9 +53,8 @@ class _StaffListScreenState extends State<StaffListScreen> {
     setState(() => _isLoading = true);
 
     String roleParam = '';
-    if (selectedRoles.length == 1) {
-      final r = selectedRoles.first;
-      roleParam = (r == 'Inventory Staff') ? 'Inventory' : 'Cashier';
+    if (selectedRole != null) {
+      roleParam = (selectedRole == 'Inventory Staff') ? 'Inventory' : 'Cashier';
     }
 
     final result = await StaffService.getAllStaff(
@@ -90,10 +87,10 @@ class _StaffListScreenState extends State<StaffListScreen> {
 
   List<Map<String, dynamic>> get filteredStaff {
     List<Map<String, dynamic>> filtered = _staffList.where((s) {
-      if (selectedStatuses.isEmpty) return true;
+      if (selectedStatus == null) return true;
       final bool onDuty = _isOnDuty(s);
-      return (selectedStatuses.contains('On Duty') && onDuty) ||
-             (selectedStatuses.contains('Off Duty') && !onDuty);
+      return (selectedStatus == 'On Duty' && onDuty) ||
+             (selectedStatus == 'Off Duty' && !onDuty);
     }).toList();
 
     if (selectedSort == 'A-Z') {
@@ -108,105 +105,6 @@ class _StaffListScreenState extends State<StaffListScreen> {
     setState(() => searchQuery = _searchController.text);
     _searchFocus.unfocus();
     _fetchStaff();
-  }
-
-  void _openFilter() {
-    String tempRole = _filterRole;
-    String tempDuty = _filterDuty;
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Filter Staff',
-                    style: TextStyle(fontFamily: AppFonts.figtree, fontSize: 18,
-                      fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
-                  const Divider(height: 24),
-                  const Text('Role', style: TextStyle(fontFamily: AppFonts.figtree,
-                      fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryDarkTeal)),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 8, children: ['All', 'Inventory Staff', 'Cashier'].map((role) {
-                    final selected = tempRole == role;
-                    return GestureDetector(
-                      onTap: () => setSheetState(() => tempRole = role),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: selected ? AppColors.primaryDarkTeal : AppColors.surfaceLightGray,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(role, style: const TextStyle(fontFamily: AppFonts.avenir,
-                            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
-                      ),
-                    );
-                  }).toList()),
-                  const SizedBox(height: 20),
-                  const Text('Duty Status', style: TextStyle(fontFamily: AppFonts.figtree,
-                      fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryDarkTeal)),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 8, children: ['All', 'On Duty', 'Off Duty'].map((duty) {
-                    final selected = tempDuty == duty;
-                    return GestureDetector(
-                      onTap: () => setSheetState(() => tempDuty = duty),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: selected ? AppColors.primaryDarkTeal : AppColors.surfaceLightGray,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(duty, style: const TextStyle(fontFamily: AppFonts.avenir,
-                            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
-                      ),
-                    );
-                  }).toList()),
-                  const SizedBox(height: 28),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            setState(() { _filterRole = 'All'; _filterDuty = 'All'; });
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.primaryDarkTeal),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: const Text('Reset', style: TextStyle(color: AppColors.primaryDarkTeal, fontFamily: AppFonts.avenir)),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            setState(() { _filterRole = tempRole; _filterDuty = tempDuty; });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.mutedGreen,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: const Text('Apply', style: TextStyle(color: Colors.white, fontFamily: AppFonts.avenir)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   void _openAddNew() async {
@@ -456,7 +354,7 @@ class _StaffListScreenState extends State<StaffListScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text('Hello,', style: GoogleFonts.poppins(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w400)),
-                  Text('Russel Marie!', style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                  Text('${AppState.userName}!', style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                 ],
               ),
               const Spacer(),
@@ -505,134 +403,151 @@ class _StaffListScreenState extends State<StaffListScreen> {
   }
 
   Widget _buildFilterSidebar() {
+    String? tempRole = selectedRole;
+    String? tempStatus = selectedStatus;
+    String? tempSort = selectedSort;
+
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.75,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), bottomLeft: Radius.circular(20)),
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(30), bottomLeft: Radius.circular(30)),
       ),
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 4, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text('Filter Staff', style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF2F3E46)),
-                      overflow: TextOverflow.ellipsis),
+      child: StatefulBuilder(
+        builder: (context, setDrawerState) {
+          return SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(25, 40, 20, 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Filters", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+                      IconButton(
+                        onPressed: () {
+                          setDrawerState(() {
+                            tempRole = null;
+                            tempStatus = null;
+                            tempSort = null;
+                          });
+                        },
+                        icon: const Icon(Icons.restart_alt, color: AppColors.primaryDarkTeal, size: 28),
+                        tooltip: 'Reset filters',
+                      ),
+                    ],
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        selectedRoles = {};
-                        selectedStatuses = {};
-                        selectedSort = null;
-                      });
-                      _fetchStaff();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Text('Reset', style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13)),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      _buildExpansionTile(
+                        'Roles',
+                        [
+                          _buildDrawerLink('All', isSelected: tempRole == null, onTap: () => setDrawerState(() => tempRole = null)),
+                          ...availableRoles.map((role) => _buildDrawerLink(
+                            role,
+                            isSelected: tempRole == role,
+                            onTap: () => setDrawerState(() => tempRole = role),
+                          )),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _buildExpansionTile(
+                        'Status',
+                        [
+                          _buildDrawerLink('All', isSelected: tempStatus == null, onTap: () => setDrawerState(() => tempStatus = null)),
+                          _buildDrawerLink('On Duty', isSelected: tempStatus == 'On Duty', onTap: () => setDrawerState(() => tempStatus = 'On Duty')),
+                          _buildDrawerLink('Off Duty', isSelected: tempStatus == 'Off Duty', onTap: () => setDrawerState(() => tempStatus = 'Off Duty')),
+                        ],
+                      ),
+                      const Divider(height: 20),
+                      _buildFilterSectionTitle('Sort Alphabetically'),
+                      _buildRadioOption('None', null, tempSort, (val) => setDrawerState(() => tempSort = val)),
+                      _buildRadioOption('A-Z', 'A-Z', tempSort, (val) => setDrawerState(() => tempSort = val)),
+                      _buildRadioOption('Z-A', 'Z-A', tempSort, (val) => setDrawerState(() => tempSort = val)),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 45,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          selectedRole = tempRole;
+                          selectedStatus = tempStatus;
+                          selectedSort = tempSort;
+                        });
+                        _fetchStaff();
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryDarkTeal,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text('Apply Filters', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  _buildFilterSectionTitle('Roles'),
-                  const SizedBox(height: 8),
-                  ...availableRoles.map((role) => CheckboxListTile(
-                    value: selectedRoles.contains(role),
-                    onChanged: (value) {
-                      setState(() {
-                        if (value == true) selectedRoles.add(role);
-                        else selectedRoles.remove(role);
-                      });
-                      _fetchStaff();
-                    },
-                    title: Text(role, style: GoogleFonts.poppins(fontSize: 14,
-                      color: selectedRoles.contains(role) ? const Color(0xFF2F3E46) : Colors.black54,
-                      fontWeight: selectedRoles.contains(role) ? FontWeight.bold : FontWeight.w500)),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                    activeColor: const Color(0xFF35524A),
-                    dense: true,
-                  )),
-                  const SizedBox(height: 10),
-                  _buildExpandableChecklistFilter('Status', ['On Duty', 'Off Duty'], selectedStatuses, (val) {
-                    setState(() {
-                      if (selectedStatuses.contains(val)) selectedStatuses.remove(val);
-                      else selectedStatuses.add(val);
-                    });
-                    _fetchStaff();
-                  }),
-                  const SizedBox(height: 30),
-                  const Divider(),
-                  _buildFilterSectionTitle('Sort Alphabetically'),
-                  const SizedBox(height: 5),
-                  _buildRadioSortOption('A-Z', 'A-Z'),
-                  _buildRadioSortOption('Z-A', 'Z-A'),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 45,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF35524A),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: Text('Apply Filters', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildFilterSectionTitle(String title) => Text(title, style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF35524A)));
-
-  Widget _buildRadioSortOption(String label, String value) => RadioListTile<String>(
-    value: value,
-    groupValue: selectedSort,
-    onChanged: (newValue) { setState(() => selectedSort = newValue); _fetchStaff(); },
-    title: Text(label, style: GoogleFonts.poppins(fontSize: 15,
-      color: selectedSort == value ? const Color(0xFF2F3E46) : Colors.black54,
-      fontWeight: selectedSort == value ? FontWeight.bold : FontWeight.w500)),
-    activeColor: const Color(0xFF35524A),
-    contentPadding: EdgeInsets.zero,
-    dense: true,
+  Widget _buildFilterSectionTitle(String title) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: Text(title, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
   );
 
-  Widget _buildExpandableChecklistFilter(String title, List<String> options, Set<String> selectedValues, Function(String) onToggle) {
-    return ExpansionTile(
-      title: Text(title, style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.bold, color: const Color(0xFF35524A))),
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: const EdgeInsets.only(left: 10),
-      shape: const RoundedRectangleBorder(side: BorderSide.none),
-      collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
-      children: options.map((opt) => CheckboxListTile(
-        value: selectedValues.contains(opt),
-        onChanged: (value) => onToggle(opt),
-        title: Text(opt, style: GoogleFonts.poppins(fontSize: 14,
-          color: selectedValues.contains(opt) ? const Color(0xFF2F3E46) : Colors.black54,
-          fontWeight: selectedValues.contains(opt) ? FontWeight.bold : FontWeight.w500)),
-        controlAffinity: ListTileControlAffinity.leading,
-        contentPadding: EdgeInsets.zero,
-        activeColor: const Color(0xFF35524A),
-        dense: true,
-      )).toList(),
+  Widget _buildExpansionTile(String title, List<Widget> children) {
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        title: Text(title, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(left: 10),
+        children: children,
+      ),
+    );
+  }
+
+  Widget _buildDrawerLink(String text, {required bool isSelected, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+        child: Text(text,
+          style: GoogleFonts.poppins(
+            color: isSelected ? AppColors.primaryDarkTeal : Colors.black54,
+            fontSize: 15,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            decoration: isSelected ? TextDecoration.underline : TextDecoration.none,
+            decorationThickness: 2,
+          )),
+      ),
+    );
+  }
+
+  Widget _buildRadioOption(String label, String? value, String? groupValue, Function(String?) onChanged) {
+    return RadioListTile<String?>(
+      value: value,
+      groupValue: groupValue,
+      onChanged: onChanged,
+      title: Text(label, style: GoogleFonts.poppins(fontSize: 15,
+        color: groupValue == value ? const Color(0xFF2F3E46) : Colors.black54,
+        fontWeight: groupValue == value ? FontWeight.bold : FontWeight.w500)),
+      activeColor: AppColors.primaryDarkTeal,
+      contentPadding: EdgeInsets.zero,
+      dense: true,
     );
   }
 }
@@ -650,39 +565,47 @@ class _StaffCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Determine photo source (profile_picture from backend, or photo from UI)
     String? photoPath = staff['profile_picture'] ?? staff['photo'];
-    Widget photoWidget;
-    if (photoPath != null && photoPath.isNotEmpty) {
-      if (photoPath.startsWith('assets/')) {
-        photoWidget = Image.asset(photoPath, width: 100, height: 100, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
-      } else if (File(photoPath).existsSync()) {
-        photoWidget = Image.file(File(photoPath), width: 100, height: 100, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
-      } else {
-        photoWidget = _buildPlaceholderPhoto();
-      }
-    } else {
-      photoWidget = _buildPlaceholderPhoto();
-    }
+    
+    // updated photo resolution — handles server URLs, local files, asset paths
+    Widget _resolvedPhoto() {
+      final String? path = staff['profile_picture']?.toString() ?? staff['photo']?.toString();
+      if (path == null || path.isEmpty) return _buildPlaceholderPhoto();
 
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        // server URL — profile picture uploaded to backend
+        return Image.network(path, width: 100, height: 100, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+      }
+      if (path.startsWith('assets/')) {
+        return Image.asset(path, width: 100, height: 100, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+      }
+      if (File(path).existsSync()) {
+        return Image.file(File(path), width: 100, height: 100, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+      }
+      return _buildPlaceholderPhoto();
+    }
+    
     return GestureDetector(
         onTap: onCardTap,
         child: Container(
           margin: const EdgeInsets.only(bottom: 16),
           height: 125,
-
+          
         decoration: BoxDecoration(
           color: const Color(0xFF35524A),
           borderRadius: BorderRadius.circular(15),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 4))],
         ),
+          
         child: Stack(
           children: [
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Row(
                 children: [
-                  ClipRRect(borderRadius: BorderRadius.circular(10), child: photoWidget),
+                  ClipRRect(borderRadius: BorderRadius.circular(10), child: _resolvedPhoto()),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
