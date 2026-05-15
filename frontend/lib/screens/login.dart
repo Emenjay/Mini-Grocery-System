@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:frontend/theme/colors.dart';
 import '../services/auth_service.dart';
@@ -17,15 +18,90 @@ class _LoginPageState extends State<LoginPage> {
   final _userController = TextEditingController();
   final _pinController = TextEditingController();
   bool _isLoading = false;
+  String? _errorMessage;
+
+  // lockout logic
+  int _failedAttempts = 0;
+  DateTime? _lockoutTime;
+  final int _maxAttempts = 5;
+  Timer? _cooldownTimer;
+  int _secondsRemaining = 0;
+
+  @override
+  void dispose() {
+    _userController.dispose();
+    _pinController.dispose();
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCooldownTimer() {
+    _cooldownTimer?.cancel();
+    final totalDuration = const Duration(minutes: 3);
+    final now = DateTime.now();
+    final diff = now.difference(_lockoutTime!);
+    
+    if (diff >= totalDuration) {
+      _resetLockout(showCooldownMessage: true);
+      return;
+    }
+
+    _secondsRemaining = (totalDuration - diff).inSeconds;
+
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_secondsRemaining > 1) {
+        setState(() {
+          _secondsRemaining--;
+        });
+      } else {
+        _resetLockout(showCooldownMessage: true);
+      }
+    });
+  }
+
+  void _resetLockout({bool showCooldownMessage = false}) {
+    if (mounted) {
+      setState(() {
+        _lockoutTime = null;
+        _failedAttempts = 0;
+        _secondsRemaining = 0;
+        if (showCooldownMessage) {
+          _errorMessage = "Cooldown finished. You can now try logging in again.";
+        } else {
+          _errorMessage = null;
+        }
+      });
+    }
+    _cooldownTimer?.cancel();
+  }
+
+  String _formatTime(int seconds) {
+    int m = seconds ~/ 60;
+    int s = seconds % 60;
+    return "$m:${s.toString().padLeft(2, '0')}";
+  }
+
+  bool _isLockedOut() {
+    return _secondsRemaining > 0;
+  }
 
   Future<void> _handleLogin() async {
+    if (_isLockedOut()) {
+      return;
+    }
+    
     final username = _userController.text.trim();
     final password = _pinController.text.trim();
 
+    setState(() {
+      _errorMessage = null;
+    });
+
     if (username.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter both username and pincode")),
-      );
+      setState(() {
+        _errorMessage = "Please enter both username and pincode.";
+      });
       return;
     }
 
@@ -37,12 +113,20 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = false);
 
     if (!result['success']) {
-      // show error from backend e.g. 'Invalid username or password' or 'Account is disabled'
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'])),
-      );
+      setState(() {
+        _failedAttempts++;
+        if (_failedAttempts >= _maxAttempts) {
+          _lockoutTime = DateTime.now();
+          _startCooldownTimer();
+        } else {
+          _errorMessage = "${result['message'] ?? 'Invalid login.'} ${_maxAttempts - _failedAttempts} ${_maxAttempts - _failedAttempts == 1 ? 'attempt' : 'attempts'} left.";
+        }
+      });
       return;
     }
+
+    // login success - reset lockout state
+    _resetLockout(showCooldownMessage: false);
 
     // login success - save token and user to storage and app state
     final data = result['data'];
@@ -63,9 +147,9 @@ class _LoginPageState extends State<LoginPage> {
     } else if (role == 'Inventory') {
       Navigator.pushReplacementNamed(context, '/inventory-dashboard');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Unknown role. Contact admin.")),
-      );
+      setState(() {
+        _errorMessage = "Unknown role. Contact admin.";
+      });
     }
   }
 
@@ -119,7 +203,7 @@ class _LoginPageState extends State<LoginPage> {
             alignment: Alignment.bottomCenter,
             child: Container(
               height: MediaQuery.of(context).size.height * 0.6,
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 40),
+              padding: const EdgeInsets.fromLTRB(30, 30, 30, 20),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
@@ -129,36 +213,101 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   const Center(
                     child: Text("Welcome!",
-                      style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
-                  ),
-                  const SizedBox(height: 30),
-
-                  // user input
-                  const Text("Username:", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
-                  TextField(
-                    controller: _userController,
-                    decoration: const InputDecoration(hintText: "Enter your username"),
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
                   ),
                   const SizedBox(height: 20),
 
+                  // user input
+                  const Text("Username:", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+                  const SizedBox(height: 5),
+                  TextField(
+                    controller: _userController,
+                    decoration: const InputDecoration(
+                      hintText: "Enter your username",
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+
                   // pin input
                   const Text("Pincode:", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDarkTeal)),
+                  const SizedBox(height: 5),
                   TextField(
                     controller: _pinController,
                     obscureText: true,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(hintText: "Enter your pincode"),
+                    decoration: const InputDecoration(
+                      hintText: "Enter your pincode",
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
+
+                  // warning/lockout message area
+                  if ((_errorMessage != null || _failedAttempts > 0) && !_isLoading)
+                    Container(
+                      margin: const EdgeInsets.only(top: 15),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _secondsRemaining > 0 
+                          ? Colors.red.withOpacity(0.1) 
+                          : (_errorMessage != null && _errorMessage!.contains("finished") 
+                              ? Colors.green.withOpacity(0.1) 
+                              : Colors.orange.withOpacity(0.1)),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _secondsRemaining > 0 
+                            ? Colors.red.withOpacity(0.3) 
+                            : (_errorMessage != null && _errorMessage!.contains("finished") 
+                                ? Colors.green.withOpacity(0.3) 
+                                : Colors.orange.withOpacity(0.3)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _secondsRemaining > 0 
+                              ? Icons.lock_clock 
+                              : (_errorMessage != null && _errorMessage!.contains("finished") 
+                                  ? Icons.check_circle_outline 
+                                  : Icons.warning_amber_rounded),
+                            color: _secondsRemaining > 0 
+                              ? Colors.red 
+                              : (_errorMessage != null && _errorMessage!.contains("finished") 
+                                  ? Colors.green[800] 
+                                  : Colors.orange[800]),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _errorMessage ?? (_secondsRemaining > 0
+                                ? "Locked out. Try again in ${_formatTime(_secondsRemaining)}."
+                                : (_failedAttempts > 0 && _failedAttempts < _maxAttempts
+                                    ? "Invalid login. ${_maxAttempts - _failedAttempts} ${_maxAttempts - _failedAttempts == 1 ? 'attempt' : 'attempts'} left."
+                                    : "")),
+                              style: TextStyle(
+                                color: _secondsRemaining > 0 ? Colors.red : (_errorMessage != null && _errorMessage!.contains("finished") ? Colors.green[800] : Colors.orange[800]),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   const Spacer(),
                   
                   // login button
                   SizedBox(
                     width: double.infinity,
-                    height: 55,
+                    height: 50,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
+                      onPressed: (_isLoading || _secondsRemaining > 0) ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.mutedGreen,
+                        backgroundColor: _secondsRemaining > 0 ? Colors.grey : AppColors.mutedGreen,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
                       child: _isLoading
@@ -166,7 +315,12 @@ class _LoginPageState extends State<LoginPage> {
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text("Log in", style: TextStyle(color: Colors.white, fontSize: 18)),
+                        : Text(
+                            _secondsRemaining > 0 
+                              ? "${_formatTime(_secondsRemaining)}"
+                              : "Log in", 
+                            style: const TextStyle(color: Colors.white, fontSize: 18)
+                          ),
                     ),
                   ),
                 ],
