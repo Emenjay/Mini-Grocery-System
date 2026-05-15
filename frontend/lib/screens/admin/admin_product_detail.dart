@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/inventory_service.dart';
+import 'package:intl/intl.dart';
 
 class AdminProductDetailScreen extends StatefulWidget {
   final List<Map<String, dynamic>> productList;
@@ -50,6 +51,18 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
       if (_currentIndex < 0) _currentIndex = widget.productList.length - 1;
       _loadProductData();
     });
+  }
+
+    String _formatDate(dynamic dateStr) {
+    if (dateStr == null || dateStr.toString().isEmpty) return "n/a";
+    try {
+      final date = DateTime.parse(dateStr.toString());
+      // Format as "MMM d, yyyy" e.g. "May 6, 2026"
+      return DateFormat('MMM d, yyyy').format(date);
+    } catch (e) {
+      // fallback in case parsing fails
+      return dateStr.toString().split('T')[0];
+    }
   }
 
   // markup amount = base_price * markup_percentage / 100
@@ -190,7 +203,7 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                   _readOnlyTile(Icons.inventory_2_outlined, "Available Stocks",
                     (currentProduct['stock_quantity'] ?? 0).toString()),
                   _readOnlyTile(Icons.calendar_month_outlined, "Expiration Date",
-                    currentProduct['spoilage_date']?.toString() ?? "n/a"),
+                    _formatDate(currentProduct['spoilage_date'])),
                   const SizedBox(height: 10),
 
                   // markup card — dropdown with fixed percentage options
