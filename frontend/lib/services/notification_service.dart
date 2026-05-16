@@ -26,7 +26,9 @@ class NotificationService {
     // don't reconnect if we intentionally disconnected (logout)
     if (_intentionalDisconnect) return;
 
-    disconnect(intentional: false); // close any stale connection without setting the flag
+    disconnect(
+      intentional: false,
+    ); // close any stale connection without setting the flag
     _controller = StreamController<Map<String, dynamic>>.broadcast();
     _client = http.Client();
 
@@ -51,7 +53,8 @@ class NotificationService {
               if (line.startsWith('data: ')) {
                 final jsonStr = line.substring(6); // strip 'data: ' prefix
                 try {
-                  final notification = jsonDecode(jsonStr) as Map<String, dynamic>;
+                  final notification =
+                      jsonDecode(jsonStr) as Map<String, dynamic>;
                   _controller?.add(notification);
                 } catch (_) {
                   // ignore malformed lines (e.g. heartbeat pings that aren't JSON)
@@ -92,8 +95,9 @@ class NotificationService {
   // GET /api/notification - fetch all notifications (supports ?unread=true)
   static Future<Map<String, dynamic>> getAll({bool unreadOnly = false}) async {
     try {
-      final uri = Uri.parse('${AppConstants.baseUrl}/api/notification')
-          .replace(queryParameters: unreadOnly ? {'unread': 'true'} : {});
+      final uri = Uri.parse(
+        '${AppConstants.baseUrl}/api/notification',
+      ).replace(queryParameters: unreadOnly ? {'unread': 'true'} : {});
 
       final response = await http.get(
         uri,
@@ -112,7 +116,10 @@ class NotificationService {
           'unreadCount': data['unreadCount'],
         };
       } else {
-        return {'success': false, 'message': data['message'] ?? 'Failed to fetch notifications'};
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Failed to fetch notifications',
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Cannot connect to server.'};
@@ -123,7 +130,9 @@ class NotificationService {
   static Future<bool> markOneRead(int notificationId) async {
     try {
       final response = await http.patch(
-        Uri.parse('${AppConstants.baseUrl}/api/notification/$notificationId/read'),
+        Uri.parse(
+          '${AppConstants.baseUrl}/api/notification/$notificationId/read',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${AppState.token}',
@@ -148,6 +157,27 @@ class NotificationService {
       return response.statusCode == 200;
     } catch (e) {
       return false;
+    }
+  }
+
+  // Russ's update aa
+  // GET /api/notification/unread-count - get count of unread notifications
+  static Future<int> getUnreadCount() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/api/notification/unread-count'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AppState.token}',
+        },
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return data['unreadCount'] ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      return 0;
     }
   }
 

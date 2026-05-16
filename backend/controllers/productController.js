@@ -1,6 +1,7 @@
 const Product = require('../models/productModel');
 const Inventory = require('../models/inventoryModel');
 const db = require('../config/db');
+const { checkAndNotifyLowStock, checkAndNotifyOutOfStock } = require('./notificationController');
 
 exports.getAllProducts = async (req, res) => {
   try {
@@ -116,8 +117,16 @@ exports.updateProduct = async (req, res) => {
     }
     // if product fields were edited, update given details
     if (Object.keys(productFields).length > 0) await Product.updateProduct(id, productFields);
+
     // if inventory fields were updated, update inventory
-    if (Object.keys(inventoryFields).length > 0) await Inventory.updateInventory(id, inventoryFields);
+    if (Object.keys(inventoryFields).length > 0) {
+      await Inventory.updateInventory(id, inventoryFields);
+      // check stock notifications after manual stock update : Russ's update 
+      if (stockQuantity !== undefined) {
+         await checkAndNotifyLowStock(id, req.app);
+         await checkAndNotifyOutOfStock(id, req.app);
+      }
+    }
 
     res.status(200).json({ message: 'Product updated successfully' });
   } catch (err) {
