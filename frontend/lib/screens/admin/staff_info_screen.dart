@@ -477,6 +477,119 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
 
                     const SizedBox(height: 32),
 
+                    // -- Login Credentials Section --
+                    const Text(
+                      'LOGIN CREDENTIALS',
+                      style: TextStyle(
+                        fontFamily: AppFonts.poppins,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black38,
+                        letterSpacing: 1.8,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // card w border
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFE8E8E8)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        // username
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 32, height: 32,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF5F5F5),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF2E8B7F)),
+                                ),
+
+                                const SizedBox(width: 12),
+
+                                const Text(
+                                  'Username',
+                                  style: TextStyle(
+                                    fontFamily: AppFonts.poppins,
+                                    fontSize: 12,
+                                    color: Colors.black45,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+
+                                const Spacer(),
+                                
+                                Text(
+                                  widget.staff['username']?.toString() ?? '..',
+                                  style: const TextStyle(
+                                    fontFamily: AppFonts.poppins,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // divider
+                          const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFEEEEEE)),
+                          
+                          // pin
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 32, height: 32,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF5F5F5),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.tag_rounded, size: 16, color: Color(0xFF2E8B7F)),
+                                ),
+
+                                const SizedBox(width: 12),
+
+                                const Text(
+                                  'PIN',
+                                  style: TextStyle(
+                                    fontFamily: AppFonts.poppins,
+                                    fontSize: 12,
+                                    color: Colors.black45,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+
+                                const Spacer(),
+
+                                Text(
+                                  widget.staff['pin']?.toString() ?? '..',
+                                  style: const TextStyle(
+                                    fontFamily: AppFonts.poppins,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 4,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 33),
 
                     // -- Tracked Attendance Section --
                     Container(
