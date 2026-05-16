@@ -51,7 +51,7 @@ CREATE TABLE product (
   base_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   markup_price DECIMAL(10,2) NOT NULL,
   unit_measurement VARCHAR(50),
-  isfastmoving BOOLEAN DEFAULT FALSE,
+  isfastmoving TINYINT(1) DEFAULT NULL,  -- NULL=no threshold, 0=Normal(15), 1=Fast(50)
   received_date DATE DEFAULT (CURDATE()),
   is_approved BOOLEAN DEFAULT FALSE,
   FOREIGN KEY (category_id) REFERENCES category(category_id)

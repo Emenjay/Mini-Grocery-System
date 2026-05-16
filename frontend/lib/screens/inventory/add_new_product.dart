@@ -27,7 +27,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   DateTime? expirationDate;
   DateTime? dateReceived;
 
-  bool isFastMoving = false;
+  bool? isFastMoving = null;
   bool _submittedOnce = false;
   bool _isLoading = false;
 
@@ -88,10 +88,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
     selectedCategoryName = categoryName;
     selectedCategoryID = categoryId;
 
-    // auto-set velocity to Normal (15) for perishable categories
-    // these categories spoil and don't need the high 50-unit fast-moving threshold
+    // pre-select None for perishable categories, but user can still change it
     if (categoryName != null && perishableCategories.contains(categoryName)) {
-      isFastMoving = false; // force Normal threshold
+      isFastMoving = null; // pre-select None (no threshold)
     }
   });
 }
@@ -165,17 +164,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
     //   : _nameController.text.trim();
 
     final result = await InventoryService.addProduct(
-      categoryID: selectedCategoryID!,
-      productName: _nameController.text.trim(),
-      basePrice: double.tryParse(_priceController.text) ?? 0.0,
-      description: _descController.text.trim(),
-      unitMeasurement: _measureController.text.trim(),
-      stockQuantity: int.tryParse(_stockController.text) ?? 0,
-      //  stock status is now auto-calculated by backend from stockQuantity
-      spoilageDate: expirationDate,
-      isFastMoving: isFastMoving,
-      receivedDate: dateReceived,
-    );
+    categoryID: selectedCategoryID!,
+    productName: _nameController.text.trim(),
+    basePrice: double.tryParse(_priceController.text) ?? 0.0,
+    description: _descController.text.trim(),
+    unitMeasurement: _measureController.text.trim(),
+    stockQuantity: int.tryParse(_stockController.text) ?? 0,
+    spoilageDate: expirationDate,
+    isFastMoving: isFastMoving, // null = no threshold, false = Normal, true = Fast
+    receivedDate: dateReceived,
+  );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -361,7 +359,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // inventory velocity selector
+                    // Inventory Velocity — 3 options in one row, perishable pre-selects None but all are unlockable
                     const Text("Inventory Velocity",
                         style: TextStyle(
                             color: Colors.black87,
@@ -371,31 +369,32 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     Row(
                       children: [
                         Expanded(child: _buildVelocityToggle(
-                          "Normal (15 Threshold)", 
-                          !isFastMoving, 
-                          // disable toggle if perishable category is selected
-                          perishableCategories.contains(selectedCategoryName)
-                            ? null // null onTap = disabled
-                            : () => setState(() => isFastMoving = false)
+                          "None",
+                          isFastMoving == null,
+                          () => setState(() => isFastMoving = null),
                         )),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Expanded(child: _buildVelocityToggle(
-                          "Fast (50 Threshold)", 
-                          isFastMoving, 
-                          perishableCategories.contains(selectedCategoryName)
-                            ? null // null onTap = disabled
-                            : () => setState(() => isFastMoving = true)
+                          "Normal\n(15)",
+                          isFastMoving == false,
+                          () => setState(() => isFastMoving = false),
+                        )),
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildVelocityToggle(
+                          "Fast\n(50)",
+                          isFastMoving == true,
+                          () => setState(() => isFastMoving = true),
                         )),
                       ],
                     ),
                     if (perishableCategories.contains(selectedCategoryName))
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6),
-                      child: Text(
-                        "Threshold auto-set to Normal for perishable categories.",
-                        style: TextStyle(fontSize: 10, color: Colors.black45, fontStyle: FontStyle.italic),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 6),
+                        child: Text(
+                          "Perishable category, None threshold pre-selected. You can still change it.",
+                          style: TextStyle(fontSize: 10, color: Colors.black45, fontStyle: FontStyle.italic),
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 20),
 
                     // REMOVED: Stock Status dropdown
@@ -589,42 +588,28 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // updated to accept nullable onTap - null means disabled/locked
-Widget _buildVelocityToggle(String label, bool isSelected, VoidCallback? onTap) {
-  final isLocked = onTap == null;
+Widget _buildVelocityToggle(String label, bool isSelected, VoidCallback onTap) {
   return GestureDetector(
     onTap: onTap,
     child: Container(
-      height: 45, alignment: Alignment.center,
+      height: 52,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        // locked selected = solid, locked unselected = greyed out
-        color: isSelected
-            ? (isLocked ? Colors.grey[400] : const Color(0xFF3E5C51))
-            : const Color(0xFFF8F9FA),
+        color: isSelected ? const Color(0xFF3E5C51) : const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isSelected
-              ? (isLocked ? Colors.grey : const Color(0xFF3E5C51))
-              : Colors.black12
+          color: isSelected ? const Color(0xFF3E5C51) : Colors.black12,
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // show lock icon when auto-selected by category
-          if (isLocked && isSelected) ...[
-            const Icon(Icons.lock_outline, size: 12, color: Colors.white),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.black54,
-              fontSize: 11,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: isSelected ? Colors.white : Colors.black54,
+          fontSize: 11,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          height: 1.3,
+        ),
       ),
     ),
   );

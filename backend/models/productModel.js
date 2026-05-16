@@ -135,8 +135,10 @@ const Product = {
     // markup_price starts at 0 until admin sets it
     const [result] = await db.query(
       `INSERT INTO product (category_id, product_name, description, base_price, markup_price, unit_measurement, isfastmoving, received_date, is_approved)
-       VALUES (?, ?, ?, ?, 0, ?, ?, ?, FALSE)`,
-      [categoryID, productName, description || null, basePrice, unitMeasurement || null, isFastMoving || false, receivedDate || null]
+      VALUES (?, ?, ?, ?, 0, ?, ?, ?, FALSE)`,
+      [categoryID, productName, description || null, basePrice, unitMeasurement || null,
+      isFastMoving === undefined ? null : isFastMoving, // null = no threshold
+      receivedDate || null]
     );
     return result.insertId;
   },

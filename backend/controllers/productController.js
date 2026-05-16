@@ -44,11 +44,13 @@ exports.addProduct = async (req, res) => {
 
     // insert product — starts unapproved, markup defaults to 0
     const productID = await Product.addProduct(
-      categoryID, productName, description, basePrice,
-      unitMeasurement, isFastMoving, receivedDate || null
+     categoryID, productName, description, basePrice,
+      unitMeasurement,
+      isFastMoving === undefined ? null : isFastMoving, // null = no threshold
+      receivedDate || null
       // receivedDate defaults to CURDATE() in schema if null
     );
-
+    
     // create inventory record for the new product
     await Inventory.createInventory(productID, stockQuantity || 0, spoilageDate);
 

@@ -156,7 +156,7 @@ class InventoryService {
   String? description,
   String? unitMeasurement,
   DateTime? spoilageDate,
-  bool isFastMoving = false,
+  bool? isFastMoving,
   DateTime? receivedDate,
 }) async {
   try {
