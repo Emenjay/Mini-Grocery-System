@@ -154,7 +154,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                       label: "View Inventory",
                       icon: Icons.inventory_2,
                       color: const Color(0xFF35524A),
-                      onTap: () => Navigator.pushNamed(context, '/staff-inventory'),
+                      onTap: () => Navigator.pushNamed(context, '/staff-inventory', arguments: 'Recently Added'),
                     ),
                   ],
                 ),
