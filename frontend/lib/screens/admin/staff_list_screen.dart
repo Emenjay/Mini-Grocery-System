@@ -159,7 +159,11 @@ class _StaffListScreenState extends State<StaffListScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     OutlinedButton(
-                      onPressed: () async {
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Cancel", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                    ),
+                    ElevatedButton(
+                      onPressed: ()  async {
                         Navigator.pop(context);
                         final result = await StaffService.deactivateStaff(staff['user_id']);
                         if (!mounted) return;
@@ -171,14 +175,6 @@ class _StaffListScreenState extends State<StaffListScreen> {
                             SnackBar(content: Text(result['message'] ?? 'Failed to remove staff')),
                           );
                         }
-                      },
-                      child: const Text("Cancel", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        setState(() => _staffList.removeWhere((s) => s['user_id'] == staff['user_id']));
-                        _showRemoveSuccess(context, staff['full_name'] ?? '');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF35524A),

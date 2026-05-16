@@ -39,6 +39,7 @@ const User = {
         AND DATE(a.clock_in_timestamp) = CURDATE()
       WHERE (u.full_name LIKE ? OR r.role_name LIKE ?)
        AND r.role_name != 'Admin'
+       AND u.account_status = TRUE
     `;
 
     const params = [keyword, keyword];
