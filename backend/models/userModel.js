@@ -38,6 +38,7 @@ const User = {
         AND a.clock_out_timestamp IS NULL
         AND DATE(a.clock_in_timestamp) = CURDATE()
       WHERE (u.full_name LIKE ? OR r.role_name LIKE ?)
+       AND r.role_name != 'Admin'
     `;
 
     const params = [keyword, keyword];
