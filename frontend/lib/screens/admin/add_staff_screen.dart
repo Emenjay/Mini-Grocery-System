@@ -144,13 +144,14 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
 
     // use role_id from backend
     final result = await StaffService.addStaff(
-      roleID: _selectedRole!['role_id'] as int,
-      username: _generatedUsername!,
-      password: _generatedPassword!,
-      fullName: _nameController.text.trim(),
-      contactNumber: '+639${_contactController.text.trim()}',
-      address: _addressController.text.trim(),
-    );
+    roleID: _selectedRole!['role_id'] as int,
+    username: _generatedUsername!,
+    password: _generatedPassword!,
+    fullName: _nameController.text.trim(),
+    contactNumber: '+639${_contactController.text.trim()}',
+    address: _addressController.text.trim(),
+    profilePicture: _pickedPhoto, // null if no photo was picked
+  );
 
     if (!mounted) return;
     setState(() => _isSubmitting = false);

@@ -7,6 +7,7 @@ class ReceiptScreen extends StatelessWidget {
   final double change;
   final String cartNo;
   final String? referenceNumber;
+  final String? dateTime;
   final List<Map<String, dynamic>> items;
   // called when cashier taps Done — PosScreen uses this to clear the cart
   // and generate a new cart number for the next transaction
@@ -19,6 +20,7 @@ class ReceiptScreen extends StatelessWidget {
     required this.amountReceived,
     required this.change,
     this.referenceNumber,
+    this.dateTime,
     required this.cartNo,
     required this.items,
     this.onDone,
@@ -118,6 +120,7 @@ class ReceiptScreen extends StatelessWidget {
 
                 // summary section
                 _receiptRow("Cart No. :", cartNo),
+                if (dateTime != null) _receiptRow("Date & Time:", dateTime!),
                 _receiptRow("Total Amount:", "₱ ${totalAmount.toStringAsFixed(2)}"),
                 _receiptRow("Amount Received:", "₱ ${amountReceived.toStringAsFixed(2)}"),
 

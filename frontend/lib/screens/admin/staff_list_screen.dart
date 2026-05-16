@@ -8,6 +8,7 @@ import 'add_staff_screen.dart';
 import '../../services/staff_service.dart';
 import '../../utils/app_state.dart';
 import '../../services/notification_service.dart';
+import '../../utils/constants.dart';
 
 class StaffListScreen extends StatefulWidget {
   final bool isSubPage;
@@ -156,17 +157,6 @@ class _StaffListScreenState extends State<StaffListScreen> {
             ),
           ).then((_) => _fetchStaff());
         },
-        onToggleDuty: () {
-          Navigator.pop(context);
-          setState(() {
-            final i = _staffList.indexWhere(
-              (s) => s['user_id'] == staff['user_id'],
-            );
-            if (i != -1) {
-              _staffList[i]['is_on_duty'] = _isOnDuty(_staffList[i]) ? 0 : 1;
-            }
-          });
-        },
         onRemove: () {
           Navigator.pop(context);
           _showRemoveConfirmation(context, staff);
@@ -213,7 +203,11 @@ class _StaffListScreenState extends State<StaffListScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     OutlinedButton(
-                      onPressed: () async {
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Cancel", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                    ),
+                    ElevatedButton(
+                      onPressed: ()  async {
                         Navigator.pop(context);
                         final result = await StaffService.deactivateStaff(
                           staff['user_id'],
@@ -231,24 +225,6 @@ class _StaffListScreenState extends State<StaffListScreen> {
                             ),
                           );
                         }
-                      },
-                      child: const Text(
-                        "Cancel",
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        setState(
-                          () => _staffList.removeWhere(
-                            (s) => s['user_id'] == staff['user_id'],
-                          ),
-                        );
-                        _showRemoveSuccess(context, staff['full_name'] ?? '');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF35524A),
@@ -430,27 +406,26 @@ class _StaffListScreenState extends State<StaffListScreen> {
                     child: CircularProgressIndicator(color: Color(0xFF3E5C51)),
                   )
                 : _error != null
-                ? Center(
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  )
-                : filteredStaff.isEmpty
-                ? const Center(child: Text("No staff found"))
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(24, 4, 24, 120),
-                    itemCount: filteredStaff.length,
-                    itemBuilder: (context, index) {
-                      final staff = filteredStaff[index];
-                      return _StaffCard(
-                        staff: staff,
-                        onDuty: _isOnDuty(staff),
-                        onMenuTap: () => _showStaffMenu(context, staff),
-                      );
-                    },
-                  ),
+                    ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+                    : filteredStaff.isEmpty
+                        ? const Center(child: Text("No staff found"))
+                        : ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.fromLTRB(24, 4, 24, 120),
+                            itemCount: filteredStaff.length,
+                            itemBuilder: (context, index) {
+                              final staff = filteredStaff[index];
+                              return _StaffCard(
+                                staff: staff,
+                                onDuty: _isOnDuty(staff),
+                                onMenuTap: () => _showStaffMenu(context, staff),
+                                onCardTap: () => Navigator.push(context,
+                                  MaterialPageRoute(
+                                  builder: (_) => StaffInfoScreen(staff: staff)),
+                                ).then((_) => _fetchStaff()),
+                              );
+                            },
+                          ),
           ),
         ),
       ],
@@ -822,13 +797,10 @@ class _StaffListScreenState extends State<StaffListScreen> {
 class _StaffCard extends StatelessWidget {
   final Map<String, dynamic> staff;
   final VoidCallback onMenuTap;
+  final VoidCallback onCardTap;
   final bool onDuty;
 
-  const _StaffCard({
-    required this.staff,
-    required this.onMenuTap,
-    required this.onDuty,
-  });
+  const _StaffCard({required this.staff, required this.onMenuTap, required this.onCardTap, required this.onDuty});
 
   @override
   Widget build(BuildContext context) {
@@ -837,135 +809,89 @@ class _StaffCard extends StatelessWidget {
 
     // updated photo resolution — handles server URLs, local files, asset paths
     Widget _resolvedPhoto() {
-      final String? path =
-          staff['profile_picture']?.toString() ?? staff['photo']?.toString();
-      if (path == null || path.isEmpty) return _buildPlaceholderPhoto();
+    final String? path = staff['profile_picture']?.toString() ?? staff['photo']?.toString();
+    if (path == null || path.isEmpty) return _buildPlaceholderPhoto();
 
-      if (path.startsWith('http://') || path.startsWith('https://')) {
-        // server URL — profile picture uploaded to backend
-        return Image.network(
-          path,
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
-        );
-      }
-      if (path.startsWith('assets/')) {
-        return Image.asset(
-          path,
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
-        );
-      }
-      if (File(path).existsSync()) {
-        return Image.file(
-          File(path),
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
-        );
-      }
-      return _buildPlaceholderPhoto();
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      // already a full URL
+      return Image.network(path, width: 100, height: 100, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
     }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      height: 125,
-      decoration: BoxDecoration(
-        color: const Color(0xFF35524A),
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: _resolvedPhoto(),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        staff['full_name'] ?? '',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+    // relative backend path e.g. 'uploads/profiles/profile-123.jpg'
+    // prefix with baseUrl so Flutter can fetch it over the network
+    if (path.startsWith('uploads/')) {
+      return Image.network(
+        '${AppConstants.baseUrl}/$path',
+        width: 100, height: 100, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto(),
+      );
+    }
+    if (path.startsWith('assets/')) {
+      return Image.asset(path, width: 100, height: 100, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+    }
+    if (File(path).existsSync()) {
+      return Image.file(File(path), width: 100, height: 100, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholderPhoto());
+    }
+    return _buildPlaceholderPhoto();
+  }
+    
+    return GestureDetector(
+        onTap: onCardTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          height: 125,
+          
+        decoration: BoxDecoration(
+          color: const Color(0xFF35524A),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+          
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  ClipRRect(borderRadius: BorderRadius.circular(10), child: _resolvedPhoto()),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(staff['full_name'] ?? '', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text(staff['role_name'] ?? '', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: onDuty ? const Color(0xFF4CAF50) : Colors.white38)),
+                            const SizedBox(width: 6),
+                            Text(onDuty ? 'On Duty' : 'Off Duty', style: GoogleFonts.poppins(color: onDuty ? Colors.white : Colors.white54, fontSize: 11)),
+                          ],
                         ),
-                      ),
-                      Text(
-                        staff['role_name'] ?? '',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: onDuty
-                                  ? const Color(0xFF4CAF50)
-                                  : Colors.white38,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            onDuty ? 'On Duty' : 'Off Duty',
-                            style: GoogleFonts.poppins(
-                              color: onDuty ? Colors.white : Colors.white54,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: GestureDetector(
-              onTap: onMenuTap,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.more_horiz,
-                  color: Color(0xFF2E4F4F),
-                  size: 18,
+            Positioned(
+              top: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: onMenuTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.more_horiz, color: Color(0xFF2E4F4F), size: 18),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -984,16 +910,9 @@ class _StaffMenuSheet extends StatelessWidget {
   final Map<String, dynamic> staff;
   final VoidCallback onView;
   final VoidCallback onEdit;
-  final VoidCallback onToggleDuty;
   final VoidCallback onRemove;
 
-  const _StaffMenuSheet({
-    required this.staff,
-    required this.onView,
-    required this.onEdit,
-    required this.onToggleDuty,
-    required this.onRemove,
-  });
+  const _StaffMenuSheet({required this.staff, required this.onView, required this.onEdit, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -1018,17 +937,7 @@ class _StaffMenuSheet extends StatelessWidget {
             onTap: onView,
           ),
           _MenuOption(icon: Icons.edit, label: 'Edit Details', onTap: onEdit),
-          _MenuOption(
-            icon: Icons.swap_horiz,
-            label: 'Toggle Duty',
-            onTap: onToggleDuty,
-          ),
-          _MenuOption(
-            icon: Icons.delete,
-            label: 'Remove Staff',
-            onTap: onRemove,
-            isDestructive: true,
-          ),
+          _MenuOption(icon: Icons.delete, label: 'Remove Staff', onTap: onRemove, isDestructive: true),
         ],
       ),
     );

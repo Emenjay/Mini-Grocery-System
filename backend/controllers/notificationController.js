@@ -23,8 +23,16 @@ async function checkAndNotifyLowStock(productId, app) {
      WHERE p.product_id = ?`,
     [productId]
   );
- 
-  if (!product || product.stock_quantity === 0 || product.stock_quantity > LOW_STOCK_THRESHOLD) return;
+  if (!product || product.stock_quantity > LOW_STOCK_THRESHOLD) return;
+
+  // avoid duplicate unread notifications for same product
+  const [[existing]] = await db.query(
+    `SELECT notification_id FROM notification
+    WHERE type = 'LOW_STOCK' AND reference_id = ?
+    AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) LIMIT 1`,
+    [productId]
+  );
+  if (existing) return;
 
   const adminId = await getAdminId();
   if (!adminId) return;
@@ -73,6 +81,15 @@ async function checkAndNotifyOutOfStock(productId, app) {
     [productId]
   );
   if (!product || product.stock_quantity > 0) return;
+
+  // avoid duplicate unread notifications for same product
+  const [[existing]] = await db.query(
+    `SELECT notification_id FROM notification
+    WHERE type = 'OUT_OF_STOCK' AND reference_id = ?
+    AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) LIMIT 1`,
+    [productId]
+  );
+  if (existing) return;
 
   const adminId = await getAdminId();
   if (!adminId) return;
@@ -128,10 +145,10 @@ async function checkAndNotifyExpiredProducts(app) {
     // check if there's already an unread expired product notification for this product today to avoid spamming
     const [[existing]] = await db.query(
       `SELECT notification_id FROM notification
-        WHERE type = 'EXPIRED_PRODUCT' AND reference_id = ?
-        AND is_read = 0 LIMIT 1`,
-      [product.product_id]  
-    ); // Russ's update end
+      WHERE type = 'EXPIRED_PRODUCT' AND reference_id = ?
+      AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) LIMIT 1`,
+      [product.product_id]
+    );
     if (existing) continue;
 
     const expiry = new Date(product.spoilage_date);

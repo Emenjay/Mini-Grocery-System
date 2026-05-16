@@ -48,6 +48,65 @@ class _PosScreenState extends State<PosScreen> {
   // collect product IDs currently in the cart so inventory screen can grey them out on re-open
   Set<int> get _cartProductIds => cartItems.map((i) => i['product_id'] as int).toSet();
 
+  // show a dialog to type a specific quantity — faster than tapping +/- for large amounts
+  void _editQuantityDialog(Map<String, dynamic> item) {
+    final controller = TextEditingController(text: '${item['quantity']}');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(item['name'],
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Quantity',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w500)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Enter amount',
+                hintStyle: const TextStyle(color: Colors.black26, fontSize: 14),
+                filled: true,
+                fillColor: const Color(0xFFF0F0F0),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.black45)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final qty = int.tryParse(controller.text.trim()) ?? 0;
+              if (qty > 0) {
+                setState(() => item['quantity'] = qty);
+              }
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF35524A)),
+            child: const Text('Set', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   // open inventory screen, passing current cart product IDs to preserve greyed-out state
   // when the cashier returns, any selected product is added to the cart
   Future<void> _openInventory() async {
@@ -507,10 +566,20 @@ class _PosScreenState extends State<PosScreen> {
             ]),
           ),
           Container(
-            decoration: BoxDecoration(color: const Color(0xFFE8F1EF), borderRadius: BorderRadius.circular(6)),
+            decoration: BoxDecoration(
+                color: const Color(0xFFE8F1EF),
+                borderRadius: BorderRadius.circular(6)),
             child: Row(children: [
               _qtyBtn(Icons.remove, item),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text("${item['quantity']}", style: const TextStyle(fontWeight: FontWeight.bold))),
+              // tap the number to type a custom quantity
+              GestureDetector(
+                onTap: () => _editQuantityDialog(item),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text("${item['quantity']}",
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
               _qtyBtn(Icons.add, item),
             ]),
           ),

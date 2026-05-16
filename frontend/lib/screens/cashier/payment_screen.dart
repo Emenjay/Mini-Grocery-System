@@ -59,6 +59,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
     });
   }
 
+  String _formatReceiptDateTime(DateTime dt) {
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    final day = dt.day.toString().padLeft(2, '0');
+    final month = dt.month.toString().padLeft(2, '0');
+    final year = dt.year;
+    return '$month/$day/$year  $hour:$minute $period';
+  }
+
   @override
   void dispose() {
     _receivedController.dispose();
@@ -126,6 +136,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           referenceNumber: _selectedMethod == 'GCash' ? _refController.text : null,
           // cart number comes from backend response to stay in sync
           cartNo: data['cartNo'] ?? widget.cartNo,
+          dateTime: _formatReceiptDateTime(DateTime.now()),
           items: receiptItems,
           // clear POS cart and generate new cart number after successful transaction
           onDone: widget.onDone,

@@ -38,6 +38,8 @@ const User = {
         AND a.clock_out_timestamp IS NULL
         AND DATE(a.clock_in_timestamp) = CURDATE()
       WHERE (u.full_name LIKE ? OR r.role_name LIKE ?)
+       AND r.role_name != 'Admin'
+       AND u.account_status = TRUE
     `;
 
     const params = [keyword, keyword];
@@ -47,6 +49,13 @@ const User = {
       query += ` AND r.role_name = ?`;
       params.push(roleFilter);
     }
+
+    // GROUP BY all non‑aggregated columns to collapse duplicate rows
+  query += `
+    GROUP BY u.user_id, u.full_name, u.username, u.contact_number,
+             u.address, u.profile_picture, u.account_status, u.created_at,
+             r.role_name
+  `;
 
     const [rows] = await db.query(query, params);
     return rows;
