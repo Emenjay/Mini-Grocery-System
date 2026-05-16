@@ -77,9 +77,6 @@ exports.checkout = async (req, res) => {
       finalCartNo, userID, paymentID, totalAmount,
       parseFloat(payment.amount_received), changeAmount
     );
-
-    const warnings = [];
-
     // process each cart item
     for (const item of resolvedCart) {
       
@@ -92,17 +89,10 @@ exports.checkout = async (req, res) => {
       // deduct stock
       await Inventory.deductStock(item.product_id, item.quantity);
 
-      // check and push real-time if low/out of stock
+
+      // notify admin if stock is now low or out
       await checkAndNotifyLowStock(item.product_id, req.app);
       await checkAndNotifyOutOfStock(item.product_id, req.app);
-
-      // check stock after deduction and warn if needed
-      const inventory = await Inventory.getByProductID(item.product_id);
-      if (inventory && inventory.stock_status === 'Out of Stock') {
-        warnings.push(`${item.product_name} is out of stock, please update inventory`);
-      } else if (inventory && inventory.stock_status === 'Low Stock') {
-        warnings.push(`${item.product_name} stock is low, please update inventory`);
-      }
     }
 
     res.status(201).json({
@@ -111,7 +101,6 @@ exports.checkout = async (req, res) => {
       transactionID,
       totalAmount,
       changeAmount,
-      warnings
     });
 
   } catch (err) {
