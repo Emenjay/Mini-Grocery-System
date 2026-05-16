@@ -28,7 +28,8 @@ async function checkAndNotifyLowStock(productId, app) {
   // avoid duplicate unread notifications for same product
   const [[existing]] = await db.query(
     `SELECT notification_id FROM notification
-     WHERE type = 'LOW_STOCK' AND reference_id = ? AND is_read = 0 LIMIT 1`,
+    WHERE type = 'LOW_STOCK' AND reference_id = ?
+    AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) LIMIT 1`,
     [productId]
   );
   if (existing) return;
@@ -68,7 +69,8 @@ async function checkAndNotifyOutOfStock(productId, app) {
   // avoid duplicate unread notifications for same product
   const [[existing]] = await db.query(
     `SELECT notification_id FROM notification
-     WHERE type = 'OUT_OF_STOCK' AND reference_id = ? AND is_read = 0 LIMIT 1`,
+    WHERE type = 'OUT_OF_STOCK' AND reference_id = ?
+    AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) LIMIT 1`,
     [productId]
   );
   if (existing) return;
@@ -113,8 +115,9 @@ async function checkAndNotifyExpiredProducts(app) {
     // avoid duplicate unread notifications for same product
     const [[existing]] = await db.query(
       `SELECT notification_id FROM notification
-       WHERE type = 'EXPIRED_PRODUCT' AND reference_id = ? AND is_read = 0 LIMIT 1`,
-      [product.product_id]  // fixed: was 'productId' (undefined)
+      WHERE type = 'EXPIRED_PRODUCT' AND reference_id = ?
+      AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR) LIMIT 1`,
+      [product.product_id]
     );
     if (existing) continue;
 

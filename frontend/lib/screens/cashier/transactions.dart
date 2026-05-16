@@ -91,6 +91,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           change: double.tryParse(data['change_amount'].toString()) ?? 0.0,
           referenceNumber: data['reference_number'],
           cartNo: data['cart_no'],
+          dateTime: data['date_time']?.toString(),
           items: items,
         ),
       ),
