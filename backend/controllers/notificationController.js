@@ -37,35 +37,19 @@ async function checkAndNotifyLowStock(productId, app) {
   const adminId = await getAdminId();
   if (!adminId) return;
 
-  const newMessage = `"${product.product_name}" is running low — only ${product.stock_quantity} unit(s) left.`;
-
-  // Russ's update: check if there's already an unread low stock notification
-  // check if there's already an unread low stock notification for this product today to avoid spamming
-  const [[existing]] = await db.query(
-    `SELECT notification_id FROM notification
-      WHERE type = 'LOW_STOCK' AND reference_id = ?
-      AND is_read = 0 LIMIT 1`,
-    [productId]
+  const notificationId = await NotificationModel.create(
+    adminId, 'LOW_STOCK', 'Low Stock Alert',
+    `"${product.product_name}" is running low — only ${product.stock_quantity} unit(s) left.`,
+    productId
   );
-  if (existing) {
-     // update message and reset created_at so it appears fresh
-    await db.query(
-      `UPDATE notification SET message = ?, created_at = NOW() WHERE notification_id = ?`,
-      [newMessage, existing.notification_id]
-    );
-  } else {
-    await NotificationModel.create(
-      adminId, 'LOW_STOCK', 'Low Stock Alert', newMessage, productId
-    );
-  }
 
-  // push real-time either way
+  // push real-time if app instance available
   if (app) {
     pushToAdmins(app, {
-      notification_id: existing?.notification_id,
+      notification_id: notificationId,
       type: 'LOW_STOCK',
       title: 'Low Stock Alert',
-      message: newMessage,
+      message: `"${product.product_name}" is running low — only ${product.stock_quantity} unit(s) left.`,
       is_read: false,
       created_at: new Date().toISOString(),
     });
@@ -94,32 +78,19 @@ async function checkAndNotifyOutOfStock(productId, app) {
   const adminId = await getAdminId();
   if (!adminId) return;
 
-  const newMessage = `"${product.product_name}" has run out — restock needed.`;
-
-  // check if there's already an unread out of stock notification for this product today to avoid spamming
-  const [[existing]] = await db.query(
-    `SELECT notification_id FROM notification
-     WHERE type = 'OUT_OF_STOCK' AND reference_id = ?
-     AND is_read = 0 LIMIT 1`,
-    [productId]
+  const notificationId = await NotificationModel.create(
+    adminId, 'OUT_OF_STOCK', 'Out of Stock Alert',
+    `"${product.product_name}" has run out — restock needed.`,
+    productId
   );
-  if (existing) {
- await db.query(
-      `UPDATE notification SET message = ?, created_at = NOW() WHERE notification_id = ?`,
-      [newMessage, existing.notification_id]
-    );
-  } else {
-    await NotificationModel.create(
-      adminId, 'OUT_OF_STOCK', 'Out of Stock Alert', newMessage, productId
-    );
-  }
 
+  // push real-time if app instance available
   if (app) {
     pushToAdmins(app, {
-      notification_id: existing?.notification_id,
+      notification_id: notificationId,
       type: 'OUT_OF_STOCK',
       title: 'Out of Stock Alert',
-      message: newMessage,
+      message: `"${product.product_name}" has run out — restock needed.`,
       is_read: false,
       created_at: new Date().toISOString(),
     });
@@ -140,9 +111,8 @@ async function checkAndNotifyExpiredProducts(app) {
   const adminId = await getAdminId();
   if (!adminId) return;
 
-  // check each product and create notification if expiring
   for (const product of products) {
-    // check if there's already an unread expired product notification for this product today to avoid spamming
+    // avoid duplicate unread notifications for same product
     const [[existing]] = await db.query(
       `SELECT notification_id FROM notification
       WHERE type = 'EXPIRED_PRODUCT' AND reference_id = ?
@@ -252,6 +222,26 @@ exports.getAll = async (req, res) => {
       `DELETE FROM notification WHERE created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)`
     );
 
+    // passively check for expiry and low/out-of-stock on every fetch
+    // pass req.app so real-time push fires for any newly created notifications
+    await checkAndNotifyExpiredProducts(req.app);
+
+    const [lowStockProducts] = await db.query(
+      `SELECT p.product_id FROM product p
+       JOIN inventory i ON p.product_id = i.product_id
+       WHERE i.stock_quantity <= ? AND i.stock_quantity > 0`,
+      [LOW_STOCK_THRESHOLD]
+    );
+    for (const p of lowStockProducts) await checkAndNotifyLowStock(p.product_id, req.app);
+
+    // also check out-of-stock products passively
+    const [outOfStockProducts] = await db.query(
+      `SELECT p.product_id FROM product p
+       JOIN inventory i ON p.product_id = i.product_id
+       WHERE i.stock_quantity <= 0`
+    );
+    for (const p of outOfStockProducts) await checkAndNotifyOutOfStock(p.product_id, req.app);
+
     const { unread, limit = 50, offset = 0 } = req.query;
     const notifications = unread === 'true'
       ? await NotificationModel.findUnread()
@@ -262,7 +252,7 @@ exports.getAll = async (req, res) => {
   } catch (err) {
     console.error('notificationController.getAll:', err);
     res.status(500).json({ success: false, message: 'Failed to fetch notifications.' });
-  } 
+  }
 };
 
 // GET /api/notification/unread-count

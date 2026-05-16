@@ -53,43 +53,6 @@ app.use('/api/dashboard', dashboardRoutes);
 // notification routes
 app.use('/api/notification', notificationRoutes);
 
-// Russ's update
-// run daily checks for expired products and low stock
-const db = require('./config/db');
-const {
-  checkAndNotifyExpiredProducts,
-  checkAndNotifyLowStock,
-  checkAndNotifyOutOfStock,
-} = require('./controllers/notificationController');
-
-// run stock and expiry checks once every 24 hours
-async function runDailyChecks() {
-  try {
-    await checkAndNotifyExpiredProducts(app);
-
-    const [lowStock] = await db.query(
-      `SELECT p.product_id FROM product p
-       JOIN inventory i ON p.product_id = i.product_id
-       WHERE i.stock_quantity <= 15 AND i.stock_quantity > 0`
-    );
-    for (const p of lowStock) await checkAndNotifyLowStock(p.product_id, app);
-
-    const [outOfStock] = await db.query(
-      `SELECT p.product_id FROM product p
-       JOIN inventory i ON p.product_id = i.product_id
-       WHERE i.stock_quantity <= 0`
-    );
-    for (const p of outOfStock) await checkAndNotifyOutOfStock(p.product_id, app);
-  } catch (err) {
-    console.error('Daily notification check failed:', err);
-  }
-}
-
-// run immediately on startup, then every 24 hours
-runDailyChecks();
-setInterval(runDailyChecks, 24 * 60 * 60 * 1000);
-// end of Russ's update
-
 app.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
 });

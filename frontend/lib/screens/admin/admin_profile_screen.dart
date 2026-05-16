@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../utils/app_state.dart';
 import '../../utils/constants.dart';
 import '../../services/staff_service.dart';
-import '../../services/notification_service.dart';
 
 class AdminProfileScreen extends StatefulWidget {
   final bool isSubPage;
@@ -33,15 +32,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   // blank = keep existing password, filled = change to this
   final TextEditingController _passwordController = TextEditingController();
   bool _showPassword = false;
-
-  // for notification badge : Russ
-  int _unreadCount = 0;
-
-  Future<void> _fetchUnreadCount() async {
-    final count = await NotificationService.getUnreadCount();
-    if (!mounted) return;
-    setState(() => _unreadCount = count);
-  }
 
   @override
   void initState() {
@@ -200,9 +190,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       _showUpdateSuccess(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Failed to update profile'),
-        ),
+        SnackBar(content: Text(result['message'] ?? 'Failed to update profile')),
       );
     }
   }
@@ -314,10 +302,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               Container(width: 1, height: 25, color: Colors.white38),
               const SizedBox(width: 10),
               GestureDetector(
-                onTap: () async {
-                  await Navigator.pushNamed(context, '/notifications');
-                  _fetchUnreadCount();
-                },
+                onTap: () => Navigator.pushNamed(context, '/notifications'),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
