@@ -137,7 +137,7 @@ const User = {
   // deactivate employee
   deactivateUser: async (userID) => {
     const [result] = await db.query(
-      `UPDATE users SET account_status = FALSE WHERE user_id = ?`,
+      `UPDATE users SET account_status = 0 WHERE user_id = ?`,
       [userID]
     );
     return result.affectedRows;

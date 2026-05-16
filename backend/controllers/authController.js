@@ -20,18 +20,18 @@ exports.login = async (req, res) => {
 
     // check if username matches
     if (!user) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+      return res.status(401).json({ message: 'Invalid username or password:' });
     }
 
     // check if account is active
-    if (!user.account_status) {
-      return res.status(403).json({ message: 'Account is disabled' });
+    if (user.account_status === 0 || user.account_status === false || user.account_status === '0') {
+      return res.status(403).json({ message: 'Account is disabled:' });
     }
 
     // check if password matches
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+      return res.status(401).json({ message: 'Invalid username or password:' });
     }
 
     // check for abandoned shift from a previous day and warn, but leave it open
