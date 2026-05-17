@@ -59,7 +59,7 @@ exports.checkout = async (req, res) => {
     // round total to avoid floating point issues
     totalAmount = Math.ceil(totalAmount);
 
-    // calculate change — cash-in validation removed per client request
+    // calculate change - cash-in validation removed per client request
     // change can be negative if amount received is less than total (flexible payment)
     const changeAmount = parseFloat(payment.amount_received) - totalAmount;
 
@@ -121,7 +121,6 @@ exports.checkout = async (req, res) => {
 };
 
 // Russ's update: added getTransactionDetail function to fetch transaction details for receipt view in Flutter app
-// GET /api/transactions/:id
 exports.getTransactionDetail = async (req, res) => {
   try {
     const { id } = req.params;
@@ -181,7 +180,6 @@ exports.getTransactionDetail = async (req, res) => {
 };
 
 //Russ's update: added getTransactionHistory function 
-//GET /api/transaction
 exports.getTransactionHistory = async (req, res) => {
   try {
     const { userID, role } = req.user;

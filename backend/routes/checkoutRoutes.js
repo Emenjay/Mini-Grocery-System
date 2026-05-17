@@ -6,7 +6,7 @@ const checkoutController = require('../controllers/checkoutController');
 // transaction history
 router.get('/', protect, checkoutController.getTransactionHistory);
 
-// paused cart routes — must be before /:id
+// paused cart routes - must be before /:id
 router.post('/pause', protect, checkoutController.pauseCart);
 router.get('/paused', protect, checkoutController.getPausedCarts);
 router.get('/paused/:id', protect, checkoutController.getPausedCartByID);

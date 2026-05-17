@@ -6,7 +6,7 @@ const protect = require('../middleware/authMiddleware');
 // GET /api/notification/stream - SSE endpoint for real-time push
 router.get('/stream', protect, notificationController.stream);
 
-//Protect all notification routes — only owners/admins should see these.
+//Protect all notification routes - only owners/admins should see these.
 router.use(protect);
 
 //GET    /api/notification               → list all (supports ?unread=true)

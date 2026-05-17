@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/notification_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COLOURS - unchanged
+// COLOURS
 // ─────────────────────────────────────────────────────────────────────────────
 const Color _pageBg       = Color(0xFF2F514C);
 const Color _sectionLabel = Color(0xFF8DE3A9);
@@ -205,7 +205,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HEADER — unchanged from original
+// HEADER
 // ─────────────────────────────────────────────────────────────────────────────
 class _NotifHeader extends StatelessWidget {
   final VoidCallback onBack;
@@ -256,7 +256,7 @@ class _NotifHeader extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK ALL READ BUTTON — unchanged from original
+// MARK ALL READ BUTTON
 // ─────────────────────────────────────────────────────────────────────────────
 class _MarkAllReadButton extends StatefulWidget {
   final VoidCallback onTap;
@@ -321,8 +321,7 @@ class _MarkAllReadButtonState extends State<_MarkAllReadButton>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NOTIFICATION CARD — refactored to accept plain fields instead of _NotifItem
-// styling is identical to original
+// NOTIFICATION CARD
 // ─────────────────────────────────────────────────────────────────────────────
 class _NotifCard extends StatelessWidget {
   final String title;

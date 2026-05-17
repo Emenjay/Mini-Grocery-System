@@ -32,7 +32,6 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
   late TextEditingController _nameController;
   late TextEditingController _contactController;
   late TextEditingController _addressController;
-  // new PIN controller — blank means "keep existing", filled means "change to this"
   final TextEditingController _newPinController = TextEditingController();
   bool _showPin = false; // toggles PIN visibility
 

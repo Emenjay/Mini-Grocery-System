@@ -5,7 +5,7 @@ import '../../../theme/colors.dart';
 import '../../../services/inventory_service.dart';
 
 class InventoryScreen extends StatefulWidget {
-  // product IDs already in the POS cart — passed from PosScreen so greyed-out state
+  // product IDs passed from PosScreen so greyed-out state
   // persists when the cashier re-opens inventory mid-transaction
   final Set<int> addedProductIds;
   const InventoryScreen({super.key, this.addedProductIds = const {}});

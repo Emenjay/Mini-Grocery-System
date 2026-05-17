@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../services/inventory_service.dart';
 
-// categories that are perishable - always use 15 (normal) threshold
 // Fresh & Prepared, Pantry Staples, Frozen Goods are perishable and slower-moving
 const perishableCategories = ['Fresh & Prepared', 'Pantry Staples', 'Frozen Goods'];
 
@@ -31,7 +30,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
   bool _submittedOnce = false;
   bool _isLoading = false;
 
-  // REMOVED: selectedStatus - backend calculates stock status automatically
 
   List<Map<String, dynamic>> _categories = [];
   bool _categoriesLoading = true;
@@ -77,7 +75,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
         _stockController.text.isNotEmpty &&
         selectedType != null &&
         selectedCategoryID != null &&
-        // REMOVED: selectedStatus check - not needed
         expirationDate != null &&
         dateReceived != null &&
         !_isExpiredError;
@@ -359,7 +356,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Inventory Velocity — 3 options in one row, perishable pre-selects None but all are unlockable
+                    // Inventory Velocity — 3 options in one row, perishable pre-selects None but all changeable
                     const Text("Inventory Velocity",
                         style: TextStyle(
                             color: Colors.black87,
@@ -396,8 +393,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         ),
                       ),
                     const SizedBox(height: 20),
-
-                    // REMOVED: Stock Status dropdown
+                    
                     // stock status is now auto-calculated by backend
 
                     // initial stock field only

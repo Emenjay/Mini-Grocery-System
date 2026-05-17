@@ -26,7 +26,6 @@ const Dashboard = {
   },
 
   // active shifts - list of users currently clocked in today
-  // active shifts - list of users currently clocked in today
 getActiveShifts: async () => {
   const [rows] = await db.query(
     `SELECT 

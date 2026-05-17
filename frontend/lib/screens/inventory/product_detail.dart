@@ -21,8 +21,8 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late int _currentIndex;
   bool isEditing = false;
-  bool _isSaving = false;   // ← ADD: tracks save loading state
-  bool _isDeleting = false; // ← ADD: tracks delete loading state
+  bool _isSaving = false;
+  bool _isDeleting = false;
 
   late TextEditingController _nameController;
   late TextEditingController _descController;

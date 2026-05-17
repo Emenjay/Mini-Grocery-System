@@ -42,7 +42,7 @@ exports.addProduct = async (req, res) => {
       return res.status(400).json({ message: 'categoryID, productName, and basePrice are required' });
     }
 
-    // insert product — starts unapproved, markup defaults to 0
+    // insert product - starts unapproved, markup defaults to 0
     const productID = await Product.addProduct(
      categoryID, productName, description, basePrice,
       unitMeasurement,

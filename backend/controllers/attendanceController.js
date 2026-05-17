@@ -86,7 +86,7 @@ exports.endShift = async (req, res) => {
   }
 };
 
-// GET /api/attendance/active
+
 // returns the active shift for today if one exists, null otherwise
 // Flutter uses this on cash-in screen load to skip straight to POS if shift is already running
 exports.getActiveShift = async (req, res) => {

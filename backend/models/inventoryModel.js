@@ -129,7 +129,7 @@ async function calculateStockStatus(productID, quantity) {
 
   if (quantity <= 0) return 'Out of Stock';
 
-  // NULL threshold — no Low Stock, anything above 0 is In Stock
+  // NULL threshold - no Low Stock, anything above 0 is In Stock
   if (isfastmoving === null || isfastmoving === undefined) return 'In Stock';
 
   const lowStockThreshold = isfastmoving ? 50 : 15;

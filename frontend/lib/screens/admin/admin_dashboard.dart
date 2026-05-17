@@ -177,7 +177,7 @@ class _DashboardContentState extends State<_DashboardContent> {
     super.initState();
     _fetchDashboard();
 
-    // subscribe to real-time notifications — connection was already opened in login.dart
+    // subscribe to real-time notifications
     // store subscription so it can be cancelled on dispose
     _notifSubscription = NotificationService.notificationStream.listen((notification) {
       if (!mounted) return;

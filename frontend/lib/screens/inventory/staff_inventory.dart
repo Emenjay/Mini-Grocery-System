@@ -120,7 +120,6 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                 'name': p['product_name'],
                 'category': p['category_name'],
                 'stocks': p['stock_quantity'] ?? 0,
-                // map backend stock_status to frontend display values
                 'status': _mapStockStatus(p['stock_status']),
                 'basePrice': double.tryParse(p['base_price'].toString()) ?? 0.0,
                 'markup': double.tryParse(p['markup_price'].toString()) ?? 0.0,
@@ -418,7 +417,7 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
                     ],
                   ),
                   _buildExpansionTile("Expiration Month", children: [
-                    // dynamically generated months instead of hardcoded presets
+                    // dynamically generated months
                     ..._expiryMonthFilters.map((monthKey) => _buildDrawerLink(
                       _formatMonthLabel(monthKey), // display as 'May 2026'
                       isSelected: activeExpiryFilter == monthKey,
@@ -641,7 +640,7 @@ class _InventoryStaffScreenState extends State<InventoryStaffScreen> {
   Widget _buildProductCard(List<Map<String, dynamic>> list, int index) {
     final item = list[index];
     return Dismissible(
-      key: Key(item['id'].toString()), // use backend product_id as key
+      key: Key(item['id'].toString()),
       direction: DismissDirection.endToStart,
       confirmDismiss: (direction) async {
         _showDeleteConfirmation(context, item);

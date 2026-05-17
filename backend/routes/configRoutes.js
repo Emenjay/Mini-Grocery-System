@@ -6,7 +6,7 @@ const configController = require('../controllers/configController');
 // get all config values
 router.get('/', protect, configController.getConfig);
 
-// update a config value — admin only enforced on Flutter side
+// update a config value - admin only enforced on Flutter side
 // ex: PATCH /api/config/default_markup
 router.patch('/:key', protect, configController.updateConfig);
 

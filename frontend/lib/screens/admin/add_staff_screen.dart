@@ -260,7 +260,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // role dropdown now uses backend data
+                      // role dropdown from backend data
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 28),
                         child: _rolesLoading
@@ -355,7 +355,7 @@ class _AddStaffScreenState extends State<AddStaffScreen> {
   }
 }
 
-// helper widgets - unchanged from original, kept for completeness
+// helper widgets
 class _ProfilePhotoPicker extends StatelessWidget {
   final File? photo;
   final VoidCallback onTap;

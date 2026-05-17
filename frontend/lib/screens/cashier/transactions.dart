@@ -111,7 +111,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // back button only - logout button removed
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(

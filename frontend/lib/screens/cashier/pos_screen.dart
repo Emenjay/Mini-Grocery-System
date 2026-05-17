@@ -415,7 +415,6 @@ class _PosScreenState extends State<PosScreen> {
                               ),
                               const SizedBox(width: 10),
                               // DELETE: clears items AND regenerates cart number (new transaction slate)
-                              // no backend call needed since unsaved carts don't exist on backend yet
                               GestureDetector(
                                 onTap: () => setState(() {
                                   cartItems.clear();

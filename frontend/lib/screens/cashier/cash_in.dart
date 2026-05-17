@@ -88,7 +88,7 @@ class _CashInScreenState extends State<CashInScreen> {
       // restore the cash-in amount from the existing shift
       final double existingCashIn = double.tryParse(data['cashIn'].toString()) ?? 0.0;
       _redirectToPos(existingCashIn);
-      return; // don't update _isChecking — screen is being replaced anyway
+      return;
     }
 
     // no active shift found, show the form normally

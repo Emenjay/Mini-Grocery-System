@@ -196,7 +196,6 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                   _readOnlyTile(Icons.badge_outlined, "Product ID", currentProduct['product_id'].toString()),
                   _readOnlyTile(Icons.sell_outlined, "Base Price",
                     "₱ ${double.tryParse(currentProduct['base_price']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00'}"),
-                  // unit measurement now shown — was missing before
                   if ((currentProduct['unit_measurement']?.toString() ?? '').isNotEmpty)
                     _readOnlyTile(Icons.straighten_outlined, "Unit Measurement",
                       currentProduct['unit_measurement'].toString()),
@@ -206,7 +205,7 @@ class _AdminProductDetailScreenState extends State<AdminProductDetailScreen> {
                     _formatDate(currentProduct['spoilage_date'])),
                   const SizedBox(height: 10),
 
-                  // markup card — dropdown with fixed percentage options
+                  // markup card
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),

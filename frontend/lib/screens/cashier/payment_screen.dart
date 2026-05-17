@@ -50,7 +50,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (_selectedMethod == 'Cash') {
         _isButtonEnabled = received >= widget.totalAmount && _receivedController.text.isNotEmpty;
       } else {
-        // REMOVED: 13-char alphanumeric restriction.
         // Now just checks if not empty.
         _isButtonEnabled = received >= widget.totalAmount &&
                           _receivedController.text.isNotEmpty &&
@@ -250,7 +249,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     const SizedBox(height: 8),
                     _inputField(_refController, "e.g. 1234ABC567890", isAlphanumeric: true),
 
-                    // REMOVED: 13-character restriction error message
                     const SizedBox(height: 20),
                   ],
                   const Text("Enter Money Received:", style: TextStyle(color: Colors.white, fontSize: 16)),

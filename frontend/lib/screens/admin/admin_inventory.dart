@@ -78,7 +78,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
       sortName: sortName,
       sortPrice: sortPrice,
       recentlyAdded: isRecentlyAdded,
-      all: true, // admin sees all products without pagination
+      all: true,
     );
 
     if (!mounted) return;
@@ -351,7 +351,7 @@ class _AdminInventoryScreenState extends State<AdminInventoryScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.white,
-      // sidebar filter — same structure as staff_inventory
+      // sidebar filter
       endDrawer: _buildFilterSidebar(),
       body: Column(
         children: [

@@ -9,8 +9,6 @@ class ReceiptScreen extends StatelessWidget {
   final String? referenceNumber;
   final String? dateTime;
   final List<Map<String, dynamic>> items;
-  // called when cashier taps Done — PosScreen uses this to clear the cart
-  // and generate a new cart number for the next transaction
   final VoidCallback? onDone;
 
   const ReceiptScreen({
@@ -33,7 +31,6 @@ class ReceiptScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // hide back button - cashier must use Done to ensure cart is cleared properly
         automaticallyImplyLeading: false,
         title: const Text(
           "Receipt",

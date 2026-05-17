@@ -44,7 +44,7 @@ const Product = {
     // check if it's a month filter (format: YYYY-MM) or a preset keyword
     const monthPattern = /^\d{4}-\d{2}$/;
     if (monthPattern.test(expirationFilter)) {
-      // filter by specific month — matches products expiring in that month/year
+      // filter by specific month - matches products expiring in that month/year
       query += ` AND DATE_FORMAT(i.spoilage_date, '%Y-%m') = ?`;
       params.push(expirationFilter);
     } else if (expirationFilter === 'Expired') {

@@ -194,7 +194,7 @@ function pushToAdmins(app, notification) {
   }
 }
 
-// GET /api/notification - passive checks on every fetch
+// passive checks on every fetch
 exports.getAll = async (req, res) => {
   try {
     await db.query(

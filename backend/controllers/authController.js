@@ -50,7 +50,7 @@ exports.login = async (req, res) => {
     // use user.full_name (from DB), user.user_id as shiftId placeholder, pass req.app for SSE push
     await notifyEmployeeLogin(user.user_id, user.full_name, 0, user.user_id, req.app);
 
-    // generate token — include username and fullName so Flutter can display them
+    // generate token - include username and fullName so Flutter can display them
     const token = jwt.sign(
       { userID: user.user_id, role: user.role_name, username: user.username, fullName: user.full_name },
       process.env.JWT_SECRET,
